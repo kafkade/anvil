@@ -1,0 +1,8 @@
+# yaml-language-server: $schema=../workload-schema.json
+name: Extras
+description: Workload for backend development and productivity tools
+packages:
+  winget:
+    - Microsoft.VisualStudio.2022.Enterprise
+scripts:
+  - updateVsInstall.ps1

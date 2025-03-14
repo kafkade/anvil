@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=../workload-schema.json
+name: Essentials
+description: Workload for essential development and productivity tools
+packages:
+  winget:
+    - Microsoft.VisualStudioCode
+    - Git.Git

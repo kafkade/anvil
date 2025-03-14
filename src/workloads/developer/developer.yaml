@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=../workload-schema.json
+name: Extras
+description: Workload for developer tools and configurations
+packages:
+  winget:
+    - Microsoft.PowerToys
+    - JanDeDobbeleer.OhMyPosh
