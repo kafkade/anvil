@@ -24,14 +24,10 @@
       }
     },
     "scripts": {
-      "type": "object",
+      "type": "array",
       "description": "List of scripts to run as part of the workload",
-      "additionalProperties": {
-        "type": "array",
-        "description": "List of script paths to run",
-        "items": {
-          "type": "string"
-        }
+      "items": {
+        "type": "string"
       }
     },
     "environmentVariables": {
