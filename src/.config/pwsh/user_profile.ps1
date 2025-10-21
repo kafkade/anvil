@@ -29,5 +29,9 @@ Register-ArgumentCompleter -Native -CommandName dotnet -ScriptBlock {
 
 Import-Module DockerCompletion
 
+# Fast Node Manager (fnm)
+fnm env --use-on-cd --shell powershell | Out-String | Invoke-Expression
+
+
 . $env:USERPROFILE\.config\pwsh\psreadline.ps1
 . $env:USERPROFILE\.config\pwsh\aliases.ps1
