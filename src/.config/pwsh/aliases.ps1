@@ -118,7 +118,8 @@ to this specific VPN.
 Connect-VPN
 
 .NOTES
-TODO: General notes.
+There is already a MSFT-AzVPN-Auto profile that connects automatically when the machine
+is started. This function is useful when the auto connection fails for some reason.
 #>
 function Connect-VPN {
     $vpn = "MSFT-AzVPN-Manual"
@@ -145,7 +146,7 @@ in this workstation.
 Start-MsaLogin
 
 .NOTES
-TODO: General notes.
+This function will need refactoring since OneBox is moving to a DevBox model.
 #>
 function Start-MsaLogin {
 

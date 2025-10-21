@@ -79,21 +79,4 @@ Install-WorkloadPackages -WorkloadFolders @(
     "account-ux",
     "identity-ux")
 
-# TODO: javierfe: Move some of these check to a workload to keep them organized
-# Check_IsGitInstalled
-# Check_IsGithubInstalled
-# # Check_IsTerraformInstalled
-# Check_IsAzureCliInstalled
-
-# Check_TerminalSetup
-# Check_IdentitySetup
-
 Write-Host "`n<<< winforge script completed!!! <<<`n"
-
-### TODO: Check node/npm is installed
-### TODO: Check typescript is installed (create typescript/react development profile)
-### TODO: Create custom shortcut for Windows Terminal in the desktop to open as admin with shortcut
-### TODO: Print message to notify user to add shortcut rewrite Ctrl+Alt+T to open Windows Terminal as admin -> Win+T in PowerToys
-### TODO: Install git-sim -> pip3 install git-sim (make sure pip3 is installed)
-### TODO: Create personal profile for check-setup
-### TODO: Add install of hledger to personal profile

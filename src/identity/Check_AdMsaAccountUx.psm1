@@ -58,7 +58,6 @@ function AccountUxSetup {
 
 function Check_AccountUxIsSetup {
     $desc   = "checking if AD-MSA-AccountUX is setup"
-    # TODO: javierfe: Add a more sophisticated check to see if the repo is setup
     $check  = { choco search BuildReq -l | Where-Object { $_ -match "BuildReq" } }
     $fix = { AccountUxSetup }
     Execute_Check -Description $desc -CheckAction $check -FixAction $fix -ErrorMessage "AD-MSA-AccountUX needs to be setup." -InterruptOnError

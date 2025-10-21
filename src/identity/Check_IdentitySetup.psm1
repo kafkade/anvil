@@ -39,19 +39,6 @@ function Check_IdentitySetup {
     }
 
     Check_NugetIsInstalled
-    # TODO: Keep adding checks to satisfy the prerequisites page
-    # https://onebranch.visualstudio.com/OneBranch/_wiki/wikis/OneBranch.wiki/3689/Install-Build-Prerequisites
-
-    # TODO: check if IIS is installed
-    # TODO: check if IISEXPRESS is installed
-
-    ### Powershell command to enable IIS
-    ### Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole, IIS-WebServer, IIS-CommonHttpFeatures, IIS-ManagementConsole, IIS-HttpErrors, IIS-HttpRedirect, IIS-WindowsAuthentication, IIS-StaticContent, IIS-DefaultDocument, IIS-HttpCompressionStatic, IIS-DirectoryBrowsing
-    ### Command to Disable IIS
-    ### Disable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole, IIS-WebServer
-
-    # TODO: Create Windows terminal profiles
-    # https://identitydivision.visualstudio.com/IdentityWiki/_wiki/wikis/IdentityWiki.wiki/26512/-How-to-Set-up-multiple-enlistment-windows-in-a-single-terminal
 
     
     Check_SlnGenIsInstalled

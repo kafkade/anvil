@@ -6,14 +6,6 @@ function Check_IsPackageInstalled {
         [string[]]$InstalledPackages = $null
     )
 
-    # TODO: javierfe: Refactor this function. It's currently not working as expected.
-    # if ($null -eq $InstalledPackages) {
-    #     $InstalledPackages = winget list
-    # }
-    
-    # return $InstalledPackages -match "^\s*$PackageId\s"
-
-    
     $result = winget list --id $PackageId -e
     if ($result -match $PackageId) {
         return $true
