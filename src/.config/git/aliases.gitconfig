@@ -121,7 +121,7 @@
     # v2 (fixed) - uses gone marker to find branches that have been merged upstream
     bclean = !git gone | xargs -r git branch -D
     
-    ### Switches to specified branch (or the dafult branch if no branch is specified), runs git up, then runs bclean.
+    ### Switches to specified branch (or the default branch if no branch is specified), runs git up, then runs bclean.
     bdone = "!f() { DEFAULT=$(git default); git checkout ${1-$DEFAULT} && git up && git bclean ${1-$DEFAULT}; }; f"
 
     ### Safely push force 

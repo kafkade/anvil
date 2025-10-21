@@ -9,9 +9,11 @@ echo "Running local pre-commit checks..."
 #     exit 1
 # fi
 
+REPO_ROOT="$(git rev-parse --show-toplevel)"
+
 # Check for TODO comments
 echo "Checking for TODOs..."
-if grep -r --exclude-dir=hooks "TODO" ./src; then
+if grep -r --exclude-dir=hooks "TODO" "$REPO_ROOT/src"; then
     echo "Commit aborted: TODO found in source files."
     exit 1
 fi
