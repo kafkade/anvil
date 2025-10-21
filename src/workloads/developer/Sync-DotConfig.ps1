@@ -154,7 +154,7 @@ git push origin main
 
 .NOTES
 Author: WinForge Team
-Version: 1.0.0
+Version: 2.0.0
 Requires: PowerShell 5.1 or higher
 License: MIT
 Project: https://github.com/javierfe_microsoft/winforge
