@@ -1,6 +1,5 @@
-# ----------------------------------------------------------------------------- 
-# aliases
-# ----------------------------------------------------------------------------- 
+### git aliases
+
 [alias]
     abort = rebase --abort
     aliases = "!git config -l | grep ^alias\\. | cut -c 7-"
@@ -36,6 +35,7 @@
     dlc = diff --word-diff --cached HEAD^
 
     ai = add --patch
+    ri = restore --patch
     
     ### grep on filename
     f = "!git ls-files | grep -i"
@@ -112,8 +112,14 @@
     # v2
     wipe = "!f() { rev=$(git rev-parse ${1-HEAD}); git add -A && git commit --allow-empty -qm 'WIPE SAVEPOINT' && git reset $rev --hard; }; f"
 
+    ### Lists branches that have an upstream branch that has been deleted
+    gone = !git for-each-ref --format='%(refname:short) %(upstream:track)' refs/heads/ | awk '$2 == \"[gone]\" { print $1 }'
+
     #### Deletes all branches merged into the specified branch (or the default branch if no branch is specified)
-    bclean = "!f() { DEFAULT=$(git default); git branch --merged ${1-$DEFAULT} | grep -v " ${1-$DEFAULT}$" | xargs git branch -d; }; f"
+    # v1 (broken) git branch --merged ---- only works if the repo you're working with is merging branches instead of squashing them
+    #bclean = "!f() { DEFAULT=$(git default); git branch --merged ${1-$DEFAULT} | grep -v " ${1-$DEFAULT}$" | xargs git branch -d; }; f"
+    # v2 (fixed) - uses gone marker to find branches that have been merged upstream
+    bclean = !git gone | xargs -r git branch -D
     
     ### Switches to specified branch (or the dafult branch if no branch is specified), runs git up, then runs bclean.
     bdone = "!f() { DEFAULT=$(git default); git checkout ${1-$DEFAULT} && git up && git bclean ${1-$DEFAULT}; }; f"
@@ -134,7 +140,7 @@
     #open = "!f() { REPO_URL=$(git config remote.origin.url | sed -e 's,:,/,g' -e 's,git@,http://,g' -e 's,.git,,g'); explorer ${REPO_URL} ; }; f"
     open = "!f(){ URL=$(git config remote.origin.url); explorer ${URL%.git}; }; f"
     browse = !git open
-    
+
     ### Moves a set of commits from the current branch to another
     migrate = "!f(){ DEFAULT=$(git default); CURRENT=$(git symbolic-ref --short HEAD); git checkout -b $1 && git branch --force $CURRENT ${3-$CURRENT@{u}} && git rebase --onto ${2-$DEFAULT} $CURRENT; }; f"
     new = !git init && git symbolic-ref HEAD refs/heads/main
@@ -143,3 +149,14 @@
     set-origin = remote set-url origin
     set-upstream = remote set-url upstream
     
+# ----------------------------------------------------------------------------- 
+# references
+# ----------------------------------------------------------------------------- 
+
+# https://haacked.com/archive/2014/07/28/github-flow-aliases/
+# https://haacked.com/archive/2025/04/17/git-gone/
+# https://haacked.com/archive/2015/06/29/git-migrate/
+# https://haacked.com/archive/2017/01/04/git-alias-open-url/
+# https://haacked.com/archive/2019/02/14/including-git-aliases/
+# 
+

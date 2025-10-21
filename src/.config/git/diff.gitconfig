@@ -1,0 +1,12 @@
+### git diff tool configuration
+
+[include]
+    # path = ~/.config/git/split-diffs.gitconfig
+	path = ~/.config/git/delta.gitconfig
+
+[diff]
+	tool = bc
+[difftool "bc"]
+	path = c:/Program Files/Beyond Compare 4/bcomp.exe
+[difftool]
+	prompt = false

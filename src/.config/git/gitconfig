@@ -1,0 +1,39 @@
+### Global Git configuration file
+
+[core]
+    excludesFile = ~/.gitignore
+    editor = code --wait --new-window
+
+[include]
+    path = ~/.config/git/identities.gitconfig
+    path = ~/.config/git/aliases.gitconfig
+    path = ~/.config/git/diff.gitconfig
+    path = ~/.config/git/merge.gitconfig
+
+[commit]
+    template = ~/.config/git/templates/.gitmessage
+
+[init]
+    templatedir = ~/.config/git/templates
+    defaultBranch = main
+
+[color]
+    ui = auto
+
+[filter "lfs"]
+    clean = git-lfs clean -- %f
+    smudge = git-lfs smudge -- %f
+    process = git-lfs filter-process
+    required = true
+
+[pull]
+    ff = only
+
+[credential "helperselector"]
+    selected = wincred
+
+[credential "azrepos:org/msazure"]
+    username = javierfe@microsoft.com
+
+[credential "azrepos:org/microsoft"]
+    username = javierfe@microsoft.com

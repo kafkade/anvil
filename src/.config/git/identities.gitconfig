@@ -1,0 +1,19 @@
+### git identities
+
+# [user "github"]
+#     name = Javier
+#     email = jfeston@users.noreply.github.com
+#     signingkey = 96D5CC31B3F16F50
+
+# [user "microsoft"]
+#     name = Javier
+#     email = javierfe@microsoft.com
+#     signingkey = A59C7EC3FC23E5C9
+
+[user]
+    name = Javier
+    email = javierfe@microsoft.com
+
+[commit]
+    # gpgsign = true
+
