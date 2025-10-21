@@ -1,6 +1,6 @@
 <#
 .SYNOPSIS
-Synchronizes configuration files between user's ~/.config and WinForge src/.config directories.
+Synchronizes configuration files between user's ~/.config and WinForge src/.config directories with bidirectional sync capability.
 
 .DESCRIPTION
 This script provides comprehensive synchronization of dotfiles and configuration files between
@@ -15,15 +15,26 @@ The script implements a multi-tier comparison system that goes beyond simple fil
 4. Interactive decision-making with safety guardrails
 
 Key Features:
+- **Bidirectional synchronization**: Forward sync (WinForge → User) and Reverse sync (User → WinForge)
 - Multi-tier comparison (existence, hash, content-aware analysis)
 - Interactive user interface with per-file decision menus and diff viewing
-- Comprehensive backup system with timestamped backups in %TEMP%
+- Comprehensive backup system with timestamped backups in %TEMP% (forward sync only)
+- Git repository awareness with commit reminders for reverse sync operations
 - File-type specific handling (PowerShell, Git config, JSON, bash scripts, hooks)
 - Robust safety mechanisms and atomic file operations
 - Progress tracking with real-time status updates
 - Detailed summary reports with operation results
 - Integration with WinForge project structure and conventions
 - Cross-platform compatibility (Windows, Linux, macOS)
+
+Synchronization Directions:
+- **Forward Sync (Default)**: Copies from WinForge repository to user's ~/.config
+  - Includes backup system for safety
+  - Standard operation for environment setup
+- **Reverse Sync (Contribution)**: Copies from user's ~/.config to WinForge repository
+  - No backup needed (Git handles version control)
+  - Enables contributing improved configurations back to WinForge
+  - Includes Git awareness messages and commit reminders
 
 WinForge Integration:
 This script is part of the WinForge developer workload and integrates with the broader
@@ -126,12 +137,27 @@ Tests synchronization with custom source directory:
 2. Shows what would be synchronized without making changes
 3. Useful for testing or working with alternative configurations
 
+.EXAMPLE
+# Reverse Sync Workflow - Contributing back to WinForge
+
+# 1. First, sync WinForge configs to your user directory
+.\Sync-DotConfig.ps1
+
+# 2. Make improvements to your personal configs in ~/.config
+# 3. Run sync again and choose "Copy from User to WinForge" for improved files
+.\Sync-DotConfig.ps1
+
+# 4. The script will remind you to commit changes:
+git add src/.config/
+git commit -m "Improve PowerShell aliases and Git configuration"
+git push origin main
+
 .NOTES
 Author: WinForge Team
 Version: 1.0.0
 Requires: PowerShell 5.1 or higher
 License: MIT
-Project: https://github.com/your-org/winforge
+Project: https://github.com/javierfe_microsoft/winforge
 
 SAFETY FEATURES AND ERROR HANDLING:
 
@@ -813,15 +839,16 @@ function Show-InteractiveMenu {
     Write-Host ""
     Write-ColoredOutput "Choose an action:" -Color "Cyan"
     Write-Host "1. Show Diff/Content"
-    Write-Host "2. Copy from WinForge to User (Replace)"
+    Write-Host "2. Copy from WinForge to User (Forward Sync)"
     Write-Host "3. Skip This File"
     Write-Host "4. Backup User File + Copy from WinForge"
     Write-Host "5. Open Files in Editor"
-    Write-Host "6. Quit Synchronization"
+    Write-Host "6. Copy from User to WinForge (Reverse Sync)"
+    Write-Host "7. Quit Synchronization"
     Write-Host ""
     
     do {
-        $choice = Read-Host "Enter your choice (1-6)"
+        $choice = Read-Host "Enter your choice (1-7)"
         
         switch ($choice) {
             "1" {
@@ -830,7 +857,7 @@ function Show-InteractiveMenu {
                 return "ShowDiff"  # Return to menu
             }
             "2" {
-                # Direct copy without backup
+                # Direct copy without backup (forward sync)
                 return "Copy"
             }
             "3" {
@@ -838,7 +865,7 @@ function Show-InteractiveMenu {
                 return "Skip"
             }
             "4" {
-                # Safe copy with backup
+                # Safe copy with backup (forward sync)
                 return "BackupAndCopy"
             }
             "5" {
@@ -863,11 +890,34 @@ function Show-InteractiveMenu {
                 return "ShowDiff"  # Return to menu after opening editor
             }
             "6" {
+                # Reverse sync - copy from user to WinForge
+                Write-Host ""
+                Write-ColoredOutput "WARNING: REVERSE SYNC OPERATION" -Color "Red"
+                Write-ColoredOutput "This will modify the WinForge repository files!" -Color "Red"
+                Write-ColoredOutput "Make sure to commit your changes to Git after this operation." -Color "Yellow"
+                Write-Host ""
+                
+                # Only allow reverse sync if user file exists
+                if (-not $ConfigFile.TargetExists) {
+                    Write-ColoredOutput "Cannot perform reverse sync: User file does not exist." -Color "Red"
+                    return "ShowDiff"  # Return to menu
+                }
+                
+                $confirmation = Read-Host "Are you sure you want to copy from User to WinForge? (y/N)"
+                if ($confirmation -match '^[Yy]') {
+                    return "ReverseSync"
+                }
+                else {
+                    Write-ColoredOutput "Reverse sync cancelled." -Color "Yellow"
+                    return "ShowDiff"  # Return to menu
+                }
+            }
+            "7" {
                 # Exit synchronization
                 return "Quit"
             }
             default {
-                Write-ColoredOutput "Invalid choice. Please enter 1-6." -Color "Red"
+                Write-ColoredOutput "Invalid choice. Please enter 1-7." -Color "Red"
             }
         }
     } while ($true)
@@ -1063,6 +1113,89 @@ function Copy-ConfigFile {
 
 <#
 .SYNOPSIS
+Copies a configuration file from user to WinForge (reverse sync).
+
+.DESCRIPTION
+Performs reverse synchronization by copying files from the user's configuration
+directory to the WinForge repository. This enables users to contribute their
+improved configurations back to the WinForge project.
+
+Key differences from forward sync:
+- No backup needed (Git handles version control for WinForge repo)
+- Git awareness messages remind users to commit changes
+- Clear warnings about modifying repository files
+
+.PARAMETER ConfigFile
+Configuration file object to reverse sync
+
+.RETURNS
+$true if reverse sync successful, $false otherwise
+#>
+function Copy-ConfigFileReverse {
+    param([PSCustomObject]$ConfigFile)
+    
+    # Initialize operation tracking object
+    $operation = [PSCustomObject]@{
+        File = $ConfigFile.Name
+        Action = "Reverse Sync"
+        Success = $false
+        Error = $null
+        BackupCreated = $false
+    }
+    
+    try {
+        # Ensure source directory exists in WinForge repo
+        $sourceDir = Split-Path $ConfigFile.SourcePath -Parent
+        if (-not (Test-Path $sourceDir)) {
+            New-Item -Path $sourceDir -ItemType Directory -Force | Out-Null
+        }
+        
+        if (-not $DryRun) {
+            # Perform the reverse copy operation (User -> WinForge)
+            Copy-Item -Path $ConfigFile.TargetPath -Destination $ConfigFile.SourcePath -Force
+            
+            # Verify the copy was successful using hash comparison
+            if (Test-FileContentEqual -File1 $ConfigFile.TargetPath -File2 $ConfigFile.SourcePath) {
+                $operation.Success = $true
+                Write-ColoredOutput "[OK] Reverse sync completed: $($ConfigFile.Name)" -Color "Green"
+                Write-ColoredOutput "      Copied from User to WinForge repository" -Color "Cyan"
+                Write-ColoredOutput "      Remember to commit these changes to Git!" -Color "Yellow"
+            }
+            else {
+                $operation.Error = "File verification failed after reverse sync"
+                Write-ColoredOutput "[FAIL] Reverse sync verification failed: $($ConfigFile.Name)" -Color "Red"
+            }
+        }
+        else {
+            # Dry run mode - simulate success
+            $operation.Success = $true
+            Write-ColoredOutput "[OK] [DRY RUN] Would reverse sync: $($ConfigFile.Name)" -Color "Yellow"
+            Write-ColoredOutput "      Would copy from User to WinForge repository" -Color "Cyan"
+        }
+    }
+    catch {
+        # Capture and log any errors during the reverse copy operation
+        $operation.Error = $_.Exception.Message
+        $operation.Success = $false
+        Write-ColoredOutput "[FAIL] Failed to reverse sync $($ConfigFile.Name): $($_.Exception.Message)" -Color "Red"
+    }
+    
+    # Track operation result for summary reporting
+    $script:OperationResults += $operation
+    
+    # Update global counters for final summary
+    if ($operation.Success) {
+        $script:SuccessfulOperations++
+    }
+    else {
+        $script:FailedOperations++
+    }
+    
+    return $operation.Success
+}
+
+<#
+.SYNOPSIS
 Sets appropriate file permissions for configuration files.
 
 .DESCRIPTION
@@ -1087,7 +1220,7 @@ function Set-FilePermissions {
         try {
             # Use chmod on Linux/macOS systems
             if ($IsLinux -or $IsMacOS) {
-                chmod +x $FilePath
+                & chmod +x $FilePath
             }
             Write-Information "Set executable permissions for: $($ConfigFile.Name)"
         }
@@ -1176,6 +1309,19 @@ function Show-SummaryReport {
     if ($script:BackupPath) {
         Write-Host ""
         Write-ColoredOutput "Backup Location: $($script:BackupPath)" -Color "Yellow"
+    }
+    
+    # Show Git commit reminder if any reverse sync operations were performed
+    $reverseSyncOperations = $script:OperationResults | Where-Object { $_.Action -eq "Reverse Sync" -and $_.Success }
+    if ($reverseSyncOperations.Count -gt 0) {
+        Write-Host ""
+        Write-ColoredOutput "GIT REPOSITORY NOTICE:" -Color "Yellow"
+        Write-ColoredOutput "Reverse sync operations modified the WinForge repository." -Color "Cyan"
+        Write-ColoredOutput "Remember to review and commit your changes:" -Color "Cyan"
+        Write-Host "  git status"
+        Write-Host "  git add src/.config/"
+        Write-Host "  git commit -m `"Update configuration files from user improvements`""
+        Write-Host "  git push origin main"
     }
     
     Write-Host ""
@@ -1355,14 +1501,19 @@ function Start-ConfigurationSync {
             # Execute the chosen action
             switch ($action) {
                 "Copy" {
-                    # Direct copy without backup
+                    # Direct copy without backup (forward sync)
                     Copy-ConfigFile -ConfigFile $configFile
                     Set-FilePermissions -FilePath $configFile.TargetPath -ConfigFile $configFile
                 }
                 "BackupAndCopy" {
-                    # Safe copy with backup
+                    # Safe copy with backup (forward sync)
                     Copy-ConfigFile -ConfigFile $configFile -CreateBackup
                     Set-FilePermissions -FilePath $configFile.TargetPath -ConfigFile $configFile
+                }
+                "ReverseSync" {
+                    # Reverse sync - copy from user to WinForge
+                    Copy-ConfigFileReverse -ConfigFile $configFile
+                    Set-FilePermissions -FilePath $configFile.SourcePath -ConfigFile $configFile
                 }
                 "Skip" {
                     # User chose to skip this file

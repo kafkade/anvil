@@ -2,17 +2,37 @@
 
 ## Overview
 
-The `Sync-DotConfig.ps1` script provides comprehensive synchronization of configuration files between your personal `~/.config` directory and the WinForge repository's `src/.config` directory. This tool implements advanced comparison logic, interactive decision-making, and robust safety mechanisms to ensure secure and reliable configuration management.
+The `Sync-DotConfig.ps1` script provides comprehensive **bidirectional synchronization** of configuration files between your personal `~/.config` directory and the WinForge repository's `src/.config` directory. This tool supports both forward sync (WinForge → User) for consuming configurations and reverse sync (User → WinForge) for contributing improvements back to the repository.
+
+The script implements advanced comparison logic, interactive decision-making, Git repository awareness, and robust safety mechanisms to ensure secure and reliable configuration management in both directions.
+
+### Synchronization Directions
+
+- **Forward Sync (WinForge → User)**: The default operation that copies configurations from the WinForge repository to your personal `~/.config` directory. Includes comprehensive backup system for safety.
+- **Reverse Sync (User → WinForge)**: Enables contributing your improved configurations back to the WinForge repository. Includes Git awareness and commit reminders.
 
 ## Features
 
 ### Core Functionality
+- **Bidirectional Synchronization**: Forward sync (WinForge → User) and reverse sync (User → WinForge)
 - **Multi-tier Comparison Logic**: Existence, SHA256 hash, and content-aware analysis
-- **Interactive User Interface**: Per-file decision menus with multiple action options
-- **Comprehensive Backup System**: Timestamped backups with automatic rollback capabilities
+- **Interactive User Interface**: Per-file decision menus with multiple action options including reverse sync
+- **Comprehensive Backup System**: Timestamped backups with automatic rollback capabilities (forward sync)
+- **Git Repository Awareness**: Automatic commit reminders and Git integration for reverse sync operations
 - **File-type Specific Handling**: Specialized processing for PowerShell, Git config, JSON, and bash scripts
-- **Robust Safety Mechanisms**: Atomic operations, verification, and error recovery
+- **Robust Safety Mechanisms**: Atomic operations, verification, and error recovery for both sync directions
 - **Progress Tracking**: Real-time progress updates and detailed summary reports
+
+### Forward Sync Features (WinForge → User)
+- Comprehensive backup system in `%TEMP%` with timestamped directories
+- Safe overwrite protection with backup-before-copy option
+- Standard environment setup and configuration consumption workflow
+
+### Reverse Sync Features (User → WinForge)
+- Git-aware operations with commit reminders
+- No backup needed (Git provides version control for repository)
+- Contribution workflow for sharing improved configurations
+- Clear warnings and confirmations for repository modifications
 
 ### Supported Configuration Files
 - **PowerShell Configuration**: `aliases.ps1`, `user_profile.ps1`, `psreadline.ps1`
