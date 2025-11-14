@@ -1,8 +1,0 @@
-python
-ffmpeg
-fzf
-gh
-nerd-fonts-Inconsolata
-FiraCode
-firacodenf
-

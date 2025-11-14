@@ -1,9 +1,0 @@
-# yaml-language-server: $schema=../workload-schema.json
-name: Extras
-description: Workload for other quality of life tools
-packages:
-  winget:
-    - Spotify.Spotify
-    - Obsidian.Obsidian
-    - AgileBits.1Password
-    - Microsoft.PowerToys
