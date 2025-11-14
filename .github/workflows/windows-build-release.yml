@@ -9,7 +9,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOTNET_VERSION: '8.0.x'
+  DOTNET_VERSION: '10.0.x'
   PROJECT_PATH: 'src/Winforge.csproj'
   SOLUTION_PATH: 'src'
 
@@ -28,7 +28,6 @@ jobs:
       uses: actions/setup-dotnet@v4
       with:
         dotnet-version: ${{ env.DOTNET_VERSION }}
-        dotnet-install-dir: ${{ runner.temp }}/dotnet
 
     - name: Restore dependencies
       run: dotnet restore ${{ env.PROJECT_PATH }}
