@@ -1,22 +1,22 @@
-using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using Spectre.Console;
 using YamlDotNet.Serialization;
 using YamlDotNet.Serialization.NamingConventions;
+using Microsoft.Extensions.Logging;
 using Winforge.Models;
+using Winforge.Interfaces;
 
 namespace Winforge.Services;
 
 /// <summary>
-/// Manages workload discovery, parsing, and execution coordination.
+/// Workload manager for workload discovery and preview/analysis.
 /// Provides YAML-based workload discovery functionality with comprehensive
-/// configuration parsing and execution simulation capabilities.
+/// configuration parsing and preview capabilities showing what actions would be performed.
 /// </summary>
-public class WorkloadManager : IDisposable
+public class WorkloadManager
 {
     private readonly IDeserializer _yamlDeserializer;
+    private readonly ILogger<WorkloadManager> _logger;
+    private readonly IPackageInstaller? _packageInstaller;
 
     /// <summary>
     /// Initializes a new instance of the WorkloadManager class.
@@ -27,6 +27,27 @@ public class WorkloadManager : IDisposable
         _yamlDeserializer = new DeserializerBuilder()
             .WithNamingConvention(CamelCaseNamingConvention.Instance)
             .Build();
+        
+        // Initialize logger
+        var loggerFactory = LoggerFactory.Create(builder => builder.AddConsole());
+        _logger = loggerFactory.CreateLogger<WorkloadManager>();
+        
+        _logger.LogInformation("WorkloadManager initialized in preview/analysis mode");
+    }
+
+    /// <summary>
+    /// Initializes a new instance of the WorkloadManager class with dependency injection.
+    /// </summary>
+    /// <param name="logger">Logger instance</param>
+    /// <param name="packageInstaller">Optional package installer service</param>
+    public WorkloadManager(ILogger<WorkloadManager> logger, IPackageInstaller? packageInstaller = null)
+    {
+        _yamlDeserializer = new DeserializerBuilder()
+            .WithNamingConvention(CamelCaseNamingConvention.Instance)
+            .Build();
+        
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
+        _packageInstaller = packageInstaller;
     }
 
     /// <summary>
@@ -164,42 +185,493 @@ public class WorkloadManager : IDisposable
     }
 
     /// <summary>
-    /// Executes the specified workloads in the given execution mode.
-    /// Currently provides simulated execution results for demonstration purposes.
+    /// Generates a preview of actions that would be performed for the specified workload.
     /// </summary>
-    /// <param name="selectedWorkloads">List of workloads to execute</param>
-    /// <param name="executionMode">The execution mode (install, validate, both)</param>
-    /// <returns>Execution results containing performance metrics and recommendations</returns>
-    public ExecutionResults ExecuteWorkloads(List<WorkloadMetadata> selectedWorkloads, string executionMode)
+    /// <param name="workload">The workload to preview</param>
+    /// <returns>A preview showing all actions that would be performed</returns>
+    public async Task<WorkloadPreview> PreviewWorkloadAsync(WorkloadMetadata workload)
     {
-        // For now, return simulated results since we're not integrating with PowerShell
+        if (workload == null)
+            throw new ArgumentNullException(nameof(workload));
+
+        _logger.LogInformation("Generating preview for workload: {WorkloadName}", workload.Name);
+
+        var preview = new WorkloadPreview
+        {
+            WorkloadName = workload.Name,
+            Description = workload.Description,
+            Version = workload.Version
+        };
+
+        try
+        {
+            // Load workload configuration
+            var workloadConfig = await LoadWorkloadConfigAsync(workload.ConfigPath);
+            if (workloadConfig == null)
+            {
+                preview.Warnings.Add($"Failed to load workload configuration from: {workload.ConfigPath}");
+                return preview;
+            }
+
+            // Validate workload
+            var validation = await ValidateWorkloadConfigAsync(workloadConfig, workload.DirectoryPath);
+            if (!validation.IsValid)
+            {
+                preview.Warnings.AddRange(validation.Issues);
+            }
+
+            // Generate action previews for all components
+            await GenerateActionPreviewsAsync(workloadConfig, workload, preview);
+
+            // Add recommendations
+            AddPreviewRecommendations(preview);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error generating workload preview: {WorkloadName}", workload.Name);
+            preview.Warnings.Add($"Error generating preview: {ex.Message}");
+        }
+
+        return preview;
+    }
+
+    /// <summary>
+    /// Generates previews for multiple workloads.
+    /// </summary>
+    /// <param name="workloads">The workloads to preview</param>
+    /// <returns>A list of previews for all workloads</returns>
+    public async Task<List<WorkloadPreview>> PreviewWorkloadsAsync(List<WorkloadMetadata> workloads)
+    {
+        if (workloads == null || workloads.Count == 0)
+            throw new ArgumentException("No workloads provided for preview", nameof(workloads));
+
+        _logger.LogInformation("Generating previews for {WorkloadCount} workloads", workloads.Count);
+
+        var previews = new List<WorkloadPreview>();
+
+        foreach (var workload in workloads)
+        {
+            try
+            {
+                var preview = await PreviewWorkloadAsync(workload);
+                previews.Add(preview);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error previewing workload: {WorkloadName}", workload.Name);
+                previews.Add(new WorkloadPreview
+                {
+                    WorkloadName = workload.Name,
+                    Description = workload.Description,
+                    Version = workload.Version,
+                    Warnings = new List<string> { $"Failed to generate preview: {ex.Message}" }
+                });
+            }
+        }
+
+        return previews;
+    }
+
+    /// <summary>
+    /// Executes the installation of a workload.
+    /// </summary>
+    /// <param name="workload">The workload to install</param>
+    /// <param name="progress">Optional progress reporter</param>
+    /// <param name="cancellationToken">Cancellation token</param>
+    /// <returns>The execution results</returns>
+    public async Task<ExecutionResults> ExecuteWorkloadAsync(
+        WorkloadMetadata workload,
+        IProgress<BatchInstallationProgress>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        if (workload == null)
+            throw new ArgumentNullException(nameof(workload));
+
+        _logger.LogInformation("Executing workload: {WorkloadName}", workload.Name);
+
         var results = new ExecutionResults
         {
             StartTime = DateTime.Now,
-            ExecutionMode = executionMode,
-            TotalPackages = selectedWorkloads.Sum(w => w.PackageCount),
-            TotalScripts = selectedWorkloads.Sum(w => w.ScriptCount),
-            TotalTests = selectedWorkloads.Sum(w => w.TestCount)
+            ExecutionMode = "install"
         };
 
-        // Simulate success for demo purposes
-        results.SuccessfulPackages = results.TotalPackages;
-        results.SuccessfulScripts = results.TotalScripts;
-        results.SuccessfulTests = results.TotalTests;
-        results.EndTime = DateTime.Now.AddSeconds(30); // Simulate 30 seconds execution
-        results.TotalTimeSeconds = 30;
+        try
+        {
+            // Load workload configuration
+            var workloadConfig = await LoadWorkloadConfigAsync(workload.ConfigPath);
+            if (workloadConfig == null)
+            {
+                results.Failures.Add($"Failed to load workload configuration from: {workload.ConfigPath}");
+                return results;
+            }
 
-        results.Recommendations.Add("All components installed successfully!");
-        results.Recommendations.Add("Consider creating a system restore point.");
+            // Validate workload
+            var validation = await ValidateWorkloadConfigAsync(workloadConfig, workload.DirectoryPath);
+            if (!validation.IsValid)
+            {
+                results.Failures.AddRange(validation.Issues);
+                return results;
+            }
+
+            // Install packages
+            if (workloadConfig.packages?.Count > 0)
+            {
+                results.TotalPackages = workloadConfig.packages.Count;
+                
+                if (_packageInstaller != null)
+                {
+                    // Filter for packages managed by the registered installer
+                    var supportedPackages = workloadConfig.packages
+                        .Where(p => string.Equals(p.manager, _packageInstaller.PackageManager, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+                    
+                    var unsupportedPackages = workloadConfig.packages
+                        .Where(p => !string.Equals(p.manager, _packageInstaller.PackageManager, StringComparison.OrdinalIgnoreCase))
+                        .ToList();
+
+                    if (unsupportedPackages.Any())
+                    {
+                        var msg = $"Skipping {unsupportedPackages.Count} packages with unsupported managers: {string.Join(", ", unsupportedPackages.Select(p => p.manager).Distinct())}";
+                        _logger.LogWarning(msg);
+                        results.Recommendations.Add(msg);
+                        results.FailedPackages += unsupportedPackages.Count; // Count as failed/skipped for now
+                    }
+
+                    if (supportedPackages.Any())
+                    {
+                        var installResults = await _packageInstaller.InstallPackagesAsync(supportedPackages, progress, cancellationToken);
+                        
+                        results.SuccessfulPackages += installResults.SuccessCount + installResults.AlreadyInstalledCount;
+                        results.FailedPackages += installResults.FailedCount;
+                        
+                        // Store detailed package results
+                        results.PackageResults.AddRange(installResults.Results);
+
+                        // Add failures to results
+                        foreach (var result in installResults.Results.Where(r => !r.Success && !r.AlreadyInstalled))
+                        {
+                            results.Failures.AddRange(result.Errors);
+                        }
+
+                        if (installResults.RebootRequired)
+                        {
+                            results.Recommendations.Add("A system reboot is required to complete package installation.");
+                        }
+                    }
+                }
+                else
+                {
+                    var msg = "No package installer service registered. Skipping package installation.";
+                    _logger.LogWarning(msg);
+                    results.Failures.Add(msg);
+                    results.FailedPackages = workloadConfig.packages.Count;
+                }
+            }
+
+            // TODO: Implement script execution and file operations
+            if (workloadConfig.scripts?.Count > 0)
+            {
+                results.TotalScripts = workloadConfig.scripts.Count;
+                results.Recommendations.Add($"Skipped {workloadConfig.scripts.Count} scripts (script execution not yet implemented)");
+            }
+
+            if (workloadConfig.tests?.Count > 0)
+            {
+                results.TotalTests = workloadConfig.tests.Count;
+                results.Recommendations.Add($"Skipped {workloadConfig.tests.Count} tests (test execution not yet implemented)");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error executing workload: {WorkloadName}", workload.Name);
+            results.Failures.Add($"Error executing workload: {ex.Message}");
+        }
+        finally
+        {
+            results.EndTime = DateTime.Now;
+            results.TotalTimeSeconds = (int)(results.EndTime - results.StartTime).TotalSeconds;
+        }
 
         return results;
     }
 
     /// <summary>
-    /// Disposes of resources used by the WorkloadManager.
+    /// Loads a workload configuration from a YAML file.
     /// </summary>
-    public void Dispose()
+    public async Task<WorkloadConfig?> LoadWorkloadConfigAsync(string configPath)
     {
-        // No cleanup needed for YAML-based implementation
+        try
+        {
+            var yamlContent = await File.ReadAllTextAsync(configPath);
+            return _yamlDeserializer.Deserialize<WorkloadConfig>(yamlContent);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load workload configuration from {ConfigPath}", configPath);
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Validates a workload configuration for preview.
+    /// </summary>
+    private async Task<WorkloadValidationResult> ValidateWorkloadConfigAsync(WorkloadConfig workloadConfig, string workloadDirectory)
+    {
+        var result = new WorkloadValidationResult { IsValid = true };
+
+        try
+        {
+            // Validate package definitions
+            if (workloadConfig.packages?.Count > 0)
+            {
+                foreach (var package in workloadConfig.packages)
+                {
+                    if (string.IsNullOrWhiteSpace(package.name))
+                    {
+                        result.IsValid = false;
+                        result.Issues.Add("Package with empty name found");
+                    }
+                    if (string.IsNullOrWhiteSpace(package.manager))
+                    {
+                        result.IsValid = false;
+                        result.Issues.Add($"Package '{package.name}' has no package manager specified");
+                    }
+                }
+            }
+
+            // Validate scripts
+            if (workloadConfig.scripts?.Count > 0)
+            {
+                foreach (var script in workloadConfig.scripts)
+                {
+                    if (string.IsNullOrWhiteSpace(script.name))
+                    {
+                        result.Warnings.Add("Script with empty name found");
+                    }
+                    if (string.IsNullOrWhiteSpace(script.file))
+                    {
+                        result.IsValid = false;
+                        result.Issues.Add($"Script '{script.name}' has no file path specified");
+                    }
+                    else
+                    {
+                        var scriptPath = Path.Combine(workloadDirectory, script.file);
+                        if (!File.Exists(scriptPath))
+                        {
+                            result.Warnings.Add($"Script file not found: {script.file}");
+                        }
+                    }
+                }
+            }
+
+            // Validate file operations
+            if (workloadConfig.files?.Count > 0)
+            {
+                foreach (var file in workloadConfig.files)
+                {
+                    if (string.IsNullOrWhiteSpace(file.source))
+                    {
+                        result.IsValid = false;
+                        result.Issues.Add("File operation with empty source path found");
+                    }
+                    if (string.IsNullOrWhiteSpace(file.destination))
+                    {
+                        result.IsValid = false;
+                        result.Issues.Add($"File '{file.source}' has no destination specified");
+                    }
+                }
+            }
+
+            // Validate tests
+            if (workloadConfig.tests?.Count > 0)
+            {
+                foreach (var test in workloadConfig.tests)
+                {
+                    if (string.IsNullOrWhiteSpace(test.name))
+                    {
+                        result.Warnings.Add("Test with empty name found");
+                    }
+                    if (string.IsNullOrWhiteSpace(test.type))
+                    {
+                        result.IsValid = false;
+                        result.Issues.Add($"Test '{test.name}' has no type specified");
+                    }
+                    if (string.IsNullOrWhiteSpace(test.target))
+                    {
+                        result.IsValid = false;
+                        result.Issues.Add($"Test '{test.name}' has no target specified");
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during workload validation");
+            result.IsValid = false;
+            result.Issues.Add($"Validation error: {ex.Message}");
+        }
+
+        return await Task.FromResult(result);
+    }
+
+    /// <summary>
+    /// Generates action previews for all workload components.
+    /// </summary>
+    private async Task GenerateActionPreviewsAsync(WorkloadConfig workloadConfig, WorkloadMetadata workloadMetadata, WorkloadPreview preview)
+    {
+        int estimatedSeconds = 0;
+
+        // Generate package installation previews
+        if (workloadConfig.packages?.Count > 0)
+        {
+            foreach (var package in workloadConfig.packages)
+            {
+                var action = new WorkloadAction
+                {
+                    ActionType = "Package Install",
+                    Name = package.name,
+                    Description = $"Install package '{package.name}' using {package.manager}",
+                    Details = new Dictionary<string, string>
+                    {
+                        { "Manager", package.manager },
+                        { "Version", string.IsNullOrWhiteSpace(package.version) ? "latest" : package.version }
+                    },
+                    EstimatedSeconds = 30 // Estimated time per package
+                };
+                preview.Actions.Add(action);
+                estimatedSeconds += action.EstimatedSeconds;
+            }
+        }
+
+        // Generate script execution previews
+        if (workloadConfig.scripts?.Count > 0)
+        {
+            foreach (var script in workloadConfig.scripts)
+            {
+                var scriptPath = Path.Combine(workloadMetadata.DirectoryPath, script.file);
+                var action = new WorkloadAction
+                {
+                    ActionType = "Script Execution",
+                    Name = script.name,
+                    Description = $"Execute PowerShell script: {script.file}",
+                    Details = new Dictionary<string, string>
+                    {
+                        { "File", script.file },
+                        { "RunAs", script.runAs },
+                        { "Exists", File.Exists(scriptPath) ? "Yes" : "No" }
+                    },
+                    EstimatedSeconds = 15 // Estimated time per script
+                };
+                preview.Actions.Add(action);
+                estimatedSeconds += action.EstimatedSeconds;
+            }
+        }
+
+        // Generate file operation previews
+        if (workloadConfig.files?.Count > 0)
+        {
+            foreach (var file in workloadConfig.files)
+            {
+                var action = new WorkloadAction
+                {
+                    ActionType = "File Operation",
+                    Name = Path.GetFileName(file.source),
+                    Description = $"Copy file from '{file.source}' to '{file.destination}'",
+                    Details = new Dictionary<string, string>
+                    {
+                        { "Source", file.source },
+                        { "Destination", file.destination },
+                        { "Overwrite", file.overwrite ? "Yes" : "No" }
+                    },
+                    EstimatedSeconds = 2 // Estimated time per file operation
+                };
+                preview.Actions.Add(action);
+                estimatedSeconds += action.EstimatedSeconds;
+            }
+        }
+
+        // Generate validation test previews
+        if (workloadConfig.tests?.Count > 0)
+        {
+            foreach (var test in workloadConfig.tests)
+            {
+                var action = new WorkloadAction
+                {
+                    ActionType = "Validation Test",
+                    Name = test.name,
+                    Description = $"Run {test.type} test: {test.target}",
+                    Details = new Dictionary<string, string>
+                    {
+                        { "Type", test.type },
+                        { "Target", test.target },
+                        { "Expected", test.expected }
+                    },
+                    EstimatedSeconds = 5 // Estimated time per test
+                };
+                preview.Actions.Add(action);
+                estimatedSeconds += action.EstimatedSeconds;
+            }
+        }
+
+        preview.TotalEstimatedSeconds = estimatedSeconds;
+
+        await Task.CompletedTask;
+    }
+
+    /// <summary>
+    /// Adds recommendations to the preview based on the actions that would be performed.
+    /// </summary>
+    private void AddPreviewRecommendations(WorkloadPreview preview)
+    {
+        // Add time estimate recommendation
+        if (preview.TotalEstimatedSeconds > 0)
+        {
+            var minutes = preview.TotalEstimatedSeconds / 60;
+            var seconds = preview.TotalEstimatedSeconds % 60;
+            
+            if (minutes > 0)
+            {
+                preview.Recommendations.Add($"Estimated execution time: {minutes} minute(s) and {seconds} second(s)");
+            }
+            else
+            {
+                preview.Recommendations.Add($"Estimated execution time: {seconds} second(s)");
+            }
+        }
+
+        // Add component-specific recommendations
+        if (preview.TotalPackages > 0)
+        {
+            preview.Recommendations.Add($"Will install {preview.TotalPackages} package(s). Ensure you have administrator privileges and a stable internet connection.");
+        }
+
+        if (preview.TotalScripts > 0)
+        {
+            preview.Recommendations.Add($"Will execute {preview.TotalScripts} script(s). Review script contents before proceeding if you're concerned about security.");
+        }
+
+        if (preview.TotalFiles > 0)
+        {
+            preview.Recommendations.Add($"Will perform {preview.TotalFiles} file operation(s). Existing files may be overwritten depending on configuration.");
+        }
+
+        if (preview.TotalTests > 0)
+        {
+            preview.Recommendations.Add($"Will run {preview.TotalTests} validation test(s) to verify the installation.");
+        }
+
+        // Add warnings-based recommendations
+        if (preview.Warnings.Count > 0)
+        {
+            preview.Recommendations.Add($"Found {preview.Warnings.Count} warning(s). Review warnings before executing this workload.");
+        }
+
+        // General recommendations
+        if (preview.TotalActions > 10)
+        {
+            preview.Recommendations.Add("This is a complex workload with many actions. Consider creating a system restore point before proceeding.");
+        }
+
+        preview.Recommendations.Add("This is a preview only. No actual changes have been made to your system.");
     }
 }

@@ -1,10 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
+using System.Text;
 using Spectre.Console;
 using Winforge.Models;
 using Winforge.Services;
+using Microsoft.Extensions.Logging;
 
 namespace Winforge.UI;
 
@@ -13,16 +16,17 @@ namespace Winforge.UI;
 /// Provides the primary entry point for interactive mode and coordinates
 /// between different UI subsystems while maintaining emoji-free presentation.
 /// </summary>
-public class WinforgeUI : IDisposable
+public class WinforgeUI
 {
     private readonly WorkloadManager _workloadManager;
 
     /// <summary>
     /// Initializes a new instance of the WinforgeUI class with all required components
     /// </summary>
-    public WinforgeUI()
+    /// <param name="workloadManager">The workload manager service</param>
+    public WinforgeUI(WorkloadManager workloadManager)
     {
-        _workloadManager = new WorkloadManager();
+        _workloadManager = workloadManager ?? throw new ArgumentNullException(nameof(workloadManager));
     }
 
     /// <summary>
@@ -40,46 +44,10 @@ public class WinforgeUI : IDisposable
     }
 
     /// <summary>
-    /// Runs the main interactive mode loop, handling user navigation and feature execution
-    /// </summary>
-    /// <returns>Task representing the async operation</returns>
-    public async Task RunInteractiveMode()
-    {
-        ShowBanner();
-
-        while (true)
-        {
-            var choice = ShowMainMenu();
-            
-            switch (choice)
-            {
-                case "discover":
-                    await DiscoverAndSelectWorkloads();
-                    break;
-                case "validate":
-                    await RunValidationMode();
-                    break;
-                case "report":
-                    await GenerateReport();
-                    break;
-                case "help":
-                    ShowHelp();
-                    break;
-                case "exit":
-                    AnsiConsole.MarkupLine("[green]Thank you for using Winforge![/]");
-                    return;
-            }
-
-            if (!AnsiConsole.Confirm("Return to main menu?"))
-                break;
-        }
-    }
-
-    /// <summary>
     /// Displays the main menu and handles user selection
     /// </summary>
     /// <returns>The selected menu option key</returns>
-    private string ShowMainMenu()
+    public string ShowMainMenu()
     {
         AnsiConsole.Clear();
         ShowBanner();
@@ -97,10 +65,10 @@ public class WinforgeUI : IDisposable
     }
 
     /// <summary>
-    /// Handles the workload discovery, selection, and execution workflow
+    /// Handles the workload discovery and selection workflow
     /// </summary>
-    /// <returns>Task representing the async operation</returns>
-    private async Task DiscoverAndSelectWorkloads()
+    /// <returns>List of selected workloads, or empty list if none selected</returns>
+    public async Task<List<WorkloadMetadata>> SelectWorkloadsAsync()
     {
         AnsiConsole.Clear();
         ShowBanner();
@@ -113,7 +81,7 @@ public class WinforgeUI : IDisposable
         if (!workloads.Any())
         {
             AnsiConsole.MarkupLine("[red]No workloads found![/]");
-            return;
+            return new List<WorkloadMetadata>();
         }
 
         ShowWorkloadDiscoveryResults(workloads);
@@ -123,17 +91,108 @@ public class WinforgeUI : IDisposable
         if (!selectedWorkloads.Any())
         {
             AnsiConsole.MarkupLine("[yellow]No workloads selected.[/]");
-            return;
+            return new List<WorkloadMetadata>();
         }
 
-        var executionMode = ShowExecutionModeSelection();
-        
-        ShowExecutionPlan(selectedWorkloads, executionMode);
+        return selectedWorkloads;
+    }
 
-        if (AnsiConsole.Confirm("Proceed with installation?"))
+    /// <summary>
+    /// Executes the selected workloads
+    /// </summary>
+    /// <param name="workloads">List of workloads to install</param>
+    private async Task ExecuteWorkloadsAsync(List<WorkloadMetadata> workloads)
+    {
+        AnsiConsole.Clear();
+        ShowBanner();
+        AnsiConsole.MarkupLine("[bold blue]Installing Workloads...[/]\n");
+
+        foreach (var workload in workloads)
         {
-            await ExecuteWorkloadsWithDisplay(selectedWorkloads, executionMode);
+            AnsiConsole.MarkupLine($"[bold]Processing workload: {workload.Name}[/]");
+            
+            await AnsiConsole.Progress()
+                .Columns(new ProgressColumn[]
+                {
+                    new TaskDescriptionColumn(),
+                    new ProgressBarColumn(),
+                    new PercentageColumn(),
+                    new SpinnerColumn(),
+                })
+                .StartAsync(async ctx =>
+                {
+                    // Create a progress reporter that updates the Spectre.Console task
+                    var progressTask = ctx.AddTask($"Installing {workload.Name} packages...");
+                    var progressReporter = new Progress<BatchInstallationProgress>(p =>
+                    {
+                        progressTask.Description = p.Message;
+                        progressTask.Value = p.OverallPercentage;
+                    });
+
+                    var results = await _workloadManager.ExecuteWorkloadAsync(workload, progressReporter);
+                    
+                    progressTask.Value = 100;
+                    progressTask.StopTask();
+
+                    // Show results summary for this workload
+                    if (results.FailedItems > 0)
+                    {
+                        AnsiConsole.MarkupLine($"[red]Workload {workload.Name} completed with errors.[/]");
+                        
+                        // Display detailed error summary for failed packages
+                        var failedPackages = results.PackageResults
+                            .Where(r => !r.Success && !r.AlreadyInstalled)
+                            .ToList();
+
+                        if (failedPackages.Any())
+                        {
+                            AnsiConsole.WriteLine();
+                            AnsiConsole.MarkupLine("[bold red]Failed Packages Summary:[/]");
+                            
+                            foreach (var failedPkg in failedPackages)
+                            {
+                                AnsiConsole.MarkupLine($"[red]Package: {failedPkg.Package.name}[/]");
+                                if (failedPkg.Errors.Any())
+                                {
+                                    AnsiConsole.MarkupLine("[dim]Errors:[/]");
+                                    foreach (var error in failedPkg.Errors)
+                                    {
+                                        AnsiConsole.MarkupLine($"[dim red]  - {error}[/]");
+                                    }
+                                }
+                                AnsiConsole.WriteLine();
+                            }
+                        }
+                        else
+                        {
+                            // Fallback for non-package failures
+                            foreach (var failure in results.Failures)
+                            {
+                                AnsiConsole.MarkupLine($"[red]  - {failure}[/]");
+                            }
+                        }
+                    }
+                    else
+                    {
+                        AnsiConsole.MarkupLine($"[green]Workload {workload.Name} completed successfully![/]");
+                    }
+                    
+                    if (results.Recommendations.Any())
+                    {
+                        AnsiConsole.MarkupLine("[yellow]Recommendations:[/]");
+                        foreach (var rec in results.Recommendations)
+                        {
+                            AnsiConsole.MarkupLine($"[yellow]  - {rec}[/]");
+                        }
+                    }
+                });
+                
+            AnsiConsole.WriteLine();
         }
+
+        AnsiConsole.MarkupLine("[bold green]All operations completed.[/]");
+        AnsiConsole.MarkupLine("Press any key to return to menu...");
+        Console.ReadKey(true);
     }
 
     /// <summary>
@@ -221,35 +280,19 @@ public class WinforgeUI : IDisposable
     }
 
     /// <summary>
-    /// Displays the execution mode selection menu
+    /// Displays the preview plan showing what would be installed
     /// </summary>
-    /// <returns>The selected execution mode</returns>
-    private string ShowExecutionModeSelection()
-    {
-        var selection = AnsiConsole.Prompt(
-            new SelectionPrompt<string>()
-                .Title("[green]Select execution mode:[/]")
-                .AddChoices(new[] { "install", "validate", "both" })
-                .UseConverter(choice => IconProvider.GetExecutionModeDisplay(choice)));
-
-        return selection;
-    }
-
-    /// <summary>
-    /// Displays the execution plan before proceeding with installation
-    /// </summary>
-    /// <param name="selectedWorkloads">List of workloads to be executed</param>
-    /// <param name="executionMode">The execution mode selected</param>
-    private void ShowExecutionPlan(List<WorkloadMetadata> selectedWorkloads, string executionMode)
+    /// <param name="selectedWorkloads">List of workloads to preview</param>
+    private async Task ShowPreviewPlan(List<WorkloadMetadata> selectedWorkloads)
     {
         AnsiConsole.Clear();
         ShowBanner();
 
         var panel = new Panel(
-            new Markup($"[bold]Execution Plan Review[/]\n\n" +
+            new Markup($"[bold]Preview Plan[/]\n\n" +
                       $"[green]Selected Workloads:[/] {selectedWorkloads.Count}\n" +
-                      $"[green]Execution Mode:[/] {executionMode.ToUpper()}\n" +
                       $"[green]Total Packages:[/] {selectedWorkloads.Sum(w => w.PackageCount)}\n" +
+                      $"[green]Total Scripts:[/] {selectedWorkloads.Sum(w => w.ScriptCount)}\n" +
                       $"[green]Estimated Time:[/] ~{selectedWorkloads.Sum(w => w.EstimatedInstallTimeMinutes)} minutes"))
             .Header(IconProvider.GetHeaderText("plan"))
             .Border(BoxBorder.Rounded)
@@ -280,183 +323,181 @@ public class WinforgeUI : IDisposable
 
         AnsiConsole.Write(table);
         AnsiConsole.WriteLine();
+
+        // Generate and display detailed package listing
+        await ShowPackageListingAsync(selectedWorkloads);
     }
 
     /// <summary>
-    /// Executes the selected workloads and displays results
+    /// Displays a detailed listing of all packages that will be installed, organized by workload
     /// </summary>
-    /// <param name="selectedWorkloads">List of workloads to execute</param>
-    /// <param name="executionMode">The execution mode to use</param>
-    /// <returns>Task representing the async operation</returns>
-    private async Task ExecuteWorkloadsWithDisplay(List<WorkloadMetadata> selectedWorkloads, string executionMode)
+    /// <param name="selectedWorkloads">List of workloads to show packages for</param>
+    private async Task ShowPackageListingAsync(List<WorkloadMetadata> selectedWorkloads)
     {
-        var results = await ExecuteWorkloads(selectedWorkloads, executionMode);
+        List<WorkloadPreview> previews = null!;
         
-        // Add some default recommendations for successful executions
-        if (results.SuccessRate == 100)
-        {
-            results.Recommendations.Add("All components installed successfully!");
-            results.Recommendations.Add("Consider creating a system restore point.");
-        }
-        else if (results.SuccessRate > 80)
-        {
-            results.Recommendations.Add("Most components installed successfully.");
-            results.Recommendations.Add("Review failed items and retry if needed.");
-        }
-        else
-        {
-            results.Recommendations.Add("Several components failed to install.");
-            results.Recommendations.Add("Check system requirements and permissions.");
-            results.Recommendations.Add("Review error logs for detailed information.");
-        }
-        
-        ShowExecutionResults(results);
-    }
-
-    /// <summary>
-    /// Executes workloads with live progress tracking and visual feedback
-    /// </summary>
-    /// <param name="selectedWorkloads">List of workloads to execute</param>
-    /// <param name="executionMode">The execution mode (install, validate, both)</param>
-    /// <returns>Execution results with detailed statistics</returns>
-    private async Task<ExecutionResults> ExecuteWorkloads(List<WorkloadMetadata> selectedWorkloads, string executionMode)
-    {
-        AnsiConsole.Clear();
-        ShowBanner();
-
-        var results = new ExecutionResults
-        {
-            StartTime = DateTime.Now,
-            ExecutionMode = executionMode,
-            TotalPackages = selectedWorkloads.Sum(w => w.PackageCount),
-            TotalScripts = selectedWorkloads.Sum(w => w.ScriptCount),
-            TotalTests = selectedWorkloads.Sum(w => w.TestCount)
-        };
-
-        // Show progress with live updates - this is a simulation
-        await AnsiConsole.Progress()
-            .StartAsync(async ctx =>
+        // Show progress while loading workload configurations
+        await AnsiConsole.Status()
+            .StartAsync("Loading package details...", async ctx =>
             {
-                var overallTask = ctx.AddTask("[green]Overall Progress[/]");
-                var currentTask = ctx.AddTask("[blue]Current Activity[/]");
+                ctx.Spinner(Spinner.Known.Dots);
+                ctx.SpinnerStyle(Style.Parse("green"));
 
-                var totalSteps = results.TotalPackages + results.TotalScripts +
-                               (executionMode.Contains("validate") || executionMode == "both" ? results.TotalTests : 0);
-                
-                var completedSteps = 0;
-
-                // Simulate package installation
-                if (executionMode == "install" || executionMode == "both")
-                {
-                    foreach (var workload in selectedWorkloads)
-                    {
-                        for (int i = 0; i < workload.PackageCount; i++)
-                        {
-                            currentTask.Description = $"[blue]Installing package {i + 1}/{workload.PackageCount} from {workload.Name}[/]";
-                            await Task.Delay(200);
-                            
-                            completedSteps++;
-                            overallTask.Value = (double)completedSteps / totalSteps * 100;
-                        }
-                        results.SuccessfulPackages += workload.PackageCount;
-                    }
-
-                    foreach (var workload in selectedWorkloads)
-                    {
-                        for (int i = 0; i < workload.ScriptCount; i++)
-                        {
-                            currentTask.Description = $"[blue]Executing script {i + 1}/{workload.ScriptCount} from {workload.Name}[/]";
-                            await Task.Delay(500);
-                            
-                            completedSteps++;
-                            overallTask.Value = (double)completedSteps / totalSteps * 100;
-                        }
-                        results.SuccessfulScripts += workload.ScriptCount;
-                    }
-                }
-
-                // Simulate validation
-                if (executionMode == "validate" || executionMode == "both")
-                {
-                    foreach (var workload in selectedWorkloads)
-                    {
-                        for (int i = 0; i < workload.TestCount; i++)
-                        {
-                            currentTask.Description = $"[blue]Running test {i + 1}/{workload.TestCount} from {workload.Name}[/]";
-                            await Task.Delay(100);
-                            
-                            completedSteps++;
-                            overallTask.Value = (double)completedSteps / totalSteps * 100;
-                        }
-                        results.SuccessfulTests += workload.TestCount;
-                    }
-                }
-
-                overallTask.Value = 100;
-                currentTask.Description = $"[green]{IconProvider.SUCCESS} Complete![/]";
+                // Get previews for all selected workloads
+                previews = await _workloadManager.PreviewWorkloadsAsync(selectedWorkloads);
             });
 
-        results.EndTime = DateTime.Now;
-        results.TotalTimeSeconds = (int)(results.EndTime - results.StartTime).TotalSeconds;
+        // Create package listing table after status is complete
+        var packageTable = new Table();
+        packageTable.Border(TableBorder.Rounded);
+        packageTable.AddColumn(new TableColumn("[bold]Package Name[/]").LeftAligned());
+        packageTable.AddColumn(new TableColumn("[bold]Manager[/]").Centered());
+        packageTable.AddColumn(new TableColumn("[bold]Version[/]").Centered());
+        packageTable.AddColumn(new TableColumn("[bold]Workload[/]").LeftAligned());
 
-        return results;
-    }
-
-    /// <summary>
-    /// Displays comprehensive execution results with statistics and recommendations
-    /// </summary>
-    /// <param name="results">The execution results to display</param>
-    private void ShowExecutionResults(ExecutionResults results)
-    {
-        AnsiConsole.Clear();
-        ShowBanner();
-
-        // Show summary panel
-        var successRateColor = results.SuccessRate >= 90 ? "green" :
-                               results.SuccessRate >= 70 ? "yellow" : "red";
-
-        var summary = new Panel(
-            new Markup($"[bold]Execution Summary[/]\n\n" +
-                      $"[green]Success Rate:[/] [{successRateColor}]{results.SuccessRate:F1}%[/]\n" +
-                      $"[green]Total Time:[/] {TimeSpan.FromSeconds(results.TotalTimeSeconds):mm\\:ss}\n" +
-                      $"[green]Mode:[/] {results.ExecutionMode.ToUpper()}\n\n" +
-                      $"[green]Packages:[/] {results.SuccessfulPackages}/{results.TotalPackages} successful\n" +
-                      $"[green]Scripts:[/] {results.SuccessfulScripts}/{results.TotalScripts} successful\n" +
-                      $"[green]Tests:[/] {results.SuccessfulTests}/{results.TotalTests} passed"))
-            .Header(IconProvider.GetHeaderText("results"))
-            .Border(BoxBorder.Rounded)
-            .BorderColor(Color.Blue);
-
-        AnsiConsole.Write(summary);
-
-        // Show recommendations
-        if (results.Recommendations.Any())
+        // Extract and display all package install actions
+        int totalPackages = 0;
+        foreach (var preview in previews)
         {
-            AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[bold yellow]{IconProvider.TIP} Recommendations:[/]");
-            foreach (var rec in results.Recommendations)
+            // Filter for package install actions
+            var packageActions = preview.Actions
+                .Where(a => a.ActionType == "Package Install")
+                .ToList();
+
+            foreach (var action in packageActions)
             {
-                AnsiConsole.MarkupLine($"[yellow]  • {rec}[/]");
+                var manager = action.Details.ContainsKey("Manager") ? action.Details["Manager"] : "unknown";
+                var version = action.Details.ContainsKey("Version") ? action.Details["Version"] : "latest";
+                
+                // Color code package managers
+                var managerDisplay = manager.ToLower() switch
+                {
+                    "winget" => "[blue]winget[/]",
+                    "choco" => "[yellow]choco[/]",
+                    "npm" => "[red]npm[/]",
+                    "pip" => "[green]pip[/]",
+                    _ => $"[grey]{manager}[/]"
+                };
+
+                packageTable.AddRow(
+                    action.Name,
+                    managerDisplay,
+                    version,
+                    $"[dim]{preview.WorkloadName}[/]"
+                );
+                totalPackages++;
             }
         }
 
-        // Show celebration message if everything was successful
-        if (results.SuccessRate == 100)
+        // Display the package listing table
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine($"[bold blue]Package Installation Details[/] [dim]({totalPackages} packages)[/]");
+        AnsiConsole.Write(packageTable);
+        AnsiConsole.WriteLine();
+    }
+
+    /// <summary>
+    /// Displays the consolidated packages grouped by package manager
+    /// </summary>
+    /// <param name="packageList">The consolidated package list to display</param>
+    public void DisplayConsolidatedPackageList(ConsolidatedPackageList packageList)
+    {
+        AnsiConsole.Clear();
+        ShowBanner();
+
+        // Summary Header
+        AnsiConsole.MarkupLine($"[bold]Found {packageList.UniquePackages} unique packages ({packageList.DuplicatesRemoved} duplicates removed from {packageList.TotalPackages} total)[/]");
+        AnsiConsole.WriteLine();
+
+        foreach (var managerGroup in packageList.PackagesByManager)
         {
+            var manager = managerGroup.Key;
+            var packages = managerGroup.Value.OrderBy(p => p.Name).ToList();
+            var icon = GetManagerIcon(manager);
+            
+            // Manager Header
+            var managerColor = manager.ToLower() switch
+            {
+                "winget" => "blue",
+                "choco" => "yellow",
+                "npm" => "red",
+                "pip" => "green",
+                _ => "grey"
+            };
+
+            AnsiConsole.MarkupLine($"[{managerColor}]{icon} {manager}[/]");
+
+            // Table
+            var table = new Table();
+            table.Border(TableBorder.Rounded);
+            table.AddColumn("Package Name");
+            table.AddColumn("Version");
+            table.AddColumn("Source Workloads");
+
+            foreach (var pkg in packages)
+            {
+                var version = string.IsNullOrEmpty(pkg.Version) ? "[dim]latest[/]" : pkg.Version;
+                var sources = string.Join(", ", pkg.SourceWorkloads);
+                var name = pkg.IsDuplicate ? $"{pkg.Name} [dim](merged)[/]" : pkg.Name;
+
+                table.AddRow(name, version, sources);
+            }
+
+            AnsiConsole.Write(table);
             AnsiConsole.WriteLine();
-            AnsiConsole.MarkupLine($"[bold green]{IconProvider.CELEBRATION} All workloads installed successfully![/]");
+        }
+    }
+
+    /// <summary>
+    /// Asks the user to confirm package installation
+    /// </summary>
+    /// <param name="packageList">The consolidated package list</param>
+    /// <returns>True if the user confirms, false otherwise</returns>
+    public bool ConfirmPackageInstallation(ConsolidatedPackageList packageList)
+    {
+        AnsiConsole.MarkupLine($"[bold]Ready to install {packageList.UniquePackages} packages using {packageList.PackagesByManager.Count} package managers[/]");
+        
+        foreach (var manager in packageList.PackagesByManager)
+        {
+            AnsiConsole.MarkupLine($"  • {manager.Key} ({manager.Value.Count} packages)");
+        }
+        
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[dim]Packages will be installed in order: winget, choco, npm, pip, others[/]");
+        
+        // Check if there are non-winget packages
+        var hasNonWinget = packageList.PackagesByManager.Keys.Any(k => !string.Equals(k, "winget", StringComparison.OrdinalIgnoreCase));
+        if (hasNonWinget)
+        {
+            AnsiConsole.MarkupLine("[yellow]Note: Non-winget packages will be simulated for this session[/]");
         }
 
         AnsiConsole.WriteLine();
-        AnsiConsole.MarkupLine("Press any key to continue...");
-        Console.ReadKey(true);
+        return AnsiConsole.Confirm("Do you want to proceed with installation?", true);
+    }
+
+    /// <summary>
+    /// Gets the icon for a specific package manager
+    /// </summary>
+    /// <param name="manager">The package manager name</param>
+    /// <returns>The icon string</returns>
+    public string GetManagerIcon(string manager)
+    {
+        return manager.ToLower() switch
+        {
+            "winget" => "📦",
+            "choco" => "🍫",
+            "npm" => "📗",
+            "pip" => "🐍",
+            _ => "📥"
+        };
     }
 
     /// <summary>
     /// Handles validation mode functionality (placeholder for future implementation)
     /// </summary>
     /// <returns>Task representing the async operation</returns>
-    private async Task RunValidationMode()
+    public async Task RunValidationMode()
     {
         AnsiConsole.Clear();
         ShowBanner();
@@ -468,12 +509,144 @@ public class WinforgeUI : IDisposable
     /// Handles report generation functionality (placeholder for future implementation)
     /// </summary>
     /// <returns>Task representing the async operation</returns>
-    private async Task GenerateReport()
+    public async Task GenerateReport()
     {
         AnsiConsole.Clear();
         ShowBanner();
         AnsiConsole.MarkupLine("[yellow]Report generation - Feature coming soon![/]");
         await Task.Delay(1000);
+    }
+
+    /// <summary>
+    /// Displays the installation summary
+    /// </summary>
+    /// <param name="summary">The installation summary to display</param>
+    public void DisplayInstallationSummary(InstallationSummary summary)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[blue]Installation Summary[/]"));
+        AnsiConsole.WriteLine();
+
+        // Overall stats
+        var grid = new Grid();
+        grid.AddColumn();
+        grid.AddColumn();
+        
+        grid.AddRow(new Markup("[bold]Total Packages:[/][dim].......[/]"), new Markup(summary.TotalPackages.ToString()));
+        grid.AddRow(new Markup("[green]Successful:[/][dim]...........[/]"), new Markup($"[green]{summary.SuccessfulInstalls}[/]"));
+        grid.AddRow(new Markup("[red]Failed:[/][dim]...............[/]"), new Markup($"[red]{summary.FailedInstalls}[/]"));
+        grid.AddRow(new Markup("[yellow]Skipped:[/][dim]..............[/]"), new Markup($"[yellow]{summary.SkippedInstalls}[/]"));
+        grid.AddRow(new Markup("[bold]Total Time:[/][dim]..........[/]"), new Markup($"{summary.TotalDuration.TotalSeconds:F1}s"));
+        
+        AnsiConsole.Write(new Panel(grid)
+            .Header("Results")
+            .Border(BoxBorder.Rounded)
+            .BorderColor(Color.Blue));
+
+        AnsiConsole.WriteLine();
+
+        // Per-manager breakdown
+        var table = new Table();
+        table.Border(TableBorder.Rounded);
+        table.AddColumn("Manager");
+        table.AddColumn("Packages");
+        table.AddColumn("Success");
+        table.AddColumn("Failed");
+        table.AddColumn("Mode");
+
+        foreach (var result in summary.ResultsByManager.Values)
+        {
+            var mode = result.WasSimulated ? "[yellow]Simulated[/]" : "[green]Real[/]";
+            table.AddRow(
+                result.Manager,
+                result.PackageCount.ToString(),
+                $"[green]{result.SuccessCount}[/]",
+                result.FailureCount > 0 ? $"[red]{result.FailureCount}[/]" : "0",
+                mode
+            );
+        }
+
+        AnsiConsole.Write(table);
+
+        // Failed packages details
+        var allFailures = summary.ResultsByManager.Values
+            .Where(r => r.FailureDetails != null)
+            .SelectMany(r => r.FailureDetails)
+            .ToList();
+
+        if (allFailures.Any())
+        {
+            var report = new InstallationFailureReport
+            {
+                TotalFailures = allFailures.Count,
+                Failures = allFailures
+            };
+            DisplayFailureReport(report);
+        }
+        else if (summary.FailedInstalls > 0)
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.MarkupLine("[red bold]Failed Packages:[/]");
+            foreach (var result in summary.ResultsByManager.Values.Where(r => r.FailureCount > 0))
+            {
+                foreach (var failedPkg in result.FailedPackages)
+                {
+                    AnsiConsole.MarkupLine($"[red]  • {failedPkg} ({result.Manager})[/]");
+                }
+            }
+        }
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("Press any key to continue...");
+        Console.ReadKey(true);
+    }
+
+    /// <summary>
+    /// Runs the installation process with a progress display
+    /// </summary>
+    /// <param name="installationAction">The installation action to run</param>
+    /// <returns>The installation summary</returns>
+    public async Task<InstallationSummary> RunInstallationWithProgress(
+        Func<IProgress<InstallationProgressReport>, Task<InstallationSummary>> installationAction)
+    {
+        InstallationSummary summary = null!;
+        string lastMessage = string.Empty;
+
+        await AnsiConsole.Progress()
+            .Columns(new ProgressColumn[]
+            {
+                new ProgressBarColumn(),
+                new PercentageColumn(),
+                new SpinnerColumn(),
+            })
+            .StartAsync(async ctx =>
+            {
+                var progressTask = ctx.AddTask("[green]Starting installation...[/]");
+                
+                var progress = new Progress<InstallationProgressReport>(report =>
+                {
+                    // Update status message
+                    if (!string.IsNullOrEmpty(report.StatusMessage) && report.StatusMessage != lastMessage)
+                    {
+                        AnsiConsole.WriteLine(report.StatusMessage);
+                        lastMessage = report.StatusMessage;
+                    }
+
+                    // Update progress value
+                    if (report.TotalPackages > 0)
+                    {
+                        progressTask.Value = (double)report.CompletedPackages / report.TotalPackages * 100;
+                    }
+                });
+
+                summary = await installationAction(progress);
+                
+                progressTask.Value = 100;
+                AnsiConsole.MarkupLine("[green]Installation complete![/]");
+                progressTask.StopTask();
+            });
+
+        return summary;
     }
 
     /// <summary>
@@ -501,9 +674,7 @@ public class WinforgeUI : IDisposable
             "• Time estimation and dependency resolution\n" +
             "• Live progress tracking during execution\n\n" +
             "[green]Execution Modes:[/]\n" +
-            $"• [blue]{IconProvider.INSTALL} Installation Mode[/] - Install packages and run setup scripts\n" +
-            $"• [blue]{IconProvider.VALIDATE} Validation Mode[/] - Run compliance tests only\n" +
-            $"• [blue]{IconProvider.BOTH} Both Modes[/] - Complete installation with validation\n"
+            $"• [blue]{IconProvider.INSTALL} Preview Mode[/] - View what would be installed without making changes\n"
         );
 
         var panel = new Panel(helpContent)
@@ -590,11 +761,59 @@ public class WinforgeUI : IDisposable
         AnsiConsole.Write(panel);
     }
 
-    /// <summary>
-    /// Disposes of resources and cleans up components
-    /// </summary>
-    public void Dispose()
+    public void DisplayFailureReport(InstallationFailureReport report)
     {
-        _workloadManager?.Dispose();
+        if (report.TotalFailures == 0) return;
+        
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[red]Installation Failures[/]").RuleStyle("red"));
+        AnsiConsole.WriteLine();
+        
+        foreach (var failure in report.Failures)
+        {
+            var panel = new Panel(FormatFailureDetails(failure))
+                .Header($"[red]{failure.PackageName}[/] ({failure.PackageManager})")
+                .Border(BoxBorder.Rounded)
+                .BorderColor(Color.Red)
+                .Padding(1, 0);
+            
+            AnsiConsole.Write(panel);
+            AnsiConsole.WriteLine();
+        }
     }
+
+    private string FormatFailureDetails(PackageFailureDetail failure)
+    {
+        var sb = new StringBuilder();
+        sb.AppendLine($"[yellow]Status:[/] {failure.Status}");
+        sb.AppendLine($"[yellow]Exit Code:[/] {failure.ExitCode}");
+        sb.AppendLine($"[yellow]Duration:[/] {failure.Duration.TotalSeconds:F1}s");
+        
+        if (failure.Errors.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[yellow]Errors:[/]");
+            foreach (var error in failure.Errors.Take(5))
+            {
+                sb.AppendLine($"  [red]• {Markup.Escape(error)}[/]");
+            }
+        }
+        
+        if (failure.StandardError.Count > 0)
+        {
+            sb.AppendLine();
+            sb.AppendLine("[yellow]Output (last 5 lines):[/]");
+            foreach (var line in failure.StandardError.TakeLast(5))
+            {
+                sb.AppendLine($"  [dim]{Markup.Escape(line)}[/]");
+            }
+        }
+        
+        sb.AppendLine();
+        sb.AppendLine($"[yellow]Command:[/]");
+        sb.AppendLine($"  [dim]{Markup.Escape(failure.CommandExecuted)}[/]");
+        
+        return sb.ToString();
+    }
+
 }

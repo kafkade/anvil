@@ -1,7 +1,14 @@
 using System;
 using System.Threading.Tasks;
 using Winforge.Core;
+using Winforge.Interfaces;
+using Winforge.Services;
+using Winforge.Services.Execution;
+using Winforge.UI;
+using Winforge.Services.Logging;
 using Spectre.Console;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Winforge;
 
@@ -47,10 +54,19 @@ class Program
                 case "-h":
                     ShowHelpSummary();
                     return 0;
+                // TODO: Re-enable test-tracker command after implementing simulation
+                // case "test-tracker":
+                //     await TestSimplePackageTracker.RunTestAsync();
+                //     return 0;
             }
             
+            // Setup Dependency Injection
+            var services = new ServiceCollection();
+            ConfigureServices(services);
+            var serviceProvider = services.BuildServiceProvider();
+
             // Initialize and run the full application
-            using var app = new WinforgeApplication();
+            using var app = serviceProvider.GetRequiredService<WinforgeApplication>();
             return await app.RunAsync(args);
         }
         catch (OperationCanceledException)
@@ -78,6 +94,34 @@ class Program
                 // Ignore cleanup errors
             }
         }
+    }
+
+    /// <summary>
+    /// Configures the dependency injection container.
+    /// </summary>
+    /// <param name="services">The service collection to configure</param>
+    private static void ConfigureServices(IServiceCollection services)
+    {
+        // Logging
+        services.AddLogging(configure =>
+        {
+            configure.AddConsole();
+            configure.SetMinimumLevel(LogLevel.Information);
+        });
+
+        // Services
+        services.AddSingleton<WingetPackageInstaller>();
+        services.AddSingleton<IPackageInstaller>(sp => sp.GetRequiredService<WingetPackageInstaller>());
+        services.AddSingleton<WorkloadManager>();
+        services.AddSingleton<PackageConsolidator>();
+        services.AddSingleton<PackageInstallationOrchestrator>();
+        services.AddSingleton<StructuredLogger>(sp => new StructuredLogger(sp.GetRequiredService<ILogger<StructuredLogger>>()));
+        
+        // UI
+        services.AddSingleton<WinforgeUI>();
+        
+        // Core Application
+        services.AddSingleton<WinforgeApplication>();
     }
     
     /// <summary>
@@ -111,6 +155,7 @@ class Program
         AnsiConsole.MarkupLine("  [blue]interactive[/]       Start interactive mode (default)");
         AnsiConsole.MarkupLine("  [blue]help[/]              Show detailed help and documentation");
         AnsiConsole.MarkupLine("  [blue]version[/]           Show version information");
+        // AnsiConsole.MarkupLine("  [blue]test-tracker[/]      Test the simple package tracker");
         AnsiConsole.MarkupLine("  [blue]quick-tips[/]        Show quick usage tips");
         AnsiConsole.MarkupLine("  [blue]troubleshoot[/]      Show troubleshooting information");
         AnsiConsole.MarkupLine("  [blue]workload-info[/]     Show workload structure information");

@@ -2,6 +2,11 @@ using System;
 using System.Threading.Tasks;
 using Spectre.Console;
 using Winforge.UI;
+using System.Linq;
+using System.Threading;
+using Winforge.Services;
+using Winforge.Services.Execution;
+using Winforge.Services.Logging;
 
 namespace Winforge.Core;
 
@@ -12,22 +17,32 @@ namespace Winforge.Core;
 public class WinforgeApplication : IDisposable
 {
     private readonly WinforgeUI _ui;
+    private readonly PackageConsolidator _packageConsolidator;
+    private readonly PackageInstallationOrchestrator _installationOrchestrator;
+    private readonly WorkloadManager _workloadManager;
+    private readonly StructuredLogger _logger;
     private bool _disposed = false;
     
     /// <summary>
     /// Initializes a new instance of the WinforgeApplication class.
     /// </summary>
-    public WinforgeApplication()
+    /// <param name="ui">The UI coordinator</param>
+    /// <param name="packageConsolidator">Service for consolidating packages</param>
+    /// <param name="installationOrchestrator">Service for orchestrating installations</param>
+    /// <param name="workloadManager">Service for managing workloads</param>
+    /// <param name="logger">Structured logger</param>
+    public WinforgeApplication(
+        WinforgeUI ui,
+        PackageConsolidator packageConsolidator,
+        PackageInstallationOrchestrator installationOrchestrator,
+        WorkloadManager workloadManager,
+        StructuredLogger logger)
     {
-        try
-        {
-            _ui = new WinforgeUI();
-        }
-        catch (Exception ex)
-        {
-            AnsiConsole.WriteException(ex);
-            throw new InvalidOperationException("Failed to initialize Winforge application", ex);
-        }
+        _ui = ui ?? throw new ArgumentNullException(nameof(ui));
+        _packageConsolidator = packageConsolidator ?? throw new ArgumentNullException(nameof(packageConsolidator));
+        _installationOrchestrator = installationOrchestrator ?? throw new ArgumentNullException(nameof(installationOrchestrator));
+        _workloadManager = workloadManager ?? throw new ArgumentNullException(nameof(workloadManager));
+        _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
     
     /// <summary>
@@ -59,6 +74,7 @@ public class WinforgeApplication : IDisposable
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Unexpected error during execution");
             AnsiConsole.WriteException(ex);
             AnsiConsole.MarkupLine("[red]An unexpected error occurred during execution.[/]");
             AnsiConsole.MarkupLine("[yellow]Please report this error with the stack trace above.[/]");
@@ -72,8 +88,99 @@ public class WinforgeApplication : IDisposable
     /// <returns>Exit code</returns>
     private async Task<int> RunInteractiveMode()
     {
-        await _ui.RunInteractiveMode();
+        _ui.ShowBanner();
+
+        while (true)
+        {
+            var choice = _ui.ShowMainMenu();
+            
+            switch (choice)
+            {
+                case "discover":
+                    await RunDiscoveryAndInstallationWorkflow();
+                    break;
+                case "validate":
+                    await _ui.RunValidationMode();
+                    break;
+                case "report":
+                    await _ui.GenerateReport();
+                    break;
+                case "help":
+                    ShowHelp();
+                    break;
+                case "exit":
+                    AnsiConsole.MarkupLine("[green]Thank you for using Winforge![/]");
+                    return 0;
+            }
+
+            if (!AnsiConsole.Confirm("Return to main menu?"))
+                break;
+        }
         return 0;
+    }
+
+    /// <summary>
+    /// Runs the workflow for discovering workloads and installing packages.
+    /// </summary>
+    private async Task RunDiscoveryAndInstallationWorkflow()
+    {
+        try
+        {
+            // 1. Select Workloads
+            var selectedWorkloads = await _ui.SelectWorkloadsAsync();
+            if (!selectedWorkloads.Any())
+            {
+                return;
+            }
+
+            // 2. Consolidate Packages
+            AnsiConsole.MarkupLine("[blue]Consolidating packages from selected workloads...[/]");
+            var consolidatedPackages = await _packageConsolidator.ConsolidateFromWorkloadsAsync(selectedWorkloads, _workloadManager);
+
+            // 3. Display Consolidated List
+            _ui.DisplayConsolidatedPackageList(consolidatedPackages);
+
+            // 4. Get Confirmation
+            if (!_ui.ConfirmPackageInstallation(consolidatedPackages))
+            {
+                AnsiConsole.MarkupLine("[yellow]Installation cancelled by user.[/]");
+                return;
+            }
+
+            // 5. Install Packages
+            var cts = new CancellationTokenSource();
+            
+            // Handle Ctrl+C to cancel installation
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+                AnsiConsole.MarkupLine("[red]Cancellation requested...[/]");
+            };
+
+            try
+            {
+                var summary = await _ui.RunInstallationWithProgress(async (progress) =>
+                {
+                    return await _installationOrchestrator.InstallAllPackagesAsync(
+                        consolidatedPackages,
+                        progress,
+                        cts.Token);
+                });
+
+                // 6. Display Summary
+                _ui.DisplayInstallationSummary(summary);
+            }
+            catch (OperationCanceledException)
+            {
+                AnsiConsole.MarkupLine("[yellow]Installation was cancelled.[/]");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during installation workflow");
+            AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
+        }
     }
     
     /// <summary>
@@ -135,14 +242,7 @@ public class WinforgeApplication : IDisposable
     {
         if (!_disposed)
         {
-            try
-            {
-                _ui?.Dispose();
-            }
-            catch (Exception ex)
-            {
-                AnsiConsole.MarkupLine($"[yellow]Warning: Error during cleanup: {ex.Message}[/]");
-            }
+            // No cleanup needed - WinforgeUI no longer implements IDisposable
             _disposed = true;
         }
     }

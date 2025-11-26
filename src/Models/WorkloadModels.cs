@@ -71,12 +71,6 @@ public class PackageInfo
     /// If empty, the latest version will be installed.
     /// </summary>
     public string version { get; set; } = string.Empty;
-
-    /// <summary>
-    /// Gets or sets a value indicating whether the package should be installed globally.
-    /// Applies to package managers that support global/local installation scopes.
-    /// </summary>
-    public bool global { get; set; }
 }
 
 /// <summary>
@@ -236,6 +230,11 @@ public class ExecutionResults
     public List<string> Recommendations { get; set; } = new();
 
     /// <summary>
+    /// Gets or sets the detailed results of package installations.
+    /// </summary>
+    public List<PackageInstallationResult> PackageResults { get; set; } = new();
+
+    /// <summary>
     /// Gets the overall success rate as a percentage (0-100).
     /// </summary>
     public double SuccessRate => (TotalItems > 0) ? (double)SuccessfulItems / TotalItems * 100 : 100;
@@ -300,4 +299,103 @@ public class PowerShellExecutionResult
     /// Gets or sets the duration of script execution.
     /// </summary>
     public TimeSpan Duration { get; set; }
+}
+
+/// <summary>
+/// Represents a single action that would be performed during workload execution.
+/// Used for preview/analysis mode to show users what would happen without executing.
+/// </summary>
+public class WorkloadAction
+{
+    /// <summary>
+    /// Gets or sets the type of action (e.g., "Package Install", "Script Execution", "File Operation", "Validation Test").
+    /// </summary>
+    public string ActionType { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the name or identifier of the action.
+    /// </summary>
+    public string Name { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets a detailed description of what the action would do.
+    /// </summary>
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets additional details about the action (e.g., package manager, version, file paths).
+    /// </summary>
+    public Dictionary<string, string> Details { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the estimated execution time in seconds.
+    /// </summary>
+    public int EstimatedSeconds { get; set; }
+}
+
+/// <summary>
+/// Represents the preview/analysis results for a workload showing what actions would be performed.
+/// Used instead of ExecutionResults when in preview mode.
+/// </summary>
+public class WorkloadPreview
+{
+    /// <summary>
+    /// Gets or sets the name of the workload being previewed.
+    /// </summary>
+    public string WorkloadName { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the description of the workload.
+    /// </summary>
+    public string Description { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the version of the workload.
+    /// </summary>
+    public string Version { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the list of all actions that would be performed.
+    /// </summary>
+    public List<WorkloadAction> Actions { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets the total estimated execution time in seconds.
+    /// </summary>
+    public int TotalEstimatedSeconds { get; set; }
+
+    /// <summary>
+    /// Gets or sets validation warnings found during preview analysis.
+    /// </summary>
+    public List<string> Warnings { get; set; } = new();
+
+    /// <summary>
+    /// Gets or sets recommendations for the user before executing.
+    /// </summary>
+    public List<string> Recommendations { get; set; } = new();
+
+    /// <summary>
+    /// Gets the total number of package installations that would be performed.
+    /// </summary>
+    public int TotalPackages => Actions.Count(a => a.ActionType == "Package Install");
+
+    /// <summary>
+    /// Gets the total number of scripts that would be executed.
+    /// </summary>
+    public int TotalScripts => Actions.Count(a => a.ActionType == "Script Execution");
+
+    /// <summary>
+    /// Gets the total number of file operations that would be performed.
+    /// </summary>
+    public int TotalFiles => Actions.Count(a => a.ActionType == "File Operation");
+
+    /// <summary>
+    /// Gets the total number of validation tests that would be run.
+    /// </summary>
+    public int TotalTests => Actions.Count(a => a.ActionType == "Validation Test");
+
+    /// <summary>
+    /// Gets the total number of actions that would be performed.
+    /// </summary>
+    public int TotalActions => Actions.Count;
 }
