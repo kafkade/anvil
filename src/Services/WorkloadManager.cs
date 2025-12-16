@@ -162,7 +162,7 @@ public class WorkloadManager
         {
             var yamlContent = File.ReadAllText(configPath);
             var config = _yamlDeserializer.Deserialize<WorkloadConfig>(yamlContent);
-            
+
             return new WorkloadMetadata
             {
                 Name = config.name ?? "Unknown Workload",
@@ -176,6 +176,21 @@ public class WorkloadManager
                 IsValid = !string.IsNullOrEmpty(config.name),
                 EstimatedInstallTimeMinutes = Math.Max(5, (config.packages?.Count ?? 0) * 2)
             };
+        }
+        catch (IOException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]IO error parsing {configPath}: {ex.Message}[/]");
+            return null;
+        }
+        catch (UnauthorizedAccessException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]Access denied parsing {configPath}: {ex.Message}[/]");
+            return null;
+        }
+        catch (YamlDotNet.Core.YamlException ex)
+        {
+            AnsiConsole.MarkupLine($"[red]YAML error parsing {configPath}: {ex.Message}[/]");
+            return null;
         }
         catch (Exception ex)
         {

@@ -1,12 +1,8 @@
-using System;
-using System.Threading.Tasks;
 using Spectre.Console;
-using Winforge.UI;
-using System.Linq;
-using System.Threading;
 using Winforge.Services;
 using Winforge.Services.Execution;
 using Winforge.Services.Logging;
+using Winforge.UI;
 
 namespace Winforge.Core;
 
