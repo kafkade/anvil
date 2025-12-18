@@ -144,7 +144,7 @@ public class WinforgeApplication : IDisposable
             }
 
             // 5. Install Packages
-            var cts = new CancellationTokenSource();
+            using var cts = new CancellationTokenSource();
             
             // Handle Ctrl+C to cancel installation
             Console.CancelKeyPress += (s, e) =>
