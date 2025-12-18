@@ -366,8 +366,8 @@ public class WinforgeUI
 
             foreach (var action in packageActions)
             {
-                var manager = action.Details.ContainsKey("Manager") ? action.Details["Manager"] : "unknown";
-                var version = action.Details.ContainsKey("Version") ? action.Details["Version"] : "latest";
+                var manager = action.Details.GetValueOrDefault("Manager") ?? "unknown";
+                var version = action.Details.GetValueOrDefault("Version") ?? "latest";
                 
                 // Color code package managers
                 var managerDisplay = manager.ToLower() switch
