@@ -40,9 +40,9 @@ public class WorkloadConfig
     public List<ScriptInfo> scripts { get; set; } = new();
 
     /// <summary>
-    /// Gets or sets the list of validation tests to verify the workload installation.
+    /// Gets or sets the list of health check validations to verify the workload installation.
     /// </summary>
-    public List<TestInfo> tests { get; set; } = new();
+    public List<TestInfo> healthChecks { get; set; } = new();
 
     /// <summary>
     /// Gets or sets the list of configuration files to be deployed for this workload.
@@ -99,6 +99,7 @@ public class ScriptInfo
 /// <summary>
 /// Represents information about a validation test to verify workload installation.
 /// Defines test execution parameters including name, type, target, and expected results.
+/// Enhanced with optional severity, timeout, and remediation support for backward compatibility.
 /// </summary>
 public class TestInfo
 {
@@ -122,6 +123,79 @@ public class TestInfo
     /// Gets or sets the expected result or output that indicates a successful test.
     /// </summary>
     public string expected { get; set; } = string.Empty;
+
+    /// <summary>
+    /// Gets or sets the severity level of the health check (optional).
+    /// Values: "critical", "warning", "info". Default is "warning".
+    /// </summary>
+    public string? severity { get; set; }
+
+    /// <summary>
+    /// Gets or sets the timeout in seconds for this health check (optional).
+    /// Default is 30 seconds if not specified.
+    /// </summary>
+    public int? timeout { get; set; }
+
+    /// <summary>
+    /// Gets or sets the remediation information for when the check fails (optional).
+    /// </summary>
+    public TestRemediationInfo? remediation { get; set; }
+
+    /// <summary>
+    /// Converts this TestInfo to an enhanced HealthCheckInfo.
+    /// </summary>
+    public HealthCheckInfo ToHealthCheckInfo()
+    {
+        var severityEnum = HealthCheckSeverity.Warning; // Default
+        if (!string.IsNullOrEmpty(severity))
+        {
+            Enum.TryParse<HealthCheckSeverity>(severity, true, out severityEnum);
+        }
+
+        var result = new HealthCheckInfo
+        {
+            Name = name,
+            Type = type,
+            Target = target,
+            Expected = expected,
+            Severity = severityEnum,
+            Timeout = timeout ?? 30
+        };
+
+        if (remediation != null)
+        {
+            result.Remediation = new RemediationInfo
+            {
+                Hint = remediation.hint,
+                Command = remediation.command,
+                ManualSteps = remediation.manualSteps ?? new List<string>()
+            };
+        }
+
+        return result;
+    }
+}
+
+/// <summary>
+/// Represents remediation information for a failed test (YAML deserialization).
+/// This is the YAML-friendly version that gets converted to RemediationInfo.
+/// </summary>
+public class TestRemediationInfo
+{
+    /// <summary>
+    /// Gets or sets a human-readable hint for fixing the issue.
+    /// </summary>
+    public string? hint { get; set; }
+
+    /// <summary>
+    /// Gets or sets an optional auto-fix command to execute.
+    /// </summary>
+    public string? command { get; set; }
+
+    /// <summary>
+    /// Gets or sets the manual steps to fix the issue.
+    /// </summary>
+    public List<string>? manualSteps { get; set; }
 }
 
 /// <summary>
@@ -185,9 +259,9 @@ public class ExecutionResults
     public int TotalScripts { get; set; }
 
     /// <summary>
-    /// Gets or sets the total number of tests that were processed.
+    /// Gets or sets the total number of health checks that were processed.
     /// </summary>
-    public int TotalTests { get; set; }
+    public int TotalHealthChecks { get; set; }
 
     /// <summary>
     /// Gets or sets the number of packages that were successfully installed.
@@ -200,9 +274,9 @@ public class ExecutionResults
     public int SuccessfulScripts { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of tests that passed successfully.
+    /// Gets or sets the number of health checks that passed successfully.
     /// </summary>
-    public int SuccessfulTests { get; set; }
+    public int SuccessfulHealthChecks { get; set; }
 
     /// <summary>
     /// Gets or sets the number of packages that failed to install.
@@ -215,9 +289,9 @@ public class ExecutionResults
     public int FailedScripts { get; set; }
 
     /// <summary>
-    /// Gets or sets the number of tests that failed.
+    /// Gets or sets the number of health checks that failed.
     /// </summary>
-    public int FailedTests { get; set; }
+    public int FailedHealthChecks { get; set; }
 
     /// <summary>
     /// Gets or sets a list of specific failure messages and error details.
@@ -240,19 +314,19 @@ public class ExecutionResults
     public double SuccessRate => (TotalItems > 0) ? (double)SuccessfulItems / TotalItems * 100 : 100;
 
     /// <summary>
-    /// Gets the total number of items (packages + scripts + tests) that were processed.
+    /// Gets the total number of items (packages + scripts + health checks) that were processed.
     /// </summary>
-    public int TotalItems => TotalPackages + TotalScripts + TotalTests;
+    public int TotalItems => TotalPackages + TotalScripts + TotalHealthChecks;
 
     /// <summary>
     /// Gets the total number of items that completed successfully.
     /// </summary>
-    public int SuccessfulItems => SuccessfulPackages + SuccessfulScripts + SuccessfulTests;
+    public int SuccessfulItems => SuccessfulPackages + SuccessfulScripts + SuccessfulHealthChecks;
 
     /// <summary>
     /// Gets the total number of items that failed to complete.
     /// </summary>
-    public int FailedItems => FailedPackages + FailedScripts + FailedTests;
+    public int FailedItems => FailedPackages + FailedScripts + FailedHealthChecks;
 }
 
 /// <summary>
@@ -308,7 +382,7 @@ public class PowerShellExecutionResult
 public class WorkloadAction
 {
     /// <summary>
-    /// Gets or sets the type of action (e.g., "Package Install", "Script Execution", "File Operation", "Validation Test").
+    /// Gets or sets the type of action (e.g., "Package Install", "Script Execution", "File Operation", "Health Check").
     /// </summary>
     public string ActionType { get; set; } = string.Empty;
 
@@ -390,9 +464,9 @@ public class WorkloadPreview
     public int TotalFiles => Actions.Count(a => a.ActionType == "File Operation");
 
     /// <summary>
-    /// Gets the total number of validation tests that would be run.
+    /// Gets the total number of health checks that would be run.
     /// </summary>
-    public int TotalTests => Actions.Count(a => a.ActionType == "Validation Test");
+    public int TotalHealthChecks => Actions.Count(a => a.ActionType == "Health Check");
 
     /// <summary>
     /// Gets the total number of actions that would be performed.

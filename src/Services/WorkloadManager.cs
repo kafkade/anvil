@@ -171,7 +171,7 @@ public class WorkloadManager
                 Author = config.author ?? "Unknown",
                 PackageCount = config.packages?.Count ?? 0,
                 ScriptCount = config.scripts?.Count ?? 0,
-                TestCount = config.tests?.Count ?? 0,
+                TestCount = config.healthChecks?.Count ?? 0,
                 FileCount = config.files?.Count ?? 0,
                 IsValid = !string.IsNullOrEmpty(config.name),
                 EstimatedInstallTimeMinutes = Math.Max(5, (config.packages?.Count ?? 0) * 2)
@@ -390,10 +390,10 @@ public class WorkloadManager
                 results.Recommendations.Add($"Skipped {workloadConfig.scripts.Count} scripts (script execution not yet implemented)");
             }
 
-            if (workloadConfig.tests?.Count > 0)
+            if (workloadConfig.healthChecks?.Count > 0)
             {
-                results.TotalTests = workloadConfig.tests.Count;
-                results.Recommendations.Add($"Skipped {workloadConfig.tests.Count} tests (test execution not yet implemented)");
+                results.TotalHealthChecks = workloadConfig.healthChecks.Count;
+                results.Recommendations.Add($"Skipped {workloadConfig.healthChecks.Count} health checks (health check execution not yet implemented)");
             }
         }
         catch (Exception ex)
@@ -497,10 +497,10 @@ public class WorkloadManager
                 }
             }
 
-            // Validate tests
-            if (workloadConfig.tests?.Count > 0)
+            // Validate health checks
+            if (workloadConfig.healthChecks?.Count > 0)
             {
-                foreach (var test in workloadConfig.tests)
+                foreach (var test in workloadConfig.healthChecks)
                 {
                     if (string.IsNullOrWhiteSpace(test.name))
                     {
@@ -605,10 +605,10 @@ public class WorkloadManager
             }
         }
 
-        // Generate validation test previews
-        if (workloadConfig.tests?.Count > 0)
+        // Generate health check previews
+        if (workloadConfig.healthChecks?.Count > 0)
         {
-            foreach (var test in workloadConfig.tests)
+            foreach (var test in workloadConfig.healthChecks)
             {
                 var action = new WorkloadAction
                 {
@@ -670,9 +670,9 @@ public class WorkloadManager
             preview.Recommendations.Add($"Will perform {preview.TotalFiles} file operation(s). Existing files may be overwritten depending on configuration.");
         }
 
-        if (preview.TotalTests > 0)
+        if (preview.TotalHealthChecks > 0)
         {
-            preview.Recommendations.Add($"Will run {preview.TotalTests} validation test(s) to verify the installation.");
+            preview.Recommendations.Add($"Will run {preview.TotalHealthChecks} health check(s) to verify the installation.");
         }
 
         // Add warnings-based recommendations
