@@ -109,6 +109,14 @@ class Program
             configure.SetMinimumLevel(LogLevel.Information);
         });
 
+        // Health Check Strategies
+        services.AddSingleton<IHealthCheckStrategy, CommandCheckStrategy>();
+        services.AddSingleton<IHealthCheckStrategy, FileCheckStrategy>();
+        services.AddSingleton<IHealthCheckStrategy, RegistryCheckStrategy>();
+        
+        // Health Check Evaluator
+        services.AddSingleton<IHealthCheckEvaluator, HealthCheckEvaluator>();
+
         // Services
         services.AddSingleton<WingetPackageInstaller>();
         services.AddSingleton<IPackageInstaller>(sp => sp.GetRequiredService<WingetPackageInstaller>());

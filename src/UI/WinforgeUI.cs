@@ -494,6 +494,134 @@ public class WinforgeUI
     }
 
     /// <summary>
+    /// Displays validation results with detailed health check information
+    /// </summary>
+    /// <param name="results">The batch results from health check evaluation</param>
+    /// <param name="workloadNames">Names of workloads that were validated</param>
+    public void DisplayValidationResults(HealthCheckBatchResult results, List<string> workloadNames)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.Write(new Rule("[blue]Validation Results[/]"));
+        AnsiConsole.WriteLine();
+
+        // Overall summary panel
+        var summaryGrid = new Grid();
+        summaryGrid.AddColumn();
+        summaryGrid.AddColumn();
+        
+        summaryGrid.AddRow(new Markup("[bold]Workloads Validated:[/][dim]....[/]"), new Markup(string.Join(", ", workloadNames)));
+        summaryGrid.AddRow(new Markup("[bold]Total Checks:[/][dim].........[/]"), new Markup(results.TotalCount.ToString()));
+        summaryGrid.AddRow(new Markup("[green]Passed:[/][dim]................[/]"), new Markup($"[green]{results.PassedCount}[/]"));
+        summaryGrid.AddRow(new Markup("[red]Failed:[/][dim]................[/]"), new Markup($"[red]{results.FailedCount}[/]"));
+        summaryGrid.AddRow(new Markup("[yellow]Critical Failures:[/][dim].....[/]"), new Markup($"[yellow]{results.CriticalFailures}[/]"));
+        summaryGrid.AddRow(new Markup("[bold]Success Rate:[/][dim]..........[/]"), new Markup($"{results.SuccessRate:F1}%"));
+        summaryGrid.AddRow(new Markup("[bold]Duration:[/][dim]...............[/]"), new Markup($"{results.TotalDuration.TotalSeconds:F1}s"));
+        
+        AnsiConsole.Write(new Panel(summaryGrid)
+            .Header("Summary")
+            .Border(BoxBorder.Rounded)
+            .BorderColor(results.AllPassed ? Color.Green : Color.Yellow));
+
+        AnsiConsole.WriteLine();
+
+        // Detailed results table
+        var table = new Table();
+        table.Border(TableBorder.Rounded);
+        table.AddColumn("[bold]Status[/]");
+        table.AddColumn("[bold]Health Check[/]");
+        table.AddColumn("[bold]Type[/]");
+        table.AddColumn("[bold]Severity[/]");
+        table.AddColumn("[bold]Duration[/]");
+        table.AddColumn("[bold]Message[/]");
+
+        foreach (var result in results.Results)
+        {
+            var statusIcon = result.Passed ? $"[green]{IconProvider.SUCCESS}[/]" : $"[red]{IconProvider.FAILURE}[/]";
+            var checkName = result.Passed ? $"[white]{result.HealthCheck.Name}[/]" : $"[red]{result.HealthCheck.Name}[/]";
+            
+            var severityColor = result.HealthCheck.Severity switch
+            {
+                HealthCheckSeverity.Critical => "red",
+                HealthCheckSeverity.Warning => "yellow",
+                _ => "blue"
+            };
+            var severity = $"[{severityColor}]{result.HealthCheck.Severity}[/]";
+            
+            var message = result.Message ?? (result.Passed ? "OK" : "Failed");
+            if (message.Length > 50)
+            {
+                message = message.Substring(0, 47) + "...";
+            }
+
+            table.AddRow(
+                statusIcon,
+                checkName,
+                result.HealthCheck.Type,
+                severity,
+                $"{result.Duration.TotalSeconds:F1}s",
+                Markup.Escape(message)
+            );
+        }
+
+        AnsiConsole.Write(table);
+
+        // Show remediation hints if any failures have them
+        if (results.FailedWithRemediation.Any())
+        {
+            AnsiConsole.WriteLine();
+            AnsiConsole.Write(new Rule("[yellow]Remediation Hints[/]"));
+            AnsiConsole.WriteLine();
+
+            foreach (var failedResult in results.FailedWithRemediation)
+            {
+                var panel = new Panel(FormatRemediationInfo(failedResult.Remediation!))
+                    .Header($"[yellow]{failedResult.HealthCheck.Name}[/]")
+                    .Border(BoxBorder.Rounded)
+                    .BorderColor(Color.Yellow)
+                    .Padding(1, 0);
+                
+                AnsiConsole.Write(panel);
+                AnsiConsole.WriteLine();
+            }
+        }
+
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("Press any key to continue...");
+        Console.ReadKey(true);
+    }
+
+    /// <summary>
+    /// Formats remediation information for display
+    /// </summary>
+    private string FormatRemediationInfo(RemediationInfo remediation)
+    {
+        var sb = new StringBuilder();
+        
+        if (!string.IsNullOrEmpty(remediation.Hint))
+        {
+            sb.AppendLine($"[yellow]Hint:[/] {Markup.Escape(remediation.Hint)}");
+            sb.AppendLine();
+        }
+
+        if (remediation.ManualSteps != null && remediation.ManualSteps.Count > 0)
+        {
+            sb.AppendLine("[yellow]Manual Steps:[/]");
+            foreach (var step in remediation.ManualSteps)
+            {
+                sb.AppendLine($"  [dim]• {Markup.Escape(step)}[/]");
+            }
+            sb.AppendLine();
+        }
+
+        if (!string.IsNullOrEmpty(remediation.Command))
+        {
+            sb.AppendLine($"[yellow]Auto-fix command available:[/] [dim]{Markup.Escape(remediation.Command)}[/]");
+        }
+
+        return sb.ToString().TrimEnd();
+    }
+
+    /// <summary>
     /// Handles validation mode functionality (placeholder for future implementation)
     /// </summary>
     /// <returns>Task representing the async operation</returns>

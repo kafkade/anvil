@@ -288,6 +288,45 @@ public class WorkloadManager
     }
 
     /// <summary>
+    /// Extracts and returns all health checks from the specified workloads.
+    /// </summary>
+    /// <param name="workloads">The workloads to extract health checks from</param>
+    /// <returns>A list of health check information from all workloads</returns>
+    public async Task<List<HealthCheckInfo>> GetHealthChecksAsync(List<WorkloadMetadata> workloads)
+    {
+        if (workloads == null || workloads.Count == 0)
+            throw new ArgumentException("No workloads provided", nameof(workloads));
+
+        _logger.LogInformation("Extracting health checks from {WorkloadCount} workloads", workloads.Count);
+
+        var allHealthChecks = new List<HealthCheckInfo>();
+
+        foreach (var workload in workloads)
+        {
+            try
+            {
+                var config = await LoadWorkloadConfigAsync(workload.ConfigPath);
+                if (config?.healthChecks != null && config.healthChecks.Count > 0)
+                {
+                    _logger.LogInformation("Found {Count} health checks in workload: {WorkloadName}",
+                        config.healthChecks.Count, workload.Name);
+                    
+                    // Convert TestInfo to HealthCheckInfo
+                    var healthChecks = config.healthChecks.Select(t => t.ToHealthCheckInfo()).ToList();
+                    allHealthChecks.AddRange(healthChecks);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error loading health checks from workload: {WorkloadName}", workload.Name);
+            }
+        }
+
+        _logger.LogInformation("Total health checks extracted: {Count}", allHealthChecks.Count);
+        return allHealthChecks;
+    }
+
+    /// <summary>
     /// Executes the installation of a workload.
     /// </summary>
     /// <param name="workload">The workload to install</param>

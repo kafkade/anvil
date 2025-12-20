@@ -3,6 +3,7 @@ using Winforge.Services;
 using Winforge.Services.Execution;
 using Winforge.Services.Logging;
 using Winforge.UI;
+using Winforge.Interfaces;
 
 namespace Winforge.Core;
 
@@ -16,6 +17,7 @@ public class WinforgeApplication : IDisposable
     private readonly PackageConsolidator _packageConsolidator;
     private readonly PackageInstallationOrchestrator _installationOrchestrator;
     private readonly WorkloadManager _workloadManager;
+    private readonly IHealthCheckEvaluator _healthCheckEvaluator;
     private readonly StructuredLogger _logger;
     private bool _disposed = false;
     
@@ -26,18 +28,21 @@ public class WinforgeApplication : IDisposable
     /// <param name="packageConsolidator">Service for consolidating packages</param>
     /// <param name="installationOrchestrator">Service for orchestrating installations</param>
     /// <param name="workloadManager">Service for managing workloads</param>
+    /// <param name="healthCheckEvaluator">Service for evaluating health checks</param>
     /// <param name="logger">Structured logger</param>
     public WinforgeApplication(
         WinforgeUI ui,
         PackageConsolidator packageConsolidator,
         PackageInstallationOrchestrator installationOrchestrator,
         WorkloadManager workloadManager,
+        IHealthCheckEvaluator healthCheckEvaluator,
         StructuredLogger logger)
     {
         _ui = ui ?? throw new ArgumentNullException(nameof(ui));
         _packageConsolidator = packageConsolidator ?? throw new ArgumentNullException(nameof(packageConsolidator));
         _installationOrchestrator = installationOrchestrator ?? throw new ArgumentNullException(nameof(installationOrchestrator));
         _workloadManager = workloadManager ?? throw new ArgumentNullException(nameof(workloadManager));
+        _healthCheckEvaluator = healthCheckEvaluator ?? throw new ArgumentNullException(nameof(healthCheckEvaluator));
         _logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
     
@@ -96,7 +101,7 @@ public class WinforgeApplication : IDisposable
                     await RunDiscoveryAndInstallationWorkflow();
                     break;
                 case "validate":
-                    await _ui.RunValidationMode();
+                    await RunValidationWorkflow();
                     break;
                 case "report":
                     await _ui.GenerateReport();
@@ -177,6 +182,173 @@ public class WinforgeApplication : IDisposable
             _logger.LogError(ex, "Error during installation workflow");
             AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
         }
+    }
+
+    /// <summary>
+    /// Runs the workflow for validating workload installations.
+    /// </summary>
+    private async Task RunValidationWorkflow()
+    {
+        try
+        {
+            // 1. Select Workloads
+            var selectedWorkloads = await _ui.SelectWorkloadsAsync();
+            if (!selectedWorkloads.Any())
+            {
+                return;
+            }
+
+            // 2. Extract Health Checks
+            AnsiConsole.MarkupLine("[blue]Loading health checks from selected workloads...[/]");
+            var healthChecks = await _workloadManager.GetHealthChecksAsync(selectedWorkloads);
+
+            if (!healthChecks.Any())
+            {
+                AnsiConsole.MarkupLine("[yellow]No health checks found in the selected workloads.[/]");
+                AnsiConsole.MarkupLine("Press any key to continue...");
+                Console.ReadKey(true);
+                return;
+            }
+
+            // 3. Show Preview
+            AnsiConsole.Clear();
+            _ui.ShowBanner();
+            
+            var previewTable = new Table();
+            previewTable.Border(TableBorder.Rounded);
+            previewTable.AddColumn("[bold]Health Check[/]");
+            previewTable.AddColumn("[bold]Type[/]");
+            previewTable.AddColumn("[bold]Target[/]");
+            previewTable.AddColumn("[bold]Severity[/]");
+
+            foreach (var check in healthChecks)
+            {
+                var severityColor = check.Severity switch
+                {
+                    Models.HealthCheckSeverity.Critical => "red",
+                    Models.HealthCheckSeverity.Warning => "yellow",
+                    _ => "blue"
+                };
+
+                previewTable.AddRow(
+                    check.Name,
+                    check.Type,
+                    check.Target.Length > 40 ? check.Target.Substring(0, 37) + "..." : check.Target,
+                    $"[{severityColor}]{check.Severity}[/]"
+                );
+            }
+
+            AnsiConsole.MarkupLine($"[bold blue]Validation Preview[/] - {healthChecks.Count} health check(s) will be evaluated\n");
+            AnsiConsole.Write(previewTable);
+            AnsiConsole.WriteLine();
+
+            // 4. Get Confirmation
+            if (!AnsiConsole.Confirm("Do you want to proceed with validation?", true))
+            {
+                AnsiConsole.MarkupLine("[yellow]Validation cancelled by user.[/]");
+                return;
+            }
+
+            // 5. Run Health Checks
+            using var cts = new CancellationTokenSource();
+            
+            // Handle Ctrl+C to cancel validation
+            Console.CancelKeyPress += (s, e) =>
+            {
+                e.Cancel = true;
+                cts.Cancel();
+                AnsiConsole.MarkupLine("[red]Cancellation requested...[/]");
+            };
+
+            Models.HealthCheckBatchResult? batchResults = null;
+
+            try
+            {
+                await AnsiConsole.Progress()
+                    .Columns(new ProgressColumn[]
+                    {
+                        new TaskDescriptionColumn(),
+                        new ProgressBarColumn(),
+                        new PercentageColumn(),
+                        new SpinnerColumn(),
+                    })
+                    .StartAsync(async ctx =>
+                    {
+                        var progressTask = ctx.AddTask("[green]Running health checks...[/]");
+                        progressTask.MaxValue = healthChecks.Count;
+
+                        // Run health checks
+                        batchResults = await _healthCheckEvaluator.EvaluateAllAsync(healthChecks, cts.Token);
+
+                        progressTask.Value = healthChecks.Count;
+                        progressTask.StopTask();
+                    });
+
+                // 6. Display Results
+                if (batchResults != null)
+                {
+                    AnsiConsole.Clear();
+                    _ui.ShowBanner();
+                    
+                    var workloadNames = selectedWorkloads.Select(w => w.Name).ToList();
+                    _ui.DisplayValidationResults(batchResults, workloadNames);
+
+                    // 7. Offer Remediation if there are failures with auto-fix available
+                    var fixableFailures = batchResults.Results
+                        .Where(r => !r.Passed && r.Remediation?.Command != null)
+                        .ToList();
+
+                    if (fixableFailures.Any())
+                    {
+                        AnsiConsole.WriteLine();
+                        if (AnsiConsole.Confirm($"[yellow]{fixableFailures.Count} failed check(s) have auto-fix available. Attempt auto-fix?[/]", false))
+                        {
+                            await AttemptRemediationAsync(fixableFailures);
+                        }
+                    }
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                AnsiConsole.MarkupLine("[yellow]Validation was cancelled.[/]");
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error during validation workflow");
+            AnsiConsole.MarkupLine($"[red]Error: {ex.Message}[/]");
+        }
+    }
+
+    /// <summary>
+    /// Attempts to remediate failed health checks with auto-fix commands.
+    /// </summary>
+    private async Task AttemptRemediationAsync(List<Models.HealthCheckResult> fixableFailures)
+    {
+        AnsiConsole.WriteLine();
+        AnsiConsole.MarkupLine("[bold yellow]Attempting Auto-Fix...[/]");
+        AnsiConsole.WriteLine();
+
+        foreach (var failure in fixableFailures)
+        {
+            AnsiConsole.MarkupLine($"[blue]Fixing:[/] {failure.HealthCheck.Name}");
+            AnsiConsole.MarkupLine($"[dim]Command: {failure.Remediation!.Command}[/]");
+
+            var result = await _healthCheckEvaluator.AttemptRemediationAsync(failure.HealthCheck);
+
+            if (result.Success)
+            {
+                AnsiConsole.MarkupLine($"[green]✓ Remediation successful[/]");
+            }
+            else
+            {
+                AnsiConsole.MarkupLine($"[red]✗ Remediation failed: {result.Message}[/]");
+            }
+            AnsiConsole.WriteLine();
+        }
+
+        AnsiConsole.MarkupLine("Press any key to continue...");
+        Console.ReadKey(true);
     }
     
     /// <summary>
