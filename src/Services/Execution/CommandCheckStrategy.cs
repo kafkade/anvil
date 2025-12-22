@@ -128,13 +128,46 @@ public class CommandCheckStrategy : IHealthCheckStrategy
 
     private (string command, string arguments) ParseCommand(string target)
     {
-        // Handle commands with arguments
-        if (target.Contains(" "))
+        if (string.IsNullOrWhiteSpace(target))
         {
-            var parts = target.Split(' ', 2);
-            return (parts[0], parts.Length > 1 ? parts[1] : "");
+            return (string.Empty, string.Empty);
         }
-        return (target, "");
+
+        // Trim leading/trailing whitespace to avoid empty command segments.
+        target = target.Trim();
+
+        bool inQuotes = false;
+        int splitIndex = -1;
+
+        for (int i = 0; i < target.Length; i++)
+        {
+            char c = target[i];
+
+            if (c == '"')
+            {
+                // Toggle quoted section state. This is a simple model that assumes
+                // double quotes are used to group arguments.
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (!inQuotes && char.IsWhiteSpace(c))
+            {
+                splitIndex = i;
+                break;
+            }
+        }
+
+        if (splitIndex == -1)
+        {
+            // No unquoted whitespace found; entire target is the command.
+            return (target, string.Empty);
+        }
+
+        string command = target.Substring(0, splitIndex);
+        string arguments = target.Substring(splitIndex + 1).TrimStart();
+
+        return (command, arguments);
     }
 
     private async Task<(int exitCode, string stdout, string stderr)> ExecuteCommandAsync(
