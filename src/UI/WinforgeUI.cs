@@ -155,9 +155,10 @@ public class WinforgeUI
                                 if (failedPkg.Errors.Any())
                                 {
                                     AnsiConsole.MarkupLine("[dim]Errors:[/]");
-                                    foreach (var error in failedPkg.Errors)
+                                    var errorMessages = failedPkg.Errors.Select(error => $"[dim red]  - {error}[/]");
+                                    foreach (var errorMessage in errorMessages)
                                     {
-                                        AnsiConsole.MarkupLine($"[dim red]  - {error}[/]");
+                                        AnsiConsole.MarkupLine(errorMessage);
                                     }
                                 }
                                 AnsiConsole.WriteLine();
@@ -289,11 +290,12 @@ public class WinforgeUI
         ShowBanner();
 
         var panel = new Panel(
-            new Markup($"[bold]Preview Plan[/]\n\n" +
-                      $"[green]Selected Workloads:[/] {selectedWorkloads.Count}\n" +
-                      $"[green]Total Packages:[/] {selectedWorkloads.Sum(w => w.PackageCount)}\n" +
-                      $"[green]Total Scripts:[/] {selectedWorkloads.Sum(w => w.ScriptCount)}\n" +
-                      $"[green]Estimated Time:[/] ~{selectedWorkloads.Sum(w => w.EstimatedInstallTimeMinutes)} minutes"))
+            new Markup(
+                $"[bold]Preview Plan[/]\n\n" +
+                $"[green]Selected Workloads:[/] {selectedWorkloads.Count}\n" +
+                $"[green]Total Packages:[/] {selectedWorkloads.Sum(w => w.PackageCount)}\n" +
+                $"[green]Total Scripts:[/] {selectedWorkloads.Sum(w => w.ScriptCount)}\n" +
+                $"[green]Estimated Time:[/] ~{selectedWorkloads.Sum(w => w.EstimatedInstallTimeMinutes)} minutes"))
             .Header(IconProvider.GetHeaderText("plan"))
             .Border(BoxBorder.Rounded)
             .BorderColor(Color.Blue);

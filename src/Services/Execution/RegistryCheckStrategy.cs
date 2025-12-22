@@ -141,8 +141,31 @@ public class RegistryCheckStrategy : IHealthCheckStrategy
             _ => throw new ArgumentException($"Unknown registry root: {rootKeyName}")
         };
 
-        // For simplicity, treat the entire remainder as the subkey path
-        // In a more advanced implementation, we could parse value names
-        return (rootKey, remainder, null);
+        // Parse value name from the path
+        // Try to determine if the last component is a value name by attempting to open the full path as a key
+        // If it doesn't exist as a key, assume the last component is a value name
+        string? valueName = null;
+        string subKeyPath = remainder;
+
+        if (!string.IsNullOrEmpty(remainder))
+        {
+            // Try opening the full path as a key
+            using (var testKey = rootKey.OpenSubKey(remainder))
+            {
+                if (testKey == null)
+                {
+                    // The full path doesn't exist as a key, so split off the last component as a value name
+                    var lastSeparatorIndex = remainder.LastIndexOf('\\');
+                    if (lastSeparatorIndex >= 0)
+                    {
+                        subKeyPath = remainder.Substring(0, lastSeparatorIndex);
+                        valueName = remainder.Substring(lastSeparatorIndex + 1);
+                    }
+                    // If there's no separator, treat the whole thing as a key path (will fail at evaluation)
+                }
+            }
+        }
+
+        return (rootKey, subKeyPath, valueName);
     }
 }
