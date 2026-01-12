@@ -358,33 +358,32 @@ impl TableFormatter {
         writer: &mut W,
     ) -> Result<()> {
         writeln!(writer)?;
-        writeln!(
-            writer,
-            "╭─────────────────────────────────────────────────────────────────────╮"
-        )?;
-        writeln!(
-            writer,
-            "│                    Winforge Health Check Report                     │"
-        )?;
-        writeln!(
-            writer,
-            "│                    Workload: {:<40} │",
-            report.workload
-        )?;
-        writeln!(
-            writer,
-            "├─────────────────────────────────────────────────────────────────────┤"
-        )?;
 
+        // Print title
+        if self.use_color {
+            use colored::Colorize;
+            writeln!(writer, "{}", "Health Check Report".bold())?;
+            writeln!(writer, "Workload: {}", report.workload.cyan())?;
+        } else {
+            writeln!(writer, "Health Check Report")?;
+            writeln!(writer, "Workload: {}", report.workload)?;
+        }
+        writeln!(writer)?;
+
+        // Build the main table
         let mut table = self.create_table();
-        table.set_header(vec!["Component", "Status", "Details"]);
+        table.set_header(vec![
+            Cell::new("Component").fg(Color::White),
+            Cell::new("Status").fg(Color::White),
+            Cell::new("Details").fg(Color::White),
+        ]);
 
         let mut current_category = String::new();
         for check in &report.checks {
             if check.category != current_category {
                 current_category = check.category.clone();
                 table.add_row(vec![
-                    Cell::new(&current_category).fg(Color::White),
+                    Cell::new(&current_category).fg(Color::Cyan),
                     Cell::new(""),
                     Cell::new(""),
                 ]);
@@ -405,16 +404,32 @@ impl TableFormatter {
         }
 
         writeln!(writer, "{}", table)?;
-        writeln!(
-            writer,
-            "╰─────────────────────────────────────────────────────────────────────╯"
-        )?;
         writeln!(writer)?;
-        writeln!(
-            writer,
-            "Summary: {} passed, {} failed, {} warning(s)",
-            report.summary.passed, report.summary.failed, report.summary.warnings
-        )?;
+
+        // Print summary
+        let summary = if self.use_color {
+            use colored::Colorize;
+            format!(
+                "Summary: {} passed, {} failed, {} warning(s)",
+                report.summary.passed.to_string().green(),
+                if report.summary.failed > 0 {
+                    report.summary.failed.to_string().red()
+                } else {
+                    report.summary.failed.to_string().normal()
+                },
+                if report.summary.warnings > 0 {
+                    report.summary.warnings.to_string().yellow()
+                } else {
+                    report.summary.warnings.to_string().normal()
+                }
+            )
+        } else {
+            format!(
+                "Summary: {} passed, {} failed, {} warning(s)",
+                report.summary.passed, report.summary.failed, report.summary.warnings
+            )
+        };
+        writeln!(writer, "{}", summary)?;
 
         Ok(())
     }
