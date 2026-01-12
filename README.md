@@ -1,111 +1,204 @@
-# Winforge - Workstation Setup & Management System v2 (Preview)
+# Winforge
 
-A comprehensive automated workstation setup and management system built as a .NET console application. Winforge v2 is currently in **Preview Mode**, focusing on workload discovery, validation, and execution planning.
+[![CI](https://github.com/javierfe_microsoft/winforge/actions/workflows/ci.yml/badge.svg)](https://github.com/javierfe_microsoft/winforge/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/javierfe_microsoft/winforge)](https://github.com/javierfe_microsoft/winforge/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 
-## 🚀 Current Status: Preview & Analysis
+**Windows Workstation Configuration Management System**
 
-Winforge v2 is a complete rewrite of the legacy PowerShell-based system, moving to a robust .NET 8 architecture. The current release provides **Workload Analysis and Preview** capabilities, allowing you to:
+Winforge is a declarative configuration management tool for Windows workstations. Define your development environment in YAML, and Winforge will install packages, copy configuration files, run setup scripts, and verify system health.
 
-- **🔍 Discover Workloads**: Automatically find and parse workload definitions
-- **📋 Validate Configurations**: Check YAML syntax and structure
-- **🔬 Analyze Impact**: Preview exactly what packages, scripts, and files would be installed
-- **📊 Estimate Time**: Get execution time estimates based on workload complexity
+## ✨ Features
 
-> **Note**: Actual package installation and script execution features are currently being migrated from the v1 architecture. The current version runs in "Preview Mode" to safely validate your workloads without making system changes.
+- 📦 **Package Management** - Install software via winget with version pinning
+- 📁 **File Synchronization** - Copy configuration files with automatic backup
+- 🔧 **Script Execution** - Run PowerShell setup and validation scripts
+- 🧬 **Workload Inheritance** - Compose configurations using DRY principles
+- ✅ **Health Checks** - Validate system state matches workload definition
+- 📊 **Multiple Formats** - Output as table, JSON, YAML, or HTML reports
+- 🔄 **Backup & Restore** - Save and restore system state
+- 🐚 **Shell Completions** - Tab completion for PowerShell, Bash, Zsh, Fish
 
-## 📋 Quick Start
+## 🚀 Quick Start
+
+### Installation
+
+**Option 1: Download from Releases**
+
+```powershell
+# Download latest release
+Invoke-WebRequest -Uri "https://github.com/javierfe_microsoft/winforge/releases/latest/download/winforge-windows-x64.zip" -OutFile winforge.zip
+Expand-Archive winforge.zip -DestinationPath C:\Tools\winforge
+$env:PATH += ";C:\Tools\winforge"
+```
+
+**Option 2: Build from Source**
+
+```powershell
+# Prerequisites: Rust 1.75+
+git clone https://github.com/javierfe_microsoft/winforge.git
+cd winforge
+cargo build --release
+# Binary is at target/release/winforge.exe
+```
+
+### Basic Usage
+
+```powershell
+# List available workloads
+winforge list
+
+# Preview what would happen
+winforge install rust-developer --dry-run
+
+# Install a workload
+winforge install rust-developer
+
+# Check system health
+winforge health rust-developer
+
+# Generate HTML health report
+winforge health rust-developer --output html --file report.html
+```
+
+## 📦 Bundled Workloads
+
+| Workload | Description |
+|----------|-------------|
+| `dev-tools-base` | VS Code, Git, Windows Terminal, Oh My Posh |
+| `rust-developer` | Rust toolchain with cargo tools |
+| `python-developer` | Python 3.12 with uv package manager |
+| `essentials` | Essential Windows utilities |
+
+## 📋 Workload Structure
+
+A workload is a configuration bundle:
+
+```
+my-workload/
+├── workload.yaml       # Workload definition
+├── files/              # Configuration files to deploy
+└── scripts/            # Installation and health scripts
+```
+
+### Example Workload
+
+```yaml
+name: rust-developer
+version: "1.0.0"
+description: "Complete Rust development environment"
+
+extends:
+  - dev-tools-base
+
+packages:
+  winget:
+    - id: Rustlang.Rustup
+    - id: LLVM.LLVM
+
+files:
+  - source: config.toml
+    destination: "~/.cargo/config.toml"
+    backup: true
+
+scripts:
+  post_install:
+    - path: scripts/setup.ps1
+      description: "Install Rust components"
+      
+  health_check:
+    - path: scripts/health.ps1
+      name: "Rust Toolchain"
+```
+
+## 🔧 CLI Reference
+
+```
+winforge <COMMAND>
+
+Commands:
+  install      Apply a workload configuration
+  health       Validate system against workload
+  list         List available workloads
+  show         Display workload details
+  validate     Validate workload syntax
+  init         Create new workload template
+  status       Show installation status
+  backup       Manage system backups
+  config       Manage global configuration
+  completions  Generate shell completions
+
+Global Options:
+  -v, --verbose    Increase verbosity (-v, -vv, -vvv)
+  -q, --quiet      Suppress output
+  --no-color       Disable colored output
+  -h, --help       Show help
+  -V, --version    Show version
+```
+
+## 📚 Documentation
+
+| Document | Description |
+|----------|-------------|
+| [User Guide](docs/USER_GUIDE.md) | Complete usage instructions |
+| [Workload Authoring](docs/WORKLOAD_AUTHORING.md) | Creating custom workloads |
+| [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and solutions |
+| [Specification](docs/SPECIFICATION.md) | Technical architecture |
+| [Contributing](CONTRIBUTING.md) | Contribution guidelines |
+| [Changelog](CHANGELOG.md) | Version history |
+
+## ⚙️ Requirements
+
+- Windows 10 (version 1809+) or Windows 11
+- [Windows Package Manager (winget)](https://github.com/microsoft/winget-cli)
+- PowerShell 5.1 or later
+
+## 🛠️ Building from Source
 
 ### Prerequisites
 
-- **OS**: Windows 10 (1809+) or Windows 11
-- **.NET**: 8.0 Runtime or higher
-- **PowerShell**: 5.1 or 7.0+ (for legacy script support)
+- Rust 1.75 or later
+- Visual Studio Build Tools (for Windows linking)
 
-### Running Winforge
+### Build
 
-1. **Clone the repository**
+```powershell
+# Debug build
+cargo build
 
-   ```powershell
-   git clone https://github.com/your-org/winforge.git
-   cd winforge
-   ```
+# Release build (optimized)
+cargo build --release
 
-2. **Run the Application**
+# Run tests
+cargo test
 
-   **Using PowerShell Launcher (Recommended)**
-
-   ```powershell
-   .\winforge.ps1
-   ```
-
-   **Using Batch Launcher**
-
-   ```cmd
-   .\winforge.bat
-   ```
-
-   **Directly via .NET**
-
-   ```powershell
-   cd src
-   dotnet run
-   ```
-
-3. **Interactive Mode**
-   The application launches in interactive mode by default. Use the arrow keys to navigate the menu:
-   - **Discover**: Scan for workloads and preview installation plans
-   - **Validate**: (Coming Soon) Deep system compliance checking
-   - **Report**: (Coming Soon) Generate audit reports
-   - **Help**: View documentation and tips
-
-## 🏗️ Architecture
-
-Winforge v2 moves away from pure PowerShell scripts to a structured C# application:
-
-- **Core**: .NET 8 Console Application
-- **UI**: Interactive terminal UI using [Spectre.Console](https://spectreconsole.net/)
-- **Configuration**: YAML-based workload definitions
-- **Engine**: Modular services for package management, script execution, and file operations
-
-### Directory Structure
-
-- `src/`: Core C# application source code
-- `workloads/`: Directory containing workload definitions (YAML) and scripts
-- `v1/`: Legacy PowerShell implementation (reference only)
-- `docs/`: Documentation
-
-## 🛠️ Creating Workloads
-
-Workloads are defined in simple YAML files. See `schemas/simple-workload-schema.md` for details.
-
-Example `workload.yaml`:
-
-```yaml
-name: "My Development Setup"
-description: "Personal development environment"
-version: "1.0.0"
-
-packages:
-  - name: "Microsoft.VisualStudioCode"
-    manager: "winget"
-  - name: "git"
-    manager: "chocolatey"
-
-scripts:
-  - name: "Setup Git"
-    file: "scripts/setup-git.ps1"
+# Run with verbose output
+cargo run -- -vvv list
 ```
-
-## 📖 Documentation
-
-- **[User Guide](docs/user-guide.md)**: Detailed usage instructions
-- **[Developer Guide](docs/developer-guide.md)**: Architecture and contribution guide
-- **[Migration Guide](docs/migration-guide.md)**: Moving from v1 to v2
 
 ## 🤝 Contributing
 
-We welcome contributions! Please see the [Developer Guide](docs/developer-guide.md) for details on the architecture and development workflow.
+Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md) for details on:
+
+- Reporting bugs
+- Suggesting features
+- Submitting pull requests
+- Creating workloads
 
 ## 📄 License
 
-This project is licensed under the MIT License.
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- [winget](https://github.com/microsoft/winget-cli) - Windows Package Manager
+- [clap](https://github.com/clap-rs/clap) - Command line argument parser
+- [serde](https://github.com/serde-rs/serde) - Serialization framework
+- [handlebars](https://github.com/sunng87/handlebars-rust) - Template engine
+
+---
+
+<p align="center">
+  Made with ❤️ for Windows developers
+</p>
