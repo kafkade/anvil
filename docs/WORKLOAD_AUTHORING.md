@@ -1,0 +1,1056 @@
+# Workload Authoring Guide
+
+A comprehensive guide to creating custom workloads for Winforge.
+
+## Table of Contents
+
+1. [Workload Structure](#1-workload-structure)
+2. [Schema Reference](#2-schema-reference)
+3. [Package Definitions](#3-package-definitions)
+4. [File Definitions](#4-file-definitions)
+5. [Script Definitions](#5-script-definitions)
+6. [Environment Configuration](#6-environment-configuration)
+7. [Inheritance](#7-inheritance)
+8. [Variable Expansion](#8-variable-expansion)
+9. [Best Practices](#9-best-practices)
+10. [Example Workloads](#10-example-workloads)
+
+---
+
+## 1. Workload Structure
+
+A workload is a directory containing configuration files, scripts, and assets that define a system configuration.
+
+### Directory Structure
+
+```
+workload-name/
+├── workload.yaml       # Required: workload definition
+├── files/              # Optional: files to deploy
+│   ├── .config/
+│   │   └── app.conf
+│   └── settings.json
+└── scripts/            # Optional: installation/health scripts
+    ├── pre-install.ps1
+    ├── post-install.ps1
+    └── health-check.ps1
+```
+
+### Required Files
+
+- **workload.yaml**: The main workload definition file (required)
+
+### Optional Directories
+
+- **files/**: Contains configuration files to be copied to the target system
+- **scripts/**: Contains PowerShell or CMD scripts for installation and validation
+
+### Naming Conventions
+
+- Workload directory names should be lowercase with hyphens: `my-workload-name`
+- Use descriptive names that indicate the workload's purpose
+- Avoid spaces and special characters
+
+---
+
+## 2. Schema Reference
+
+The `workload.yaml` file defines all aspects of your workload configuration.
+
+### Complete Schema
+
+```yaml
+# Required fields
+name: string                    # Workload identifier
+version: string                 # Semantic version (e.g., "1.0.0")
+
+# Optional fields
+description: string             # Human-readable description
+extends: string[]               # Parent workloads to inherit from
+packages: object                # Package definitions
+files: array                    # File deployment definitions
+scripts: object                 # Script execution definitions
+environment: object             # Environment variable configuration
+health: object                  # Health check configuration
+```
+
+### Required Fields
+
+#### `name`
+Unique identifier for the workload. Must be alphanumeric with hyphens and underscores only.
+
+```yaml
+name: my-workload           # Valid
+name: my_workload_v2        # Valid
+name: "my workload"         # Invalid (spaces)
+name: my.workload           # Invalid (dots)
+```
+
+#### `version`
+Semantic version string. Recommended to follow [SemVer](https://semver.org/).
+
+```yaml
+version: "1.0.0"
+version: "2.1.0-beta"
+version: "0.1.0"
+```
+
+### Optional Fields
+
+#### `description`
+Human-readable description displayed in listings.
+
+```yaml
+description: "Development environment for Rust projects with debugging tools"
+```
+
+#### `extends`
+List of parent workloads to inherit from.
+
+```yaml
+extends:
+  - dev-tools-base
+  - rust-developer
+```
+
+#### `packages`
+Package installation definitions (see [Package Definitions](#3-package-definitions)).
+
+#### `files`
+File deployment definitions (see [File Definitions](#4-file-definitions)).
+
+#### `scripts`
+Script execution definitions (see [Script Definitions](#5-script-definitions)).
+
+#### `environment`
+Environment variable configuration (see [Environment Configuration](#6-environment-configuration)).
+
+---
+
+## 3. Package Definitions
+
+Define software packages to install via Windows Package Manager (winget).
+
+### Basic Structure
+
+```yaml
+packages:
+  winget:
+    - id: Publisher.PackageName
+    - id: Another.Package
+```
+
+### Full Package Options
+
+```yaml
+packages:
+  winget:
+    - id: Git.Git
+      version: "2.43.0"           # Optional: pin to specific version
+      source: winget              # Optional: winget, msstore
+      override:                    # Optional: additional winget arguments
+        - "--scope"
+        - "machine"
+```
+
+### Package Fields
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| `id` | Yes | Winget package identifier |
+| `version` | No | Specific version to install |
+| `source` | No | Package source: `winget` or `msstore` |
+| `override` | No | Additional arguments passed to winget |
+
+### Finding Package IDs
+
+Use winget to search for packages:
+
+```powershell
+# Search for packages
+winget search vscode
+
+# Get exact ID
+winget search --exact "Visual Studio Code"
+
+# Show package details
+winget show Microsoft.VisualStudioCode
+```
+
+Common package IDs:
+
+| Package | ID |
+|---------|-----|
+| Visual Studio Code | `Microsoft.VisualStudioCode` |
+| Git | `Git.Git` |
+| Windows Terminal | `Microsoft.WindowsTerminal` |
+| Node.js | `OpenJS.NodeJS` |
+| Python | `Python.Python.3.12` |
+| Rust | `Rustlang.Rustup` |
+| PowerShell | `Microsoft.PowerShell` |
+
+### Version Pinning
+
+Pin specific versions when compatibility matters:
+
+```yaml
+packages:
+  winget:
+    # Pin exact version
+    - id: Python.Python.3.12
+      version: "3.12.0"
+    
+    # Use latest (default)
+    - id: Git.Git
+```
+
+Check available versions:
+
+```powershell
+winget show Python.Python.3.12 --versions
+```
+
+### Override Arguments
+
+Pass custom arguments to winget:
+
+```yaml
+packages:
+  winget:
+    - id: Microsoft.VisualStudioCode
+      override:
+        - "--scope"
+        - "machine"           # Install for all users
+        - "--override"
+        - "/SILENT"
+```
+
+---
+
+## 4. File Definitions
+
+Define configuration files to copy to the target system.
+
+### Basic Structure
+
+```yaml
+files:
+  - source: config.json
+    destination: "~/.config/app/config.json"
+```
+
+### Full File Options
+
+```yaml
+files:
+  - source: relative/path/in/workload/file.conf
+    destination: "~/target/path/file.conf"
+    backup: true                  # Backup existing file
+    mode: "0644"                  # Optional: file permissions
+    template: false               # Process as Handlebars template
+    create_dirs: true             # Create parent directories
+```
+
+### File Fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `source` | Yes | - | Path relative to workload directory |
+| `destination` | Yes | - | Target path on system |
+| `backup` | No | `true` | Backup existing files before overwriting |
+| `mode` | No | - | File permissions (Unix-style, informational on Windows) |
+| `template` | No | `false` | Process file as Handlebars template |
+| `create_dirs` | No | `true` | Create parent directories if missing |
+
+### Path Variables
+
+Use these variables in destination paths:
+
+| Variable | Description | Example |
+|----------|-------------|---------|
+| `~` | User home directory | `C:\Users\username` |
+| `${HOME}` | User home directory | `C:\Users\username` |
+| `${USERPROFILE}` | User profile directory | `C:\Users\username` |
+| `${APPDATA}` | Application data | `C:\Users\username\AppData\Roaming` |
+| `${LOCALAPPDATA}` | Local app data | `C:\Users\username\AppData\Local` |
+| `${WORKLOAD_DIR}` | Workload directory | Path to current workload |
+
+Examples:
+
+```yaml
+files:
+  # Home directory
+  - source: .gitconfig
+    destination: "~/.gitconfig"
+  
+  # AppData
+  - source: settings.json
+    destination: "${APPDATA}/MyApp/settings.json"
+  
+  # Local AppData
+  - source: cache.db
+    destination: "${LOCALAPPDATA}/MyApp/cache.db"
+```
+
+### Templating
+
+Enable Handlebars templating for dynamic content:
+
+```yaml
+files:
+  - source: config.toml.hbs
+    destination: "~/.config/app/config.toml"
+    template: true
+```
+
+Template file (`config.toml.hbs`):
+
+```toml
+# Configuration for {{username}}
+# Generated on {{date}}
+
+[user]
+name = "{{username}}"
+home = "{{home}}"
+
+[paths]
+workload = "{{workload_dir}}"
+```
+
+Available template variables:
+
+| Variable | Description |
+|----------|-------------|
+| `{{username}}` | Current username |
+| `{{home}}` | Home directory path |
+| `{{computername}}` | Computer name |
+| `{{workload_dir}}` | Workload directory |
+| `{{workload_name}}` | Workload name |
+| `{{date}}` | Current date |
+| `{{env.VAR_NAME}}` | Environment variable |
+
+### Directory Copying
+
+Copy entire directories:
+
+```yaml
+files:
+  - source: config/
+    destination: "~/.config/myapp/"
+```
+
+---
+
+## 5. Script Definitions
+
+Define PowerShell or CMD scripts for installation steps and health checks.
+
+### Script Categories
+
+```yaml
+scripts:
+  pre_install:     # Run before package installation
+    - path: scripts/pre-install.ps1
+    
+  post_install:    # Run after package installation
+    - path: scripts/post-install.ps1
+    
+  health_check:    # Run during health checks
+    - path: scripts/health-check.ps1
+```
+
+### Full Script Options
+
+```yaml
+scripts:
+  post_install:
+    - path: scripts/setup.ps1
+      shell: powershell           # powershell, pwsh, cmd
+      description: "Configure application settings"
+      elevated: false             # Run as administrator
+      timeout: 300                # Timeout in seconds
+      continue_on_error: false    # Continue if script fails
+      env:                        # Additional environment variables
+        MY_VAR: "value"
+```
+
+### Script Fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `path` | Yes | - | Path relative to workload directory |
+| `shell` | No | `powershell` | Shell: `powershell`, `pwsh`, `cmd` |
+| `description` | No | - | Human-readable description |
+| `elevated` | No | `false` | Run with administrator privileges |
+| `timeout` | No | `300` | Timeout in seconds |
+| `continue_on_error` | No | `false` | Continue installation if script fails |
+| `env` | No | - | Additional environment variables |
+| `name` | No | - | Display name (for health checks) |
+
+### Health Check Scripts
+
+Health check scripts verify system state:
+
+```yaml
+scripts:
+  health_check:
+    - path: scripts/check-rust.ps1
+      name: "Rust Toolchain"
+      description: "Verify Rust is installed and configured"
+      timeout: 30
+```
+
+### Script Guidelines
+
+#### Exit Codes
+
+- `0` - Success
+- Non-zero - Failure
+
+```powershell
+# Good: explicit exit codes
+if (Test-Path $requiredFile) {
+    exit 0
+} else {
+    Write-Error "Required file not found"
+    exit 1
+}
+```
+
+#### Output Handling
+
+- Use `Write-Host` for informational output
+- Use `Write-Error` for error messages
+- Use `Write-Warning` for warnings
+
+```powershell
+Write-Host "Installing components..."
+Write-Warning "This may take a while"
+Write-Error "Installation failed"
+```
+
+#### Idempotency
+
+Scripts should be safe to run multiple times:
+
+```powershell
+# Good: check before acting
+if (-not (Test-Path "C:\Tools\mytool")) {
+    Write-Host "Installing mytool..."
+    # Install logic here
+} else {
+    Write-Host "mytool already installed"
+}
+```
+
+#### Error Handling
+
+Use try-catch for robust error handling:
+
+```powershell
+try {
+    # Risky operation
+    Invoke-WebRequest -Uri $url -OutFile $path
+    exit 0
+}
+catch {
+    Write-Error "Failed to download: $_"
+    exit 1
+}
+```
+
+### Sample Scripts
+
+#### Pre-Install Check
+
+```powershell
+# scripts/pre-install.ps1
+# Check prerequisites before installation
+
+$ErrorActionPreference = "Stop"
+
+# Check Windows version
+$version = [Environment]::OSVersion.Version
+if ($version.Major -lt 10) {
+    Write-Error "Windows 10 or later required"
+    exit 1
+}
+
+# Check available disk space (need 1GB)
+$drive = Get-PSDrive C
+$freeGB = [math]::Round($drive.Free / 1GB, 2)
+if ($freeGB -lt 1) {
+    Write-Error "Insufficient disk space. Need 1GB, have ${freeGB}GB"
+    exit 1
+}
+
+Write-Host "Prerequisites check passed"
+exit 0
+```
+
+#### Post-Install Configuration
+
+```powershell
+# scripts/post-install.ps1
+# Configure application after installation
+
+$ErrorActionPreference = "Stop"
+
+try {
+    # Install Rust components
+    Write-Host "Installing Rust components..."
+    rustup component add rustfmt
+    rustup component add clippy
+    
+    # Install common cargo tools
+    Write-Host "Installing cargo tools..."
+    cargo install cargo-watch
+    cargo install cargo-edit
+    
+    Write-Host "Post-install configuration complete"
+    exit 0
+}
+catch {
+    Write-Error "Post-install failed: $_"
+    exit 1
+}
+```
+
+#### Health Check
+
+```powershell
+# scripts/health-check.ps1
+# Verify Rust development environment
+
+$ErrorActionPreference = "Stop"
+$errors = @()
+
+# Check rustc
+try {
+    $rustVersion = rustc --version
+    Write-Host "✓ Rust compiler: $rustVersion"
+}
+catch {
+    $errors += "rustc not found"
+}
+
+# Check cargo
+try {
+    $cargoVersion = cargo --version
+    Write-Host "✓ Cargo: $cargoVersion"
+}
+catch {
+    $errors += "cargo not found"
+}
+
+# Check rustfmt
+try {
+    $null = rustfmt --version
+    Write-Host "✓ rustfmt installed"
+}
+catch {
+    $errors += "rustfmt not installed"
+}
+
+# Report results
+if ($errors.Count -gt 0) {
+    Write-Error "Health check failed:"
+    $errors | ForEach-Object { Write-Error "  - $_" }
+    exit 1
+}
+
+Write-Host "All health checks passed"
+exit 0
+```
+
+---
+
+## 6. Environment Configuration
+
+Configure environment variables and PATH additions.
+
+### Basic Structure
+
+```yaml
+environment:
+  variables:
+    - name: MY_VARIABLE
+      value: "my-value"
+      scope: user
+      
+  path_additions:
+    - "C:\\Tools\\bin"
+    - "~\\.local\\bin"
+```
+
+### Environment Variables
+
+```yaml
+environment:
+  variables:
+    - name: RUST_BACKTRACE
+      value: "1"
+      scope: user              # user or machine
+      
+    - name: EDITOR
+      value: "code"
+      scope: user
+```
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `name` | Yes | - | Variable name |
+| `value` | Yes | - | Variable value |
+| `scope` | No | `user` | Scope: `user` or `machine` |
+
+### PATH Additions
+
+Add directories to the system PATH:
+
+```yaml
+environment:
+  path_additions:
+    - "C:\\Tools\\bin"
+    - "~\\.cargo\\bin"
+    - "${LOCALAPPDATA}\\Programs\\bin"
+```
+
+PATH additions are appended to the existing PATH for the specified scope.
+
+### Scope
+
+| Scope | Description | Requires Admin |
+|-------|-------------|----------------|
+| `user` | Current user only | No |
+| `machine` | All users on system | Yes |
+
+---
+
+## 7. Inheritance
+
+Workloads can extend other workloads to inherit their configuration.
+
+### Basic Inheritance
+
+```yaml
+name: my-rust-dev
+version: "1.0.0"
+
+extends:
+  - dev-tools-base      # Inherit base development tools
+```
+
+### Multiple Inheritance
+
+```yaml
+name: full-stack-dev
+version: "1.0.0"
+
+extends:
+  - dev-tools-base
+  - rust-developer
+  - python-developer
+```
+
+### Merge Behavior
+
+When a workload extends parents, configuration is merged:
+
+| Section | Merge Behavior |
+|---------|----------------|
+| `packages` | Merged; child packages added to parent packages |
+| `files` | Merged; child files override parent files with same destination |
+| `scripts` | Merged; child scripts run after parent scripts |
+| `environment` | Merged; child variables override parent variables |
+
+### Override Example
+
+Parent (`base/workload.yaml`):
+```yaml
+name: base
+version: "1.0.0"
+
+packages:
+  winget:
+    - id: Git.Git
+    - id: Microsoft.VisualStudioCode
+
+files:
+  - source: .gitconfig
+    destination: "~/.gitconfig"
+```
+
+Child (`extended/workload.yaml`):
+```yaml
+name: extended
+version: "1.0.0"
+
+extends:
+  - base
+
+packages:
+  winget:
+    # Adds to parent packages
+    - id: Rustlang.Rustup
+
+files:
+  # Overrides parent's .gitconfig
+  - source: .gitconfig
+    destination: "~/.gitconfig"
+```
+
+### Inheritance Chains
+
+Winforge resolves inheritance chains automatically:
+
+```
+my-workload
+└── rust-developer
+    └── dev-tools-base
+```
+
+Circular dependencies are detected and rejected:
+
+```yaml
+# workload-a extends workload-b
+# workload-b extends workload-a
+# ERROR: Circular dependency detected
+```
+
+### View Inheritance
+
+```powershell
+# Show inheritance tree
+winforge show my-workload --inheritance-tree
+
+# Show fully resolved workload
+winforge show my-workload --resolved
+```
+
+---
+
+## 8. Variable Expansion
+
+Use variables in paths and values for dynamic configuration.
+
+### Supported Variables
+
+| Variable | Description | Example Value |
+|----------|-------------|---------------|
+| `~` | User home directory | `C:\Users\username` |
+| `${HOME}` | User home directory | `C:\Users\username` |
+| `${USERNAME}` | Current username | `username` |
+| `${COMPUTERNAME}` | Machine name | `WORKSTATION-01` |
+| `${WORKLOAD_DIR}` | Workload directory | `C:\Workloads\my-workload` |
+| `${USERPROFILE}` | User profile path | `C:\Users\username` |
+| `${APPDATA}` | Roaming AppData | `C:\Users\username\AppData\Roaming` |
+| `${LOCALAPPDATA}` | Local AppData | `C:\Users\username\AppData\Local` |
+| `${env:VAR_NAME}` | Any environment variable | (varies) |
+
+### Usage Examples
+
+```yaml
+files:
+  # Home directory shorthand
+  - source: .bashrc
+    destination: "~/.bashrc"
+  
+  # Explicit home variable
+  - source: config.json
+    destination: "${HOME}/.config/myapp/config.json"
+  
+  # AppData paths
+  - source: settings.json
+    destination: "${APPDATA}/MyApp/settings.json"
+  
+  # Environment variable
+  - source: custom.conf
+    destination: "${env:MY_CUSTOM_PATH}/config.conf"
+
+environment:
+  variables:
+    - name: MY_APP_HOME
+      value: "${HOME}/.myapp"
+  
+  path_additions:
+    - "${HOME}/.local/bin"
+    - "${LOCALAPPDATA}/Programs/bin"
+```
+
+---
+
+## 9. Best Practices
+
+### Workload Design
+
+1. **Use Descriptive Names**
+   ```yaml
+   name: rust-developer           # Good
+   name: workload1                # Bad
+   ```
+
+2. **Include Version Information**
+   ```yaml
+   version: "1.2.0"               # Good: semantic versioning
+   version: "latest"              # Bad: not meaningful
+   ```
+
+3. **Write Helpful Descriptions**
+   ```yaml
+   description: "Complete Rust development environment with debugging tools and VS Code extensions"
+   ```
+
+4. **Use Inheritance for Common Bases**
+   ```yaml
+   # Create a base workload for team-wide tools
+   # Then extend it for role-specific setups
+   extends:
+     - team-base
+   ```
+
+### Package Management
+
+1. **Pin Versions When Necessary**
+   ```yaml
+   packages:
+     winget:
+       # Pin when compatibility matters
+       - id: Python.Python.3.12
+         version: "3.12.0"
+       
+       # Use latest for frequently updated tools
+       - id: Git.Git
+   ```
+
+2. **Use Machine Scope for Shared Tools**
+   ```yaml
+   packages:
+     winget:
+       - id: Microsoft.VisualStudioCode
+         override:
+           - "--scope"
+           - "machine"
+   ```
+
+### File Management
+
+1. **Always Enable Backups for Important Files**
+   ```yaml
+   files:
+     - source: .gitconfig
+       destination: "~/.gitconfig"
+       backup: true
+   ```
+
+2. **Use Templates for Dynamic Content**
+   ```yaml
+   files:
+     - source: config.toml.hbs
+       destination: "~/.config/app/config.toml"
+       template: true
+   ```
+
+### Script Safety
+
+1. **Make Scripts Idempotent**
+   ```powershell
+   # Check before acting
+   if (-not (Test-Path $target)) {
+       # Create/install
+   }
+   ```
+
+2. **Handle Errors Gracefully**
+   ```powershell
+   try {
+       # Risky operation
+   }
+   catch {
+       Write-Error "Operation failed: $_"
+       exit 1
+   }
+   ```
+
+3. **Include Health Checks**
+   ```yaml
+   scripts:
+     health_check:
+       - path: scripts/verify.ps1
+         name: "Installation Verification"
+   ```
+
+### Testing
+
+1. **Validate Before Committing**
+   ```powershell
+   winforge validate my-workload --strict
+   ```
+
+2. **Test with Dry Run**
+   ```powershell
+   winforge install my-workload --dry-run
+   ```
+
+3. **Test on Clean System**
+   - Use a VM or container
+   - Document dependencies
+
+---
+
+## 10. Example Workloads
+
+### Minimal Workload
+
+The simplest valid workload:
+
+```yaml
+# minimal/workload.yaml
+name: minimal
+version: "1.0.0"
+description: "A minimal workload example"
+```
+
+### Package-Only Workload
+
+Install software without files or scripts:
+
+```yaml
+# dev-essentials/workload.yaml
+name: dev-essentials
+version: "1.0.0"
+description: "Essential development tools"
+
+packages:
+  winget:
+    - id: Git.Git
+    - id: Microsoft.VisualStudioCode
+    - id: Microsoft.WindowsTerminal
+    - id: JanDeDobbeleer.OhMyPosh
+```
+
+### Full-Featured Workload
+
+Complete example with all features:
+
+```yaml
+# full-example/workload.yaml
+name: full-example
+version: "1.0.0"
+description: "Complete workload demonstrating all features"
+
+extends:
+  - dev-tools-base
+
+packages:
+  winget:
+    - id: Rustlang.Rustup
+    - id: LLVM.LLVM
+      version: "17.0.6"
+    - id: Microsoft.VisualStudio.2022.BuildTools
+      override:
+        - "--add"
+        - "Microsoft.VisualStudio.Workload.VCTools"
+
+files:
+  - source: files/.cargo/config.toml
+    destination: "~/.cargo/config.toml"
+    backup: true
+    
+  - source: files/vscode/settings.json.hbs
+    destination: "${APPDATA}/Code/User/settings.json"
+    template: true
+
+scripts:
+  pre_install:
+    - path: scripts/pre-check.ps1
+      description: "Check prerequisites"
+      
+  post_install:
+    - path: scripts/setup-rust.ps1
+      description: "Configure Rust toolchain"
+      elevated: false
+      timeout: 600
+      
+  health_check:
+    - path: scripts/health.ps1
+      name: "Rust Environment"
+      description: "Verify Rust development environment"
+
+environment:
+  variables:
+    - name: RUST_BACKTRACE
+      value: "1"
+      scope: user
+      
+  path_additions:
+    - "~/.cargo/bin"
+```
+
+### Inherited Workload
+
+Workload that builds on others:
+
+```yaml
+# rust-advanced/workload.yaml
+name: rust-advanced
+version: "1.0.0"
+description: "Advanced Rust development with WASM and embedded support"
+
+extends:
+  - rust-developer
+
+packages:
+  winget:
+    - id: Docker.DockerDesktop
+    - id: WasmEdge.WasmEdge
+
+scripts:
+  post_install:
+    - path: scripts/setup-targets.ps1
+      description: "Add Rust compilation targets"
+
+environment:
+  path_additions:
+    - "~/.wasmedge/bin"
+```
+
+With corresponding script:
+
+```powershell
+# rust-advanced/scripts/setup-targets.ps1
+# Add additional Rust compilation targets
+
+$ErrorActionPreference = "Stop"
+
+try {
+    Write-Host "Adding WASM target..."
+    rustup target add wasm32-unknown-unknown
+    
+    Write-Host "Adding embedded targets..."
+    rustup target add thumbv7em-none-eabihf
+    
+    Write-Host "Installing cargo tools for embedded..."
+    cargo install cargo-embed
+    cargo install probe-run
+    
+    exit 0
+}
+catch {
+    Write-Error "Setup failed: $_"
+    exit 1
+}
+```
+
+---
+
+## Resources
+
+- [Winforge User Guide](USER_GUIDE.md)
+- [Troubleshooting Guide](TROUBLESHOOTING.md)
+- [GitHub Repository](https://github.com/javierfe_microsoft/winforge)
+- [Winget Documentation](https://learn.microsoft.com/en-us/windows/package-manager/)
+- [Handlebars Templating](https://handlebarsjs.com/guide/)
+
+---
+
+*This guide is for Winforge v0.3.1. For other versions, check the corresponding documentation.*

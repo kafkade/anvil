@@ -1,0 +1,74 @@
+[package]
+name = "winforge"
+version = "0.3.1"
+edition = "2021"
+authors = ["Winforge Team"]
+description = "Windows Workstation Configuration Management System"
+license = "MIT"
+repository = "https://github.com/javierfe_microsoft/winforge"
+readme = "README.md"
+keywords = ["windows", "configuration", "winget", "devops", "automation"]
+categories = ["command-line-utilities", "config", "development-tools"]
+
+[dependencies]
+# CLI framework
+clap = { version = "4", features = ["derive", "env", "wrap_help"] }
+clap_complete = "4"
+
+# Serialization
+serde = { version = "1", features = ["derive"] }
+serde_yaml = "0.9"
+serde_json = "1"
+toml = "0.8"
+
+# Error handling
+thiserror = "1"
+anyhow = "1"
+
+# Terminal output
+comfy-table = "7"
+indicatif = { version = "0.17", features = ["rayon"] }
+console = "0.15"
+colored = "2"
+atty = "0.2"
+
+# File operations
+sha2 = "0.10"
+dirs = "5"
+glob = "0.3"
+walkdir = "2"
+
+# Async runtime (for parallel operations)
+tokio = { version = "1", features = ["full"] }
+
+# Date/time
+chrono = { version = "0.4", features = ["serde"] }
+
+# Template processing
+handlebars = "5"
+
+# Logging
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+
+# Regex
+regex-lite = "0.1"
+
+# Temporary files (for atomic writes)
+tempfile = "3"
+uuid = { version = "1.19.0", features = ["v4"] }
+
+[dev-dependencies]
+assert_cmd = "2"
+predicates = "3"
+pretty_assertions = "1"
+
+[profile.release]
+lto = true
+codegen-units = 1
+strip = true
+panic = "abort"
+
+[[bin]]
+name = "winforge"
+path = "src/main.rs"
