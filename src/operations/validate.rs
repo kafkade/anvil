@@ -261,6 +261,14 @@ fn validate_referenced_files(
                 } else {
                     result.add_warning(format!("files[{}].source", i), msg);
                 }
+            } else if source_path.is_dir() {
+                // For directories, check if we can read the directory listing
+                if let Err(e) = std::fs::read_dir(&source_path) {
+                    result.add_warning(
+                        format!("files[{}].source", i),
+                        format!("Directory exists but cannot be read: {}", e),
+                    );
+                }
             } else {
                 // Check if file is readable
                 if let Err(e) = std::fs::read(&source_path) {
