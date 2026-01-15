@@ -279,14 +279,34 @@ impl SchemaValidator {
                     // Package ID is required
                     if package.id.is_empty() {
                         result.add_error(format!("{}.id", path), "Package ID is required");
-                    } else if !is_valid_winget_id(&package.id) {
-                        result.add_warning(
-                            format!("{}.id", path),
-                            format!(
-                                "Package ID '{}' may not be a valid winget ID. Expected format: 'Publisher.PackageName'",
-                                package.id
-                            ),
-                        );
+                    } else {
+                        // Check if this is an msstore package
+                        let is_msstore = package
+                            .source
+                            .as_ref()
+                            .map(|s| s.to_lowercase() == "msstore")
+                            .unwrap_or(false);
+
+                        if is_msstore {
+                            // Validate Microsoft Store package ID format
+                            if !is_valid_msstore_id(&package.id) {
+                                result.add_warning(
+                                    format!("{}.id", path),
+                                    format!(
+                                        "Package ID '{}' may not be a valid Microsoft Store ID. Expected alphanumeric format (e.g., '9NBLGGH4NNS1')",
+                                        package.id
+                                    ),
+                                );
+                            }
+                        } else if !is_valid_winget_id(&package.id) {
+                            result.add_warning(
+                                format!("{}.id", path),
+                                format!(
+                                    "Package ID '{}' may not be a valid winget ID. Expected format: 'Publisher.PackageName'",
+                                    package.id
+                                ),
+                            );
+                        }
                     }
 
                     // Warn about version pinning in strict mode
@@ -620,6 +640,28 @@ fn is_valid_version(version: &str) -> bool {
 /// - Microsoft.VisualStudioCode
 /// - Git.Git
 /// - Python.Python.3.12
+/// Check if a Microsoft Store package ID is valid
+/// Microsoft Store IDs are alphanumeric, typically 12 characters (e.g., 9NBLGGH4NNS1)
+fn is_valid_msstore_id(id: &str) -> bool {
+    if id.is_empty() {
+        return false;
+    }
+
+    // Microsoft Store IDs are alphanumeric and typically 12 characters
+    // They usually start with '9' but we'll be lenient and just check alphanumeric
+    if !id.chars().all(|c| c.is_ascii_alphanumeric()) {
+        return false;
+    }
+
+    // Typical MS Store IDs are 12 characters, but allow some flexibility (8-14 chars)
+    let len = id.len();
+    if len < 8 || len > 14 {
+        return false;
+    }
+
+    true
+}
+
 fn is_valid_winget_id(id: &str) -> bool {
     if id.is_empty() {
         return false;
@@ -745,6 +787,25 @@ mod tests {
         assert!(!is_valid_winget_id("EndsWithDot."));
         assert!(!is_valid_winget_id("Has..DoubleDots"));
         assert!(!is_valid_winget_id("Has Spaces.Package"));
+    }
+
+    // Microsoft Store ID tests
+    #[test]
+    fn test_valid_msstore_ids() {
+        assert!(is_valid_msstore_id("9PFXXSHC64H3")); // Raycast
+        assert!(is_valid_msstore_id("9NBLGGH4NNS1")); // Typical MS Store ID
+        assert!(is_valid_msstore_id("9N0DX20HK701")); // Windows Terminal
+        assert!(is_valid_msstore_id("XPFFZHVGQWWLHB")); // Some MS Store apps have longer IDs
+    }
+
+    #[test]
+    fn test_invalid_msstore_ids() {
+        assert!(!is_valid_msstore_id(""));
+        assert!(!is_valid_msstore_id("short")); // Too short (< 8 chars)
+        assert!(!is_valid_msstore_id("9NBLGGH4NNS1TOOLONG")); // Too long (> 14 chars)
+        assert!(!is_valid_msstore_id("Microsoft.App")); // This is a winget ID, not msstore
+        assert!(!is_valid_msstore_id("9NBLGGH-NNS1")); // Contains hyphen
+        assert!(!is_valid_msstore_id("9NBLGGH NNS1")); // Contains space
     }
 
     // Environment variable name tests
