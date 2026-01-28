@@ -200,10 +200,10 @@ winforge/
 │       ├── cache.rs         # Cache management
 │       └── files.rs         # File state tracking
 ├── workloads/               # Bundled workloads
-│   ├── dev-tools-base/
+│   ├── essentials/
 │   ├── rust-developer/
 │   ├── python-developer/
-│   └── essentials/
+│   └── ui/
 ├── tests/                   # Integration tests
 │   ├── cli_tests.rs
 │   └── common/
@@ -399,7 +399,7 @@ Contributions of new bundled workloads are welcome! See the [Workload Authoring 
 1. **Include meaningful health checks** - Verify the workload achieves its purpose
 2. **Document the workload purpose** - Clear description and comments
 3. **Test on clean Windows installation** - Ensure it works from scratch
-4. **Use inheritance** for common bases (extend `dev-tools-base` if appropriate)
+4. **Use inheritance** for common bases (extend `essentials` if appropriate)
 5. **Keep packages minimal** - Only include what's necessary
 6. **Validate before submitting** - `winforge validate your-workload --strict`
 
@@ -420,7 +420,7 @@ version: "1.0.0"
 description: "Brief description of what this workload provides"
 
 extends:
-  - dev-tools-base     # If applicable
+  - essentials     # If applicable
 
 packages:
   winget:

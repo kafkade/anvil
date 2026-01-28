@@ -138,10 +138,9 @@ winforge list
 Output:
 ```
 Available Workloads:
-  dev-tools-base     Base development tools setup
-  rust-developer     Rust development environment
-  python-developer   Python development environment
-  essentials         Essential Windows utilities
+  essentials         Core development tools and productivity utilities
+  rust-developer     Rust development environment (extends essentials)
+  python-developer   Python development environment (extends essentials)
 ```
 
 ### View Workload Details
@@ -720,7 +719,7 @@ Workloads can extend other workloads to inherit their configuration:
 name: my-rust-env
 version: "1.0.0"
 extends:
-  - dev-tools-base    # Inherits packages, files, scripts
+  - essentials        # Inherits packages, files, scripts
   - rust-developer    # Adds Rust-specific config
 ```
 
@@ -732,9 +731,9 @@ winforge show my-rust-env --inheritance-tree
 Output:
 ```
 my-rust-env
-├── dev-tools-base
+├── essentials
 └── rust-developer
-    └── dev-tools-base
+    └── essentials
 ```
 
 ### Using Custom Workload Directories
@@ -777,12 +776,12 @@ Human-readable format for terminal display:
 winforge list
 ```
 ```
-┌──────────────────┬─────────┬────────────────────────────────┐
-│ Name             │ Version │ Description                    │
-├──────────────────┼─────────┼────────────────────────────────┤
-│ dev-tools-base   │ 1.0.0   │ Base development tools         │
-│ rust-developer   │ 1.0.0   │ Rust development environment   │
-└──────────────────┴─────────┴────────────────────────────────┘
+┌──────────────────┬─────────┬────────────────────────────────────────────────────┐
+│ Name             │ Version │ Description                                        │
+├──────────────────┼─────────┼────────────────────────────────────────────────────┤
+│ essentials       │ 2.0.0   │ Core development tools and productivity utilities  │
+│ rust-developer   │ 1.0.0   │ Rust development environment                       │
+└──────────────────┴─────────┴────────────────────────────────────────────────────┘
 ```
 
 ### JSON
@@ -795,9 +794,9 @@ winforge list --output json
 ```json
 [
   {
-    "name": "dev-tools-base",
-    "version": "1.0.0",
-    "description": "Base development tools"
+    "name": "essentials",
+    "version": "2.0.0",
+    "description": "Core development tools and productivity utilities"
   },
   {
     "name": "rust-developer",
@@ -819,7 +818,7 @@ name: rust-developer
 version: "1.0.0"
 description: Rust development environment
 extends:
-  - dev-tools-base
+  - essentials
 packages:
   winget:
     - id: Rustlang.Rustup

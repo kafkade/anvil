@@ -66,10 +66,9 @@ winforge health rust-developer --output html --file report.html
 
 | Workload | Description |
 |----------|-------------|
-| `dev-tools-base` | VS Code, Git, Windows Terminal, Oh My Posh |
-| `rust-developer` | Rust toolchain with cargo tools |
-| `python-developer` | Python 3.12 with uv package manager |
-| `essentials` | Essential Windows utilities |
+| `essentials` | Core development tools (VS Code, Git, Windows Terminal) and productivity utilities |
+| `rust-developer` | Rust toolchain with cargo tools (extends essentials) |
+| `python-developer` | Python 3.12 with uv package manager (extends essentials) |
 
 ## 📋 Workload Structure
 
@@ -90,7 +89,7 @@ version: "1.0.0"
 description: "Complete Rust development environment"
 
 extends:
-  - dev-tools-base
+  - essentials
 
 packages:
   winget:

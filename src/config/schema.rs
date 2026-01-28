@@ -728,7 +728,7 @@ mod tests {
     #[test]
     fn test_valid_workload_names() {
         assert!(is_valid_workload_name("rust-developer"));
-        assert!(is_valid_workload_name("dev-tools-base"));
+        assert!(is_valid_workload_name("essentials"));
         assert!(is_valid_workload_name("python3"));
         assert!(is_valid_workload_name("a"));
         assert!(is_valid_workload_name("my-workload-123"));

@@ -109,7 +109,7 @@ List of parent workloads to inherit from.
 
 ```yaml
 extends:
-  - dev-tools-base
+  - essentials
   - rust-developer
 ```
 
@@ -637,7 +637,7 @@ name: my-rust-dev
 version: "1.0.0"
 
 extends:
-  - dev-tools-base      # Inherit base development tools
+  - essentials      # Inherit base development tools
 ```
 
 ### Multiple Inheritance
@@ -647,7 +647,7 @@ name: full-stack-dev
 version: "1.0.0"
 
 extends:
-  - dev-tools-base
+  - essentials
   - rust-developer
   - python-developer
 ```
@@ -706,7 +706,7 @@ Winforge resolves inheritance chains automatically:
 ```
 my-workload
 └── rust-developer
-    └── dev-tools-base
+    └── essentials
 ```
 
 Circular dependencies are detected and rejected:
@@ -939,7 +939,7 @@ version: "1.0.0"
 description: "Complete workload demonstrating all features"
 
 extends:
-  - dev-tools-base
+  - essentials
 
 packages:
   winget:

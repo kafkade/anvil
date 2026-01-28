@@ -292,12 +292,13 @@ winforge/
 │       ├── json.rs                   # JSON report generation
 │       └── html.rs                   # HTML report generation
 ├── workloads/
-│   ├── base/
-│   │   └── workload.yaml             # Base workload (minimal tools)
-│   ├── dev-tools-base/
-│   │   ├── workload.yaml             # VS Code, Git, etc.
-│   │   └── files/
-│   │       └── .gitconfig            # Git configuration template
+│   ├── essentials/
+│   │   ├── workload.yaml             # Core dev tools (VS Code, Git, Terminal) and utilities
+│   │   ├── files/
+│   │   │   └── user/                 # User configuration files
+│   │   └── scripts/
+│   │       ├── health-check.ps1      # Essentials health validation
+│   │       └── configure-sudo.ps1    # Windows sudo configuration
 │   ├── rust-developer/
 │   │   ├── workload.yaml             # Rust toolchain workload
 │   │   ├── files/
@@ -416,13 +417,13 @@ health:
 
 ### 5.2 Example Workloads
 
-#### 5.2.1 Base Workload (dev-tools-base)
+#### 5.2.1 Essentials Workload
 
 ```yaml
-# workloads/dev-tools-base/workload.yaml
-name: dev-tools-base
-version: "1.0.0"
-description: "Base development tools including Git and VS Code"
+# workloads/essentials/workload.yaml
+name: essentials
+version: "2.0.0"
+description: "Core development tools and productivity utilities for everyday Windows use"
 
 packages:
   winget:
@@ -439,28 +440,33 @@ packages:
     - id: Microsoft.WindowsTerminal
     
     - id: JanDeDobbeleer.OhMyPosh
+    
+    - id: GitHub.cli
 
 files:
-  - source: .gitconfig
+  - source: user/.gitconfig
     destination: "~/.gitconfig"
     backup: true
     
-  - source: settings.json
-    destination: "~/AppData/Local/Packages/Microsoft.WindowsTerminal_*/LocalState/settings.json"
+  - source: user/.config/pwsh
+    destination: "~/.config/pwsh"
     backup: true
 
 scripts:
   post_install:
-    - path: configure-git.ps1
+    - path: post-install.ps1
       shell: powershell
+    - path: configure-sudo.ps1
+      shell: powershell
+      elevated: true
       
   health_check:
-    - path: verify-git.ps1
-      name: "Git Installation"
-      description: "Verifies Git is installed and configured correctly"
-    - path: verify-vscode.ps1
-      name: "VS Code Installation"
-      description: "Verifies VS Code is installed with required extensions"
+    - path: health-check.ps1
+      name: "essentials Health Check"
+      description: "Verifies essentials is properly configured"
+    - path: verify-sudo.ps1
+      name: "Windows Sudo"
+      description: "Verifies Windows sudo is enabled and set to inline mode"
 ```
 
 #### 5.2.2 Rust Developer Workload
@@ -472,7 +478,7 @@ version: "1.0.0"
 description: "Complete Rust development environment"
 
 extends:
-  - dev-tools-base
+  - essentials
 
 packages:
   winget:
@@ -520,7 +526,7 @@ version: "1.0.0"
 description: "Python development environment with common tools"
 
 extends:
-  - dev-tools-base
+  - essentials
 
 packages:
   winget:
@@ -625,7 +631,7 @@ Examples:
   winforge install rust-developer
   winforge install ./custom-workload/workload.yaml
   winforge install python-developer --dry-run
-  winforge install dev-tools-base --packages-only
+  winforge install essentials --packages-only
 ```
 
 #### 6.2.2 Health Command
@@ -655,7 +661,7 @@ Exit Codes:
 Examples:
   winforge health rust-developer
   winforge health python-developer --output json --file report.json
-  winforge health dev-tools-base --fail-fast
+  winforge health essentials --fail-fast
 ```
 
 #### 6.2.3 List Command
@@ -732,7 +738,7 @@ Options:
 
 Examples:
   winforge init my-workload
-  winforge init frontend-dev --extends dev-tools-base
+  winforge init frontend-dev --extends essentials
   winforge init minimal-setup --template minimal
 ```
 

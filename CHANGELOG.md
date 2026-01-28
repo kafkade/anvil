@@ -94,10 +94,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - JSON (machine-readable)
   - YAML
 - Bundled workloads
-  - dev-tools-base: VS Code, Git, Windows Terminal, Oh My Posh
-  - rust-developer: Rust toolchain with cargo tools
-  - python-developer: Python with uv package manager
-  - essentials: Essential Windows utilities
+  - essentials: Core development tools (VS Code, Git, Windows Terminal, Oh My Posh) and productivity utilities
+  - rust-developer: Rust toolchain with cargo tools (extends essentials)
+  - python-developer: Python with uv package manager (extends essentials)
 
 ### Documentation
 - Initial specification document

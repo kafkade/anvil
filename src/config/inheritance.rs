@@ -86,28 +86,24 @@ impl InheritanceGraph {
         self.workloads.insert(workload_name.to_string());
 
         // Find and load workload
-        let workload_path = manager
-            .find_workload(workload_name)
-            .ok_or_else(|| InheritanceError::ParentNotFound {
+        let workload_path = manager.find_workload(workload_name).ok_or_else(|| {
+            InheritanceError::ParentNotFound {
                 parent: workload_name.to_string(),
-            })?;
-
-        let workload = load_workload_from_path(&workload_path).map_err(|e| {
-            InheritanceError::LoadError {
-                workload: workload_name.to_string(),
-                reason: e.to_string(),
             }
         })?;
 
+        let workload =
+            load_workload_from_path(&workload_path).map_err(|e| InheritanceError::LoadError {
+                workload: workload_name.to_string(),
+                reason: e.to_string(),
+            })?;
+
         // Get parents
-        let parents = workload
-            .extends
-            .as_ref()
-            .cloned()
-            .unwrap_or_default();
+        let parents = workload.extends.as_ref().cloned().unwrap_or_default();
 
         // Store edges
-        self.edges.insert(workload_name.to_string(), parents.clone());
+        self.edges
+            .insert(workload_name.to_string(), parents.clone());
 
         // Recursively process parents
         for parent in parents {
@@ -236,9 +232,7 @@ impl InheritanceGraph {
         match parents {
             None => 0,
             Some(parents) if parents.is_empty() => 0,
-            Some(parents) => {
-                1 + parents.iter().map(|p| self.depth(p)).max().unwrap_or(0)
-            }
+            Some(parents) => 1 + parents.iter().map(|p| self.depth(p)).max().unwrap_or(0),
         }
     }
 
@@ -250,7 +244,12 @@ impl InheritanceGraph {
     /// Get statistics about the inheritance graph
     pub fn stats(&self) -> InheritanceStats {
         let total_workloads = self.workloads.len();
-        let max_depth = self.workloads.iter().map(|w| self.depth(w)).max().unwrap_or(0);
+        let max_depth = self
+            .workloads
+            .iter()
+            .map(|w| self.depth(w))
+            .max()
+            .unwrap_or(0);
         let total_edges: usize = self.edges.values().map(|v| v.len()).sum();
 
         InheritanceStats {
@@ -729,16 +728,21 @@ mod tests {
     fn test_inheritance_graph_format_tree() {
         let mut graph = InheritanceGraph::new();
         graph.workloads.insert("rust-developer".to_string());
-        graph.workloads.insert("dev-tools-base".to_string());
+        graph.workloads.insert("essentials".to_string());
         graph.workloads.insert("base-workstation".to_string());
 
-        graph.edges.insert("rust-developer".to_string(), vec!["dev-tools-base".to_string()]);
-        graph.edges.insert("dev-tools-base".to_string(), vec!["base-workstation".to_string()]);
+        graph
+            .edges
+            .insert("rust-developer".to_string(), vec!["essentials".to_string()]);
+        graph.edges.insert(
+            "essentials".to_string(),
+            vec!["base-workstation".to_string()],
+        );
         graph.edges.insert("base-workstation".to_string(), vec![]);
 
         let tree = graph.format_tree("rust-developer");
         assert!(tree.contains("rust-developer"));
-        assert!(tree.contains("dev-tools-base"));
+        assert!(tree.contains("essentials"));
         assert!(tree.contains("base-workstation"));
     }
 
@@ -749,8 +753,12 @@ mod tests {
         graph.workloads.insert("parent".to_string());
         graph.workloads.insert("grandparent".to_string());
 
-        graph.edges.insert("child".to_string(), vec!["parent".to_string()]);
-        graph.edges.insert("parent".to_string(), vec!["grandparent".to_string()]);
+        graph
+            .edges
+            .insert("child".to_string(), vec!["parent".to_string()]);
+        graph
+            .edges
+            .insert("parent".to_string(), vec!["grandparent".to_string()]);
         graph.edges.insert("grandparent".to_string(), vec![]);
 
         assert_eq!(graph.depth("grandparent"), 0);

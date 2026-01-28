@@ -19,19 +19,14 @@ mod list_command {
 
     #[test]
     fn list_shows_available_workloads() {
-        winforge()
-            .arg("list")
-            .assert()
-            .success()
-            .stdout(predicate::str::contains("dev-tools-base").or(predicate::str::contains("rust-developer")));
+        winforge().arg("list").assert().success().stdout(
+            predicate::str::contains("essentials").or(predicate::str::contains("rust-developer")),
+        );
     }
 
     #[test]
     fn list_with_long_format() {
-        winforge()
-            .args(["list", "--long"])
-            .assert()
-            .success();
+        winforge().args(["list", "--long"]).assert().success();
     }
 
     #[test]
@@ -88,10 +83,10 @@ mod show_command {
     #[test]
     fn show_displays_workload_details() {
         winforge()
-            .args(["show", "dev-tools-base"])
+            .args(["show", "essentials"])
             .assert()
             .success()
-            .stdout(predicate::str::contains("dev-tools-base"));
+            .stdout(predicate::str::contains("essentials"));
     }
 
     #[test]
@@ -100,7 +95,10 @@ mod show_command {
             .args(["show", "nonexistent-workload-xyz"])
             .assert()
             .failure()
-            .stderr(predicate::str::contains("not found").or(predicate::str::contains("error").or(predicate::str::contains("Error"))));
+            .stderr(
+                predicate::str::contains("not found")
+                    .or(predicate::str::contains("error").or(predicate::str::contains("Error"))),
+            );
     }
 
     #[test]
@@ -114,7 +112,7 @@ mod show_command {
     #[test]
     fn show_json_output() {
         winforge()
-            .args(["show", "dev-tools-base", "--output", "json"])
+            .args(["show", "essentials", "--output", "json"])
             .assert()
             .success()
             .stdout(predicate::str::starts_with("{"));
@@ -123,7 +121,7 @@ mod show_command {
     #[test]
     fn show_yaml_output() {
         winforge()
-            .args(["show", "dev-tools-base", "--output", "yaml"])
+            .args(["show", "essentials", "--output", "yaml"])
             .assert()
             .success()
             .stdout(predicate::str::contains("name:"));
@@ -166,9 +164,9 @@ packages:
 
     #[test]
     fn validate_bundled_workloads() {
-        // Validate dev-tools-base
+        // Validate essentials
         winforge()
-            .args(["validate", "workloads/dev-tools-base"])
+            .args(["validate", "workloads/essentials"])
             .assert()
             .success();
     }
@@ -179,11 +177,7 @@ packages:
         let workload_dir = temp.path().join("invalid-workload");
         fs::create_dir_all(&workload_dir).unwrap();
         // Missing required 'name' field
-        fs::write(
-            workload_dir.join("workload.yaml"),
-            "version: \"1.0.0\"\n",
-        )
-        .unwrap();
+        fs::write(workload_dir.join("workload.yaml"), "version: \"1.0.0\"\n").unwrap();
 
         winforge()
             .args(["validate", workload_dir.to_str().unwrap()])
@@ -232,10 +226,7 @@ description: "Test workload for strict validation"
 
     #[test]
     fn validate_schema_output() {
-        winforge()
-            .args(["validate", "--schema"])
-            .assert()
-            .success();
+        winforge().args(["validate", "--schema"]).assert().success();
     }
 }
 
@@ -250,7 +241,12 @@ mod init_command {
         let output_path = temp.path().join("output").join(workload_name);
 
         winforge()
-            .args(["init", workload_name, "--output", output_path.to_str().unwrap()])
+            .args([
+                "init",
+                workload_name,
+                "--output",
+                output_path.to_str().unwrap(),
+            ])
             .assert()
             .success();
 
@@ -314,7 +310,7 @@ mod init_command {
                 "init",
                 workload_name,
                 "--extends",
-                "dev-tools-base",
+                "essentials",
                 "--output",
                 output_path.to_str().unwrap(),
             ])
@@ -323,7 +319,7 @@ mod init_command {
 
         let workload_yaml = output_path.join("workload.yaml");
         let content = fs::read_to_string(workload_yaml).unwrap();
-        assert!(content.contains("extends") || content.contains("dev-tools-base"));
+        assert!(content.contains("extends") || content.contains("essentials"));
     }
 }
 
@@ -333,7 +329,7 @@ mod install_command {
     #[test]
     fn install_dry_run_shows_plan() {
         winforge()
-            .args(["install", "dev-tools-base", "--dry-run"])
+            .args(["install", "essentials", "--dry-run"])
             .assert()
             .success();
     }
@@ -349,7 +345,7 @@ mod install_command {
     #[test]
     fn install_with_skip_packages() {
         winforge()
-            .args(["install", "dev-tools-base", "--dry-run", "--skip-packages"])
+            .args(["install", "essentials", "--dry-run", "--skip-packages"])
             .assert()
             .success();
     }
@@ -357,7 +353,7 @@ mod install_command {
     #[test]
     fn install_with_skip_files() {
         winforge()
-            .args(["install", "dev-tools-base", "--dry-run", "--skip-files"])
+            .args(["install", "essentials", "--dry-run", "--skip-files"])
             .assert()
             .success();
     }
@@ -365,7 +361,7 @@ mod install_command {
     #[test]
     fn install_with_skip_scripts() {
         winforge()
-            .args(["install", "dev-tools-base", "--dry-run", "--skip-scripts"])
+            .args(["install", "essentials", "--dry-run", "--skip-scripts"])
             .assert()
             .success();
     }
@@ -375,7 +371,7 @@ mod install_command {
         winforge()
             .args([
                 "install",
-                "dev-tools-base",
+                "essentials",
                 "--dry-run",
                 "--skip-packages",
                 "--skip-files",
@@ -388,7 +384,7 @@ mod install_command {
     #[test]
     fn install_packages_only() {
         winforge()
-            .args(["install", "dev-tools-base", "--dry-run", "--packages-only"])
+            .args(["install", "essentials", "--dry-run", "--packages-only"])
             .assert()
             .success();
     }
@@ -396,7 +392,7 @@ mod install_command {
     #[test]
     fn install_files_only() {
         winforge()
-            .args(["install", "dev-tools-base", "--dry-run", "--files-only"])
+            .args(["install", "essentials", "--dry-run", "--files-only"])
             .assert()
             .success();
     }
@@ -408,9 +404,7 @@ mod health_command {
     #[test]
     fn health_check_runs() {
         // Health check should complete (pass or fail based on system state)
-        let result = winforge()
-            .args(["health", "dev-tools-base"])
-            .assert();
+        let result = winforge().args(["health", "essentials"]).assert();
         // We just verify it runs - it may pass or fail depending on system state
         // but shouldn't panic or error unexpectedly
         result.code(predicate::in_iter([0, 1]));
@@ -419,7 +413,7 @@ mod health_command {
     #[test]
     fn health_json_output() {
         winforge()
-            .args(["health", "dev-tools-base", "--output", "json"])
+            .args(["health", "essentials", "--output", "json"])
             .assert()
             .stdout(predicate::str::starts_with("{"));
     }
@@ -427,7 +421,7 @@ mod health_command {
     #[test]
     fn health_yaml_output() {
         winforge()
-            .args(["health", "dev-tools-base", "--output", "yaml"])
+            .args(["health", "essentials", "--output", "yaml"])
             .assert()
             .code(predicate::in_iter([0, 1]));
     }
@@ -443,7 +437,7 @@ mod health_command {
     #[test]
     fn health_packages_only() {
         winforge()
-            .args(["health", "dev-tools-base", "--packages-only"])
+            .args(["health", "essentials", "--packages-only"])
             .assert()
             .code(predicate::in_iter([0, 1]));
     }
@@ -451,7 +445,7 @@ mod health_command {
     #[test]
     fn health_fail_fast() {
         winforge()
-            .args(["health", "dev-tools-base", "--fail-fast"])
+            .args(["health", "essentials", "--fail-fast"])
             .assert()
             .code(predicate::in_iter([0, 1]));
     }
@@ -464,7 +458,7 @@ mod health_command {
         winforge()
             .args([
                 "health",
-                "dev-tools-base",
+                "essentials",
                 "--output",
                 "json",
                 "--file",
@@ -522,10 +516,7 @@ mod config_command {
 
     #[test]
     fn config_list_displays_settings() {
-        winforge()
-            .args(["config", "list"])
-            .assert()
-            .success();
+        winforge().args(["config", "list"]).assert().success();
     }
 
     #[test]
@@ -538,10 +529,7 @@ mod config_command {
 
     #[test]
     fn config_path_shows_location() {
-        winforge()
-            .args(["config", "path"])
-            .assert()
-            .success();
+        winforge().args(["config", "path"]).assert().success();
     }
 
     #[test]
@@ -558,16 +546,13 @@ mod status_command {
 
     #[test]
     fn status_runs() {
-        winforge()
-            .args(["status"])
-            .assert()
-            .success();
+        winforge().args(["status"]).assert().success();
     }
 
     #[test]
     fn status_for_workload() {
         winforge()
-            .args(["status", "dev-tools-base"])
+            .args(["status", "essentials"])
             .assert()
             .code(predicate::in_iter([0, 1]));
     }
@@ -582,10 +567,7 @@ mod status_command {
 
     #[test]
     fn status_long_format() {
-        winforge()
-            .args(["status", "--long"])
-            .assert()
-            .success();
+        winforge().args(["status", "--long"]).assert().success();
     }
 }
 
@@ -594,10 +576,7 @@ mod backup_command {
 
     #[test]
     fn backup_list_runs() {
-        winforge()
-            .args(["backup", "list"])
-            .assert()
-            .success();
+        winforge().args(["backup", "list"]).assert().success();
     }
 
     #[test]
@@ -640,42 +619,27 @@ mod global_flags {
 
     #[test]
     fn verbose_flag_accepted() {
-        winforge()
-            .args(["-v", "list"])
-            .assert()
-            .success();
+        winforge().args(["-v", "list"]).assert().success();
     }
 
     #[test]
     fn double_verbose_flag_accepted() {
-        winforge()
-            .args(["-vv", "list"])
-            .assert()
-            .success();
+        winforge().args(["-vv", "list"]).assert().success();
     }
 
     #[test]
     fn triple_verbose_flag_accepted() {
-        winforge()
-            .args(["-vvv", "list"])
-            .assert()
-            .success();
+        winforge().args(["-vvv", "list"]).assert().success();
     }
 
     #[test]
     fn quiet_flag_accepted() {
-        winforge()
-            .args(["-q", "list"])
-            .assert()
-            .success();
+        winforge().args(["-q", "list"]).assert().success();
     }
 
     #[test]
     fn no_color_flag_accepted() {
-        winforge()
-            .args(["--no-color", "list"])
-            .assert()
-            .success();
+        winforge().args(["--no-color", "list"]).assert().success();
     }
 
     #[test]
@@ -702,34 +666,22 @@ mod error_handling {
 
     #[test]
     fn install_missing_required_argument() {
-        winforge()
-            .arg("install")
-            .assert()
-            .failure();
+        winforge().arg("install").assert().failure();
     }
 
     #[test]
     fn show_missing_required_argument() {
-        winforge()
-            .arg("show")
-            .assert()
-            .failure();
+        winforge().arg("show").assert().failure();
     }
 
     #[test]
     fn health_missing_required_argument() {
-        winforge()
-            .arg("health")
-            .assert()
-            .failure();
+        winforge().arg("health").assert().failure();
     }
 
     #[test]
     fn completions_missing_shell() {
-        winforge()
-            .arg("completions")
-            .assert()
-            .failure();
+        winforge().arg("completions").assert().failure();
     }
 
     #[test]
@@ -854,11 +806,7 @@ extends:
 
         // Use list command with --path to verify workloads are found
         winforge()
-            .args([
-                "list",
-                "--path",
-                temp.path().to_str().unwrap(),
-            ])
+            .args(["list", "--path", temp.path().to_str().unwrap()])
             .assert()
             .success()
             .stdout(predicate::str::contains("child-workload"));
