@@ -108,6 +108,19 @@ impl Workload {
     pub fn file_count(&self) -> usize {
         self.files.as_ref().map(|f| f.len()).unwrap_or(0)
     }
+
+    /// Get the total number of scripts (pre_install + post_install + health_check)
+    pub fn script_count(&self) -> usize {
+        self.scripts
+            .as_ref()
+            .map(|s| {
+                let pre = s.pre_install.as_ref().map(|p| p.len()).unwrap_or(0);
+                let post = s.post_install.as_ref().map(|p| p.len()).unwrap_or(0);
+                let health = s.health_check.as_ref().map(|h| h.len()).unwrap_or(0);
+                pre + post + health
+            })
+            .unwrap_or(0)
+    }
 }
 
 /// Package manager definitions

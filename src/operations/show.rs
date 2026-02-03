@@ -118,7 +118,7 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
     // Summary counts
     let package_count = workload.package_count();
     let file_count = workload.file_count();
-    let script_count = count_scripts(workload);
+    let script_count = workload.script_count();
 
     if use_color {
         println!("{}", "Summary:".bold());
@@ -341,22 +341,6 @@ fn print_script_entry(path: &str, description: Option<&str>, use_color: bool) {
 }
 
 /// Count total number of scripts in a workload
-fn count_scripts(workload: &Workload) -> usize {
-    let mut count = 0;
-    if let Some(ref scripts) = workload.scripts {
-        if let Some(ref pre) = scripts.pre_install {
-            count += pre.len();
-        }
-        if let Some(ref post) = scripts.post_install {
-            count += post.len();
-        }
-        if let Some(ref health) = scripts.health_check {
-            count += health.len();
-        }
-    }
-    count
-}
-
 /// Display inheritance tree for a workload
 fn show_inheritance_tree(
     workload_name: &str,
@@ -365,7 +349,11 @@ fn show_inheritance_tree(
 ) -> Result<()> {
     // Build the inheritance graph
     let graph = InheritanceGraph::build(workload_name, manager).map_err(|e| {
-        anyhow::anyhow!("Failed to build inheritance graph: {}\n\nSuggestion: {}", e, e.suggestion())
+        anyhow::anyhow!(
+            "Failed to build inheritance graph: {}\n\nSuggestion: {}",
+            e,
+            e.suggestion()
+        )
     })?;
 
     // Load the workload to get version info
@@ -439,7 +427,7 @@ fn show_inheritance_tree(
 
     let package_count = resolved.package_count();
     let file_count = resolved.file_count();
-    let script_count = count_scripts(&resolved);
+    let script_count = resolved.script_count();
 
     if use_color {
         println!(
@@ -472,13 +460,13 @@ mod tests {
     use crate::config::workload::{Packages, WingetPackage};
 
     #[test]
-    fn test_count_scripts_empty() {
+    fn test_script_count_empty() {
         let workload = Workload::new("test", "1.0.0", "Test workload");
-        assert_eq!(count_scripts(&workload), 0);
+        assert_eq!(workload.script_count(), 0);
     }
 
     #[test]
-    fn test_count_scripts_with_scripts() {
+    fn test_script_count_with_scripts() {
         use crate::config::workload::{HealthCheckScript, ScriptEntry, Scripts};
 
         let mut workload = Workload::new("test", "1.0.0", "Test workload");
@@ -491,7 +479,7 @@ mod tests {
             health_check: Some(vec![HealthCheckScript::new("health.ps1", "Health Check")]),
         });
 
-        assert_eq!(count_scripts(&workload), 4);
+        assert_eq!(workload.script_count(), 4);
     }
 
     #[test]

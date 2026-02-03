@@ -380,6 +380,7 @@ fn print_install_header(workload: &Workload, dry_run: bool, file_count: usize) {
     println!("Description: {}", workload.description);
     println!("Packages:    {}", workload.package_count());
     println!("Files:       {}", file_count);
+    println!("Scripts:     {}", workload.script_count());
     println!();
 }
 

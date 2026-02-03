@@ -75,6 +75,18 @@ impl std::fmt::Display for CheckStatus {
 }
 
 /// A single check result for reporting
+/// Script internal counts for health check scripts
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default, Serialize)]
+pub struct ScriptCounts {
+    /// Number of passed checks within the script
+    pub passed: usize,
+    /// Number of failed checks within the script
+    pub failed: usize,
+    /// Number of warnings within the script
+    pub warnings: usize,
+}
+
 #[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct CheckResult {
@@ -90,6 +102,9 @@ pub struct CheckResult {
     /// Optional detailed output (e.g., script output for failed health checks)
     #[serde(skip_serializing_if = "Option::is_none")]
     pub details: Option<Vec<String>>,
+    /// Optional script internal counts (for health check scripts that report multiple checks)
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub script_counts: Option<ScriptCounts>,
 }
 
 #[allow(dead_code)]
@@ -102,6 +117,7 @@ impl CheckResult {
             message: None,
             category: category.into(),
             details: None,
+            script_counts: None,
         }
     }
 
@@ -117,6 +133,30 @@ impl CheckResult {
             message: Some(message.into()),
             category: category.into(),
             details: None,
+            script_counts: None,
+        }
+    }
+
+    /// Create a new passing check result with script counts
+    pub fn ok_with_script_counts(
+        name: impl Into<String>,
+        category: impl Into<String>,
+        message: impl Into<String>,
+        passed: usize,
+        failed: usize,
+        warnings: usize,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            status: CheckStatus::Ok,
+            message: Some(message.into()),
+            category: category.into(),
+            details: None,
+            script_counts: Some(ScriptCounts {
+                passed,
+                failed,
+                warnings,
+            }),
         }
     }
 
@@ -132,6 +172,7 @@ impl CheckResult {
             message: Some(message.into()),
             category: category.into(),
             details: None,
+            script_counts: None,
         }
     }
 
@@ -152,6 +193,35 @@ impl CheckResult {
             } else {
                 Some(details)
             },
+            script_counts: None,
+        }
+    }
+
+    /// Create a new failing check result with script counts
+    pub fn fail_with_script_counts(
+        name: impl Into<String>,
+        category: impl Into<String>,
+        message: impl Into<String>,
+        details: Vec<String>,
+        passed: usize,
+        failed: usize,
+        warnings: usize,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            status: CheckStatus::Fail,
+            message: Some(message.into()),
+            category: category.into(),
+            details: if details.is_empty() {
+                None
+            } else {
+                Some(details)
+            },
+            script_counts: Some(ScriptCounts {
+                passed,
+                failed,
+                warnings,
+            }),
         }
     }
 
@@ -167,6 +237,30 @@ impl CheckResult {
             message: Some(message.into()),
             category: category.into(),
             details: None,
+            script_counts: None,
+        }
+    }
+
+    /// Create a new warning check result with script counts
+    pub fn warn_with_script_counts(
+        name: impl Into<String>,
+        category: impl Into<String>,
+        message: impl Into<String>,
+        passed: usize,
+        failed: usize,
+        warnings: usize,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            status: CheckStatus::Warn,
+            message: Some(message.into()),
+            category: category.into(),
+            details: None,
+            script_counts: Some(ScriptCounts {
+                passed,
+                failed,
+                warnings,
+            }),
         }
     }
 
@@ -182,6 +276,7 @@ impl CheckResult {
             message: Some(message.into()),
             category: category.into(),
             details: None,
+            script_counts: None,
         }
     }
 }
@@ -204,9 +299,13 @@ pub struct HealthSummary {
 #[allow(dead_code)]
 impl HealthSummary {
     /// Calculate summary from a list of check results
+    ///
+    /// If a check result has script_counts (from health check scripts that report
+    /// multiple internal checks), those counts are used instead of counting the
+    /// script as a single check.
     pub fn from_results(results: &[CheckResult]) -> Self {
         let mut summary = Self {
-            total: results.len(),
+            total: 0,
             passed: 0,
             failed: 0,
             warnings: 0,
@@ -214,11 +313,21 @@ impl HealthSummary {
         };
 
         for result in results {
-            match result.status {
-                CheckStatus::Ok => summary.passed += 1,
-                CheckStatus::Fail => summary.failed += 1,
-                CheckStatus::Warn => summary.warnings += 1,
-                CheckStatus::Skip => summary.skipped += 1,
+            // If this check has script counts, use those instead of counting as 1
+            if let Some(ref counts) = result.script_counts {
+                summary.passed += counts.passed;
+                summary.failed += counts.failed;
+                summary.warnings += counts.warnings;
+                summary.total += counts.passed + counts.failed + counts.warnings;
+            } else {
+                // Regular check - count as 1
+                summary.total += 1;
+                match result.status {
+                    CheckStatus::Ok => summary.passed += 1,
+                    CheckStatus::Fail => summary.failed += 1,
+                    CheckStatus::Warn => summary.warnings += 1,
+                    CheckStatus::Skip => summary.skipped += 1,
+                }
             }
         }
 

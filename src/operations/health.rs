@@ -670,35 +670,32 @@ fn run_health_scripts(
                 let check_result = match result.exit_code {
                     0 => {
                         // Parse output for summary
-                        let message = if let Some(ref parsed) = result.parsed {
+                        if let Some(ref parsed) = result.parsed {
                             if parsed.summary.passed > 0 || parsed.summary.failed > 0 {
-                                format!(
+                                let message = format!(
                                     "{} passed, {} failed",
                                     parsed.summary.passed, parsed.summary.failed
+                                );
+                                CheckResult::ok_with_script_counts(
+                                    display_name,
+                                    "Scripts",
+                                    message,
+                                    parsed.summary.passed as usize,
+                                    parsed.summary.failed as usize,
+                                    parsed.summary.warnings as usize,
                                 )
                             } else {
-                                format!("Completed in {:.1}s", result.duration.as_secs_f64())
+                                let message =
+                                    format!("Completed in {:.1}s", result.duration.as_secs_f64());
+                                CheckResult::ok_with_message(display_name, "Scripts", message)
                             }
                         } else {
-                            format!("Completed in {:.1}s", result.duration.as_secs_f64())
-                        };
-                        CheckResult::ok_with_message(display_name, "Scripts", message)
+                            let message =
+                                format!("Completed in {:.1}s", result.duration.as_secs_f64());
+                            CheckResult::ok_with_message(display_name, "Scripts", message)
+                        }
                     }
                     1 => {
-                        // Parse failure details from output
-                        let message = if let Some(ref parsed) = result.parsed {
-                            if parsed.summary.failed > 0 {
-                                format!(
-                                    "{} checks failed (passed: {})",
-                                    parsed.summary.failed, parsed.summary.passed
-                                )
-                            } else {
-                                "Health check reported failures".to_string()
-                            }
-                        } else {
-                            "Health check reported failures".to_string()
-                        };
-
                         // Extract failure details from stdout
                         let details: Vec<String> = result
                             .stdout
@@ -718,19 +715,69 @@ fn run_health_scripts(
                             .filter(|s| !s.is_empty())
                             .collect();
 
-                        CheckResult::fail_with_details(display_name, "Scripts", message, details)
+                        // Parse failure details from output
+                        if let Some(ref parsed) = result.parsed {
+                            if parsed.summary.failed > 0 || parsed.summary.passed > 0 {
+                                let message = format!(
+                                    "{} checks failed (passed: {})",
+                                    parsed.summary.failed, parsed.summary.passed
+                                );
+                                CheckResult::fail_with_script_counts(
+                                    display_name,
+                                    "Scripts",
+                                    message,
+                                    details,
+                                    parsed.summary.passed as usize,
+                                    parsed.summary.failed as usize,
+                                    parsed.summary.warnings as usize,
+                                )
+                            } else {
+                                CheckResult::fail_with_details(
+                                    display_name,
+                                    "Scripts",
+                                    "Health check reported failures",
+                                    details,
+                                )
+                            }
+                        } else {
+                            CheckResult::fail_with_details(
+                                display_name,
+                                "Scripts",
+                                "Health check reported failures",
+                                details,
+                            )
+                        }
                     }
                     2 => {
                         // Warnings only
-                        let message = if let Some(ref parsed) = result.parsed {
-                            format!(
-                                "{} warnings (passed: {})",
-                                parsed.summary.warnings, parsed.summary.passed
-                            )
+                        if let Some(ref parsed) = result.parsed {
+                            if parsed.summary.warnings > 0 || parsed.summary.passed > 0 {
+                                let message = format!(
+                                    "{} warnings (passed: {})",
+                                    parsed.summary.warnings, parsed.summary.passed
+                                );
+                                CheckResult::warn_with_script_counts(
+                                    display_name,
+                                    "Scripts",
+                                    message,
+                                    parsed.summary.passed as usize,
+                                    parsed.summary.failed as usize,
+                                    parsed.summary.warnings as usize,
+                                )
+                            } else {
+                                CheckResult::warn(
+                                    display_name,
+                                    "Scripts",
+                                    "Health check reported warnings",
+                                )
+                            }
                         } else {
-                            "Health check reported warnings".to_string()
-                        };
-                        CheckResult::warn(display_name, "Scripts", message)
+                            CheckResult::warn(
+                                display_name,
+                                "Scripts",
+                                "Health check reported warnings",
+                            )
+                        }
                     }
                     code => {
                         // Extract any error output for unexpected exit codes
