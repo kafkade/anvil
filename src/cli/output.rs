@@ -13,6 +13,8 @@ use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Table};
 use serde::Serialize;
 
 use crate::cli::commands::OutputFormat;
+use crate::cli::formats::html::HtmlFormatter;
+use crate::cli::formats::OutputFormatter;
 
 /// Status indicator for check results
 #[allow(dead_code)]
@@ -388,6 +390,7 @@ pub enum Formatter {
     Table(TableFormatter),
     Json(JsonFormatter),
     Yaml(YamlFormatter),
+    Html(HtmlFormatter),
 }
 
 #[allow(dead_code)]
@@ -402,6 +405,7 @@ impl Formatter {
             Formatter::Table(f) => f.format_health_report(report, writer),
             Formatter::Json(f) => f.format_health_report(report, writer),
             Formatter::Yaml(f) => f.format_health_report(report, writer),
+            Formatter::Html(f) => f.format_health(report, writer),
         }
     }
 
@@ -415,6 +419,7 @@ impl Formatter {
             Formatter::Table(f) => f.format_workload_list(workloads, writer),
             Formatter::Json(f) => f.format_workload_list(workloads, writer),
             Formatter::Yaml(f) => f.format_workload_list(workloads, writer),
+            Formatter::Html(f) => f.format_workload_list(workloads, writer),
         }
     }
 }
@@ -635,17 +640,37 @@ impl YamlFormatter {
     }
 }
 
+#[allow(dead_code)]
+impl HtmlFormatter {
+    pub fn format_workload_list<W: Write>(
+        &self,
+        workloads: &[WorkloadInfo],
+        writer: &mut W,
+    ) -> Result<()> {
+        // Convert output::WorkloadInfo to config::WorkloadInfo for the trait method
+        let config_workloads: Vec<crate::config::WorkloadInfo> = workloads
+            .iter()
+            .map(|w| crate::config::WorkloadInfo {
+                name: w.name.clone(),
+                version: w.version.clone(),
+                description: w.description.clone(),
+                extends: w.extends.clone(),
+                package_count: w.package_count,
+                file_count: w.file_count,
+                path: std::path::PathBuf::new(),
+            })
+            .collect();
+        self.format_list(&config_workloads, writer)
+    }
+}
+
 /// Get the appropriate formatter for the given output format
 pub fn get_formatter(format: OutputFormat, use_color: bool) -> Formatter {
     match format {
         OutputFormat::Table => Formatter::Table(TableFormatter::new(use_color)),
         OutputFormat::Json => Formatter::Json(JsonFormatter::new(true)),
         OutputFormat::Yaml => Formatter::Yaml(YamlFormatter),
-        OutputFormat::Html => {
-            // For now, fall back to table format
-            // HTML formatter can be implemented later
-            Formatter::Table(TableFormatter::new(false))
-        }
+        OutputFormat::Html => Formatter::Html(HtmlFormatter::new()),
     }
 }
 

@@ -671,19 +671,45 @@ fn run_health_scripts(
                     0 => {
                         // Parse output for summary
                         if let Some(ref parsed) = result.parsed {
-                            if parsed.summary.passed > 0 || parsed.summary.failed > 0 {
-                                let message = format!(
-                                    "{} passed, {} failed",
-                                    parsed.summary.passed, parsed.summary.failed
-                                );
-                                CheckResult::ok_with_script_counts(
-                                    display_name,
-                                    "Scripts",
-                                    message,
-                                    parsed.summary.passed as usize,
-                                    parsed.summary.failed as usize,
-                                    parsed.summary.warnings as usize,
-                                )
+                            if parsed.summary.passed > 0
+                                || parsed.summary.failed > 0
+                                || parsed.summary.warnings > 0
+                            {
+                                // Build message including warnings if present
+                                let message = if parsed.summary.warnings > 0 {
+                                    format!(
+                                        "{} passed, {} failed, {} warning(s)",
+                                        parsed.summary.passed,
+                                        parsed.summary.failed,
+                                        parsed.summary.warnings
+                                    )
+                                } else {
+                                    format!(
+                                        "{} passed, {} failed",
+                                        parsed.summary.passed, parsed.summary.failed
+                                    )
+                                };
+
+                                // Use WARN status if there are warnings
+                                if parsed.summary.warnings > 0 {
+                                    CheckResult::warn_with_script_counts(
+                                        display_name,
+                                        "Scripts",
+                                        message,
+                                        parsed.summary.passed as usize,
+                                        parsed.summary.failed as usize,
+                                        parsed.summary.warnings as usize,
+                                    )
+                                } else {
+                                    CheckResult::ok_with_script_counts(
+                                        display_name,
+                                        "Scripts",
+                                        message,
+                                        parsed.summary.passed as usize,
+                                        parsed.summary.failed as usize,
+                                        parsed.summary.warnings as usize,
+                                    )
+                                }
                             } else {
                                 let message =
                                     format!("Completed in {:.1}s", result.duration.as_secs_f64());
