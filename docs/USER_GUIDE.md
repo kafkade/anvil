@@ -48,7 +48,7 @@ Winforge is a declarative configuration management tool for Windows workstations
 
 ### Download Pre-built Binary
 
-1. Download the latest release from the [Releases page](https://github.com/javierfe_microsoft/winforge/releases)
+1. Download the latest release from the [Releases page](https://github.com/kafkade/anvil/releases)
 
 2. Extract the archive:
    ```powershell
@@ -70,7 +70,7 @@ Winforge is a declarative configuration management tool for Windows workstations
 # Prerequisites: Rust 1.75+ and Visual Studio Build Tools
 
 # Clone the repository
-git clone https://github.com/javierfe_microsoft/winforge.git
+git clone https://github.com/kafkade/anvil.git
 cd winforge
 
 # Build release binary
@@ -1013,10 +1013,10 @@ winforge health --help
 
 ### Resources
 
-- [GitHub Repository](https://github.com/javierfe_microsoft/winforge)
+- [GitHub Repository](https://github.com/kafkade/anvil)
 - [Workload Authoring Guide](WORKLOAD_AUTHORING.md)
 - [Troubleshooting Guide](TROUBLESHOOTING.md)
-- [Issue Tracker](https://github.com/javierfe_microsoft/winforge/issues)
+- [Issue Tracker](https://github.com/kafkade/anvil/issues)
 
 ### Reporting Issues
 

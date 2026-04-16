@@ -55,7 +55,7 @@ jobs:
           Copy-Item README.md $releaseDir/
           Copy-Item LICENSE $releaseDir/ -ErrorAction SilentlyContinue
           Copy-Item CHANGELOG.md $releaseDir/ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse workloads $releaseDir/
+          Copy-Item -Recurse examples $releaseDir/ -ErrorAction SilentlyContinue
           Copy-Item -Recurse docs $releaseDir/
 
       - name: Create ZIP archive

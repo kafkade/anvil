@@ -1047,7 +1047,7 @@ catch {
 
 - [Winforge User Guide](USER_GUIDE.md)
 - [Troubleshooting Guide](TROUBLESHOOTING.md)
-- [GitHub Repository](https://github.com/javierfe_microsoft/winforge)
+- [GitHub Repository](https://github.com/kafkade/anvil)
 - [Winget Documentation](https://learn.microsoft.com/en-us/windows/package-manager/)
 - [Handlebars Templating](https://handlebarsjs.com/guide/)
 

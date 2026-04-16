@@ -33,7 +33,7 @@ Please be respectful and constructive in all interactions. We're building someth
 
 Before reporting a bug:
 
-1. Check existing [issues](https://github.com/javierfe_microsoft/winforge/issues) to avoid duplicates
+1. Check existing [issues](https://github.com/kafkade/anvil/issues) to avoid duplicates
 2. Gather relevant information:
    - Winforge version (`winforge --version`)
    - Windows version
@@ -443,8 +443,8 @@ By contributing to Winforge, you agree that your contributions will be licensed 
 
 ## Questions?
 
-- Open a [Discussion](https://github.com/javierfe_microsoft/winforge/discussions)
+- Open a [Discussion](https://github.com/kafkade/anvil/discussions)
 - Check the [Documentation](docs/)
-- Review existing [Issues](https://github.com/javierfe_microsoft/winforge/issues)
+- Review existing [Issues](https://github.com/kafkade/anvil/issues)
 
 Thank you for contributing to Winforge! 🎉

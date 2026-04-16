@@ -1,0 +1,49 @@
+# Rust Developer Workload Example
+# A complete Rust development environment
+
+name: rust-developer
+version: "1.0.0"
+description: "Complete Rust development environment with toolchain, build tools, and IDE support"
+
+packages:
+  winget:
+    - id: Rustlang.Rustup
+    - id: Microsoft.VisualStudio.2022.BuildTools
+      override:
+        - --override
+        - "--quiet --wait --add Microsoft.VisualStudio.Workload.VCTools --includeRecommended"
+    - id: LLVM.LLVM
+
+files:
+  - source: config.toml
+    destination: "~/.cargo/config.toml"
+    backup: true
+
+scripts:
+  post_install:
+    - path: post-install.ps1
+      shell: powershell
+      description: "Install Rust components, toolchains, and cargo tools"
+      timeout: 900
+
+  health_check:
+    - path: health-check.ps1
+      name: "Rust Toolchain"
+      description: "Verifies rustc, cargo, rustup, and components are properly installed"
+
+environment:
+  variables:
+    - name: RUST_BACKTRACE
+      value: "1"
+      scope: user
+    - name: CARGO_REGISTRIES_CRATES_IO_PROTOCOL
+      value: "sparse"
+      scope: user
+
+  path_additions:
+    - "~/.cargo/bin"
+
+health:
+  package_check: true
+  file_check: true
+  script_check: true

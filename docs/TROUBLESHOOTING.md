@@ -787,7 +787,7 @@ What actually happened.
 
 ### Resources
 
-- [GitHub Issues](https://github.com/javierfe_microsoft/winforge/issues)
+- [GitHub Issues](https://github.com/kafkade/anvil/issues)
 - [User Guide](USER_GUIDE.md)
 - [Workload Authoring Guide](WORKLOAD_AUTHORING.md)
 - [Winget Documentation](https://learn.microsoft.com/en-us/windows/package-manager/)

@@ -1,0 +1,14 @@
+# Minimal Workload Example
+# The simplest possible workload — just a few packages
+
+name: minimal
+version: "1.0.0"
+description: "A minimal workload demonstrating basic package installation"
+
+packages:
+  winget:
+    - id: Git.Git
+    - id: Microsoft.VisualStudioCode
+
+health:
+  package_check: true

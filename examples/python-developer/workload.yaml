@@ -1,0 +1,38 @@
+# Python Developer Workload Example
+# Python development environment with uv package manager
+
+name: python-developer
+version: "1.0.0"
+description: "Python development environment with uv package manager and common tools"
+
+packages:
+  winget:
+    - id: astral-sh.uv
+
+files:
+  - source: pyproject.toml
+    destination: "~/pyproject.toml"
+    backup: true
+
+scripts:
+  post_install:
+    - path: post-install.ps1
+      shell: powershell
+      description: "Install Python via uv and configure environment"
+      timeout: 300
+
+  health_check:
+    - path: health-check.ps1
+      name: "Python Environment"
+      description: "Verifies Python and uv are properly installed"
+
+environment:
+  variables:
+    - name: UV_PYTHON_PREFERENCE
+      value: "managed"
+      scope: user
+
+health:
+  package_check: true
+  file_check: true
+  script_check: true

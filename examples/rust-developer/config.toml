@@ -1,0 +1,17 @@
+# Rust Developer Example — Cargo Configuration
+# This file gets deployed to ~/.cargo/config.toml
+
+[build]
+# Use sparse registry for faster dependency resolution
+# rustc-wrapper = "sccache"  # Uncomment if sccache is installed
+
+[registries.crates-io]
+protocol = "sparse"
+
+[net]
+retry = 3
+git-fetch-with-cli = true
+
+[term]
+verbose = false
+color = "auto"

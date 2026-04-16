@@ -36,6 +36,12 @@ dist/
 *.exe
 !.gitkeep
 
+# Private workloads (use search paths for local workloads)
+workloads/
+
+# Temporary files
+tmp/
+
 # Cargo lock should be committed for applications
 # but uncomment if this is a library
 # Cargo.lock

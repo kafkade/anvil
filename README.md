@@ -1,7 +1,7 @@
 # Winforge
 
-[![CI](https://github.com/javierfe_microsoft/winforge/actions/workflows/ci.yml/badge.svg)](https://github.com/javierfe_microsoft/winforge/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/javierfe_microsoft/winforge)](https://github.com/javierfe_microsoft/winforge/releases)
+[![CI](https://github.com/kafkade/anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/kafkade/anvil/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/kafkade/anvil)](https://github.com/kafkade/anvil/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 
@@ -28,7 +28,7 @@ Winforge is a declarative configuration management tool for Windows workstations
 
 ```powershell
 # Download latest release
-Invoke-WebRequest -Uri "https://github.com/javierfe_microsoft/winforge/releases/latest/download/winforge-windows-x64.zip" -OutFile winforge.zip
+Invoke-WebRequest -Uri "https://github.com/kafkade/anvil/releases/latest/download/winforge-windows-x64.zip" -OutFile winforge.zip
 Expand-Archive winforge.zip -DestinationPath C:\Tools\winforge
 $env:PATH += ";C:\Tools\winforge"
 ```
@@ -37,8 +37,8 @@ $env:PATH += ";C:\Tools\winforge"
 
 ```powershell
 # Prerequisites: Rust 1.75+
-git clone https://github.com/javierfe_microsoft/winforge.git
-cd winforge
+git clone https://github.com/kafkade/anvil.git
+cd anvil
 cargo build --release
 # Binary is at target/release/winforge.exe
 ```
