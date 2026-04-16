@@ -1,6 +1,6 @@
-# Winforge User Guide
+# Anvil User Guide
 
-A comprehensive guide to using Winforge for Windows workstation configuration management.
+A comprehensive guide to using Anvil for Windows workstation configuration management.
 
 ## Table of Contents
 
@@ -18,9 +18,9 @@ A comprehensive guide to using Winforge for Windows workstation configuration ma
 
 ## 1. Introduction
 
-### What is Winforge?
+### What is Anvil?
 
-Winforge is a declarative configuration management tool for Windows workstations. It allows you to define your development environment in YAML files and automatically:
+Anvil is a declarative configuration management tool for Windows workstations. It allows you to define your development environment in YAML files and automatically:
 
 - Install software packages via Windows Package Manager (winget)
 - Copy and manage configuration files
@@ -52,16 +52,16 @@ Winforge is a declarative configuration management tool for Windows workstations
 
 2. Extract the archive:
    ```powershell
-   Expand-Archive winforge-v0.3.1-windows-x64.zip -DestinationPath C:\Tools\winforge
+   Expand-Archive anvil-v0.3.1-windows-x64.zip -DestinationPath C:\Tools\anvil
    ```
 
 3. Add to your PATH:
    ```powershell
    # Add to current session
-   $env:PATH += ";C:\Tools\winforge"
+   $env:PATH += ";C:\Tools\anvil"
    
    # Add permanently (User scope)
-   [Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";C:\Tools\winforge", "User")
+   [Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";C:\Tools\anvil", "User")
    ```
 
 ### Build from Source
@@ -71,21 +71,21 @@ Winforge is a declarative configuration management tool for Windows workstations
 
 # Clone the repository
 git clone https://github.com/kafkade/anvil.git
-cd winforge
+cd anvil
 
 # Build release binary
 cargo build --release
 
-# The binary is at target/release/winforge.exe
+# The binary is at target/release/anvil.exe
 ```
 
 ### Verify Installation
 
 ```powershell
-winforge --version
-# Output: winforge 0.3.1
+anvil --version
+# Output: anvil 0.3.1
 
-winforge --help
+anvil --help
 # Shows available commands and options
 ```
 
@@ -97,27 +97,27 @@ Generate and install shell completions for better command-line experience:
 
 ```powershell
 # Generate completions
-winforge completions powershell > $HOME\Documents\WindowsPowerShell\winforge.ps1
+anvil completions powershell > $HOME\Documents\WindowsPowerShell\anvil.ps1
 
 # Add to your PowerShell profile
-Add-Content $PROFILE '. $HOME\Documents\WindowsPowerShell\winforge.ps1'
+Add-Content $PROFILE '. $HOME\Documents\WindowsPowerShell\anvil.ps1'
 ```
 
 #### Bash (WSL/Git Bash)
 
 ```bash
 # Generate completions
-winforge completions bash > ~/.local/share/bash-completion/completions/winforge
+anvil completions bash > ~/.local/share/bash-completion/completions/anvil
 
 # Or add to .bashrc
-winforge completions bash >> ~/.bashrc
+anvil completions bash >> ~/.bashrc
 ```
 
 #### Zsh
 
 ```zsh
 # Generate completions
-winforge completions zsh > ~/.zfunc/_winforge
+anvil completions zsh > ~/.zfunc/_anvil
 
 # Add to .zshrc (before compinit)
 fpath+=~/.zfunc
@@ -132,7 +132,7 @@ fpath+=~/.zfunc
 See what workloads are available:
 
 ```powershell
-winforge list
+anvil list
 ```
 
 Output:
@@ -148,7 +148,7 @@ Available Workloads:
 Inspect what a workload will do:
 
 ```powershell
-winforge show rust-developer
+anvil show rust-developer
 ```
 
 ### Dry Run Installation
@@ -156,7 +156,7 @@ winforge show rust-developer
 Preview what would happen without making changes:
 
 ```powershell
-winforge install rust-developer --dry-run
+anvil install rust-developer --dry-run
 ```
 
 ### Install a Workload
@@ -164,7 +164,7 @@ winforge install rust-developer --dry-run
 Apply a workload configuration:
 
 ```powershell
-winforge install rust-developer
+anvil install rust-developer
 ```
 
 ### Check System Health
@@ -172,7 +172,7 @@ winforge install rust-developer
 Verify your system matches the workload definition:
 
 ```powershell
-winforge health rust-developer
+anvil health rust-developer
 ```
 
 ---
@@ -185,7 +185,7 @@ Apply a workload configuration to your system.
 
 **Synopsis:**
 ```
-winforge install <WORKLOAD> [OPTIONS]
+anvil install <WORKLOAD> [OPTIONS]
 ```
 
 **Arguments:**
@@ -205,19 +205,19 @@ winforge install <WORKLOAD> [OPTIONS]
 **Examples:**
 ```powershell
 # Standard installation
-winforge install rust-developer
+anvil install rust-developer
 
 # Preview only
-winforge install rust-developer --dry-run
+anvil install rust-developer --dry-run
 
 # Skip packages (only copy files and run scripts)
-winforge install rust-developer --skip-packages
+anvil install rust-developer --skip-packages
 
 # Use JSON output for scripting
-winforge install rust-developer --dry-run --output json
+anvil install rust-developer --dry-run --output json
 
 # Install from custom directory
-winforge install my-workload --path C:\Workloads
+anvil install my-workload --path C:\Workloads
 ```
 
 **Exit Codes:**
@@ -236,7 +236,7 @@ Validate system state against a workload definition.
 
 **Synopsis:**
 ```
-winforge health <WORKLOAD> [OPTIONS]
+anvil health <WORKLOAD> [OPTIONS]
 ```
 
 **Arguments:**
@@ -253,16 +253,16 @@ winforge health <WORKLOAD> [OPTIONS]
 **Examples:**
 ```powershell
 # Basic health check
-winforge health rust-developer
+anvil health rust-developer
 
 # Detailed output
-winforge health rust-developer --verbose
+anvil health rust-developer --verbose
 
 # Generate JSON report
-winforge health rust-developer --output json --file health-report.json
+anvil health rust-developer --output json --file health-report.json
 
 # Generate HTML report
-winforge health rust-developer --output html --file report.html
+anvil health rust-developer --output html --file report.html
 ```
 
 **Understanding Health Reports:**
@@ -285,7 +285,7 @@ List available workloads.
 
 **Synopsis:**
 ```
-winforge list [OPTIONS]
+anvil list [OPTIONS]
 ```
 
 **Options:**
@@ -299,16 +299,16 @@ winforge list [OPTIONS]
 **Examples:**
 ```powershell
 # Simple list
-winforge list
+anvil list
 
 # Detailed list with versions and descriptions
-winforge list --long
+anvil list --long
 
 # JSON output for scripting
-winforge list --output json
+anvil list --output json
 
 # List from custom directory
-winforge list --path C:\MyWorkloads
+anvil list --path C:\MyWorkloads
 ```
 
 ---
@@ -319,7 +319,7 @@ Display detailed information about a workload.
 
 **Synopsis:**
 ```
-winforge show <WORKLOAD> [OPTIONS]
+anvil show <WORKLOAD> [OPTIONS]
 ```
 
 **Arguments:**
@@ -336,16 +336,16 @@ winforge show <WORKLOAD> [OPTIONS]
 **Examples:**
 ```powershell
 # Show workload details
-winforge show rust-developer
+anvil show rust-developer
 
 # Show inheritance tree
-winforge show rust-developer --inheritance-tree
+anvil show rust-developer --inheritance-tree
 
 # Export as YAML
-winforge show rust-developer --output yaml
+anvil show rust-developer --output yaml
 
 # Show resolved (merged) workload
-winforge show rust-developer --resolved
+anvil show rust-developer --resolved
 ```
 
 ---
@@ -356,7 +356,7 @@ Validate workload syntax and structure.
 
 **Synopsis:**
 ```
-winforge validate <WORKLOAD> [OPTIONS]
+anvil validate <WORKLOAD> [OPTIONS]
 ```
 
 **Arguments:**
@@ -372,13 +372,13 @@ winforge validate <WORKLOAD> [OPTIONS]
 **Examples:**
 ```powershell
 # Basic validation
-winforge validate my-workload
+anvil validate my-workload
 
 # Strict mode (treats warnings as errors)
-winforge validate my-workload --strict
+anvil validate my-workload --strict
 
 # Validate all bundled workloads
-winforge list --output json | ConvertFrom-Json | ForEach-Object { winforge validate $_.name }
+anvil list --output json | ConvertFrom-Json | ForEach-Object { anvil validate $_.name }
 ```
 
 **Common Validation Errors:**
@@ -397,7 +397,7 @@ Create a new workload from a template.
 
 **Synopsis:**
 ```
-winforge init <PATH> [OPTIONS]
+anvil init <PATH> [OPTIONS]
 ```
 
 **Arguments:**
@@ -413,13 +413,13 @@ winforge init <PATH> [OPTIONS]
 **Examples:**
 ```powershell
 # Create minimal workload
-winforge init C:\Workloads\my-workload
+anvil init C:\Workloads\my-workload
 
 # Create from template
-winforge init C:\Workloads\my-rust-env --template rust
+anvil init C:\Workloads\my-rust-env --template rust
 
 # Overwrite existing
-winforge init C:\Workloads\existing --force
+anvil init C:\Workloads\existing --force
 ```
 
 **Available Templates:**
@@ -436,7 +436,7 @@ Show current installation status.
 
 **Synopsis:**
 ```
-winforge status [WORKLOAD] [OPTIONS]
+anvil status [WORKLOAD] [OPTIONS]
 ```
 
 **Arguments:**
@@ -450,10 +450,10 @@ winforge status [WORKLOAD] [OPTIONS]
 **Examples:**
 ```powershell
 # Overall status
-winforge status
+anvil status
 
 # Status for specific workload
-winforge status rust-developer
+anvil status rust-developer
 ```
 
 ---
@@ -464,7 +464,7 @@ Manage system state backups.
 
 **Synopsis:**
 ```
-winforge backup <SUBCOMMAND>
+anvil backup <SUBCOMMAND>
 ```
 
 **Subcommands:**
@@ -474,28 +474,28 @@ Create a new backup of current system state.
 
 ```powershell
 # Create backup before changes
-winforge backup create
+anvil backup create
 
 # Create named backup
-winforge backup create --name "before-update"
+anvil backup create --name "before-update"
 
 # Create backup for specific workload
-winforge backup create --workload rust-developer
+anvil backup create --workload rust-developer
 ```
 
 #### `backup list`
 List available backups.
 
 ```powershell
-winforge backup list
-winforge backup list --output json
+anvil backup list
+anvil backup list --output json
 ```
 
 #### `backup show`
 Show details of a specific backup.
 
 ```powershell
-winforge backup show <BACKUP_ID>
+anvil backup show <BACKUP_ID>
 ```
 
 #### `backup restore`
@@ -503,29 +503,29 @@ Restore from a backup.
 
 ```powershell
 # Restore from backup
-winforge backup restore <BACKUP_ID>
+anvil backup restore <BACKUP_ID>
 
 # Preview restore
-winforge backup restore <BACKUP_ID> --dry-run
+anvil backup restore <BACKUP_ID> --dry-run
 ```
 
 #### `backup delete`
 Delete a backup.
 
 ```powershell
-winforge backup delete <BACKUP_ID>
-winforge backup delete <BACKUP_ID> --force
+anvil backup delete <BACKUP_ID>
+anvil backup delete <BACKUP_ID> --force
 ```
 
 ---
 
 ### `config`
 
-Manage Winforge configuration.
+Manage Anvil configuration.
 
 **Synopsis:**
 ```
-winforge config <SUBCOMMAND>
+anvil config <SUBCOMMAND>
 ```
 
 **Subcommands:**
@@ -534,32 +534,32 @@ winforge config <SUBCOMMAND>
 Display current configuration.
 
 ```powershell
-winforge config show
-winforge config show --output json
+anvil config show
+anvil config show --output json
 ```
 
 #### `config set`
 Set a configuration value.
 
 ```powershell
-winforge config set workload_paths "C:\Workloads;D:\MoreWorkloads"
-winforge config set default_output json
-winforge config set backup.enabled true
+anvil config set workload_paths "C:\Workloads;D:\MoreWorkloads"
+anvil config set default_output json
+anvil config set backup.enabled true
 ```
 
 #### `config reset`
 Reset configuration to defaults.
 
 ```powershell
-winforge config reset
-winforge config reset --key workload_paths
+anvil config reset
+anvil config reset --key workload_paths
 ```
 
 #### `config edit`
 Open configuration file in editor.
 
 ```powershell
-winforge config edit
+anvil config edit
 ```
 
 ---
@@ -570,7 +570,7 @@ Generate shell completion scripts.
 
 **Synopsis:**
 ```
-winforge completions <SHELL>
+anvil completions <SHELL>
 ```
 
 **Arguments:**
@@ -579,10 +579,10 @@ winforge completions <SHELL>
 **Examples:**
 ```powershell
 # Generate PowerShell completions
-winforge completions powershell
+anvil completions powershell
 
 # Generate and install bash completions
-winforge completions bash > /etc/bash_completion.d/winforge
+anvil completions bash > /etc/bash_completion.d/anvil
 ```
 
 ---
@@ -602,16 +602,16 @@ These options work with all commands:
 **Examples:**
 ```powershell
 # Verbose output
-winforge -v install rust-developer
+anvil -v install rust-developer
 
 # Very verbose (debug level)
-winforge -vvv health rust-developer
+anvil -vvv health rust-developer
 
 # Quiet mode for scripting
-winforge -q install rust-developer
+anvil -q install rust-developer
 
 # No colors (for log files)
-winforge --no-color list > workloads.txt
+anvil --no-color list > workloads.txt
 ```
 
 ---
@@ -620,20 +620,20 @@ winforge --no-color list > workloads.txt
 
 ### Configuration File Location
 
-Winforge stores its configuration at:
+Anvil stores its configuration at:
 ```
-%APPDATA%\winforge\config.toml
+%APPDATA%\anvil\config.toml
 ```
 
-Or if `WINFORGE_CONFIG` is set:
+Or if `ANVIL_CONFIG` is set:
 ```
-$env:WINFORGE_CONFIG
+$env:ANVIL_CONFIG
 ```
 
 ### Configuration Options
 
 ```toml
-# Global Winforge Configuration
+# Global Anvil Configuration
 
 # Default output format (table, json, yaml)
 default_output = "table"
@@ -652,7 +652,7 @@ verbosity = 0
 enabled = true
 
 # Backup directory
-path = "%APPDATA%\\winforge\\backups"
+path = "%APPDATA%\\anvil\\backups"
 
 # Maximum number of backups to keep
 max_count = 10
@@ -675,17 +675,17 @@ default_shell = "powershell"
 ### View Current Configuration
 
 ```powershell
-winforge config show
+anvil config show
 ```
 
 ### Modify Configuration
 
 ```powershell
 # Set a value
-winforge config set default_output json
+anvil config set default_output json
 
 # Reset to default
-winforge config reset
+anvil config reset
 ```
 
 ---
@@ -694,21 +694,21 @@ winforge config reset
 
 ### Discovering Workloads
 
-Winforge searches for workloads in these locations (in order):
+Anvil searches for workloads in these locations (in order):
 
-1. Bundled workloads (included with Winforge)
+1. Bundled workloads (included with Anvil)
 2. Custom paths specified in configuration
 3. Path specified with `--path` option
 
 ```powershell
 # List all available workloads
-winforge list
+anvil list
 
 # List with details
-winforge list --long
+anvil list --long
 
 # List from specific directory
-winforge list --path C:\MyWorkloads
+anvil list --path C:\MyWorkloads
 ```
 
 ### Understanding Workload Inheritance
@@ -725,7 +725,7 @@ extends:
 
 View the inheritance tree:
 ```powershell
-winforge show my-rust-env --inheritance-tree
+anvil show my-rust-env --inheritance-tree
 ```
 
 Output:
@@ -740,11 +740,11 @@ my-rust-env
 
 ```powershell
 # One-time use
-winforge list --path C:\MyWorkloads
-winforge install my-workload --path C:\MyWorkloads
+anvil list --path C:\MyWorkloads
+anvil install my-workload --path C:\MyWorkloads
 
 # Configure permanently
-winforge config set workload_paths "C:\MyWorkloads"
+anvil config set workload_paths "C:\MyWorkloads"
 ```
 
 ### Validating Before Install
@@ -753,27 +753,27 @@ Always validate workloads before installation:
 
 ```powershell
 # Validate syntax
-winforge validate my-workload
+anvil validate my-workload
 
 # Strict validation
-winforge validate my-workload --strict
+anvil validate my-workload --strict
 
 # Preview installation
-winforge install my-workload --dry-run
+anvil install my-workload --dry-run
 ```
 
 ---
 
 ## 7. Output Formats
 
-Winforge supports multiple output formats for different use cases.
+Anvil supports multiple output formats for different use cases.
 
 ### Table (Default)
 
 Human-readable format for terminal display:
 
 ```powershell
-winforge list
+anvil list
 ```
 ```
 ┌──────────────────┬─────────┬────────────────────────────────────────────────────┐
@@ -789,7 +789,7 @@ winforge list
 Machine-readable format for scripting and automation:
 
 ```powershell
-winforge list --output json
+anvil list --output json
 ```
 ```json
 [
@@ -811,7 +811,7 @@ winforge list --output json
 Configuration-friendly format:
 
 ```powershell
-winforge show rust-developer --output yaml
+anvil show rust-developer --output yaml
 ```
 ```yaml
 name: rust-developer
@@ -829,7 +829,7 @@ packages:
 Rich reports for documentation:
 
 ```powershell
-winforge health rust-developer --output html --file report.html
+anvil health rust-developer --output html --file report.html
 ```
 
 Generates a styled HTML document with:
@@ -844,30 +844,30 @@ Generates a styled HTML document with:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `WINFORGE_CONFIG` | Configuration file path | `%APPDATA%\winforge\config.toml` |
-| `WINFORGE_WORKLOADS` | Additional workload search paths | (none) |
-| `WINFORGE_LOG` | Log level: error, warn, info, debug, trace | `warn` |
+| `ANVIL_CONFIG` | Configuration file path | `%APPDATA%\anvil\config.toml` |
+| `ANVIL_WORKLOADS` | Additional workload search paths | (none) |
+| `ANVIL_LOG` | Log level: error, warn, info, debug, trace | `warn` |
 | `NO_COLOR` | Disable colored output (any value) | (unset) |
-| `WINFORGE_BACKUP_DIR` | Backup storage directory | `%APPDATA%\winforge\backups` |
+| `ANVIL_BACKUP_DIR` | Backup storage directory | `%APPDATA%\anvil\backups` |
 
 **Examples:**
 
 ```powershell
 # Use custom config file
-$env:WINFORGE_CONFIG = "C:\config\winforge.toml"
-winforge list
+$env:ANVIL_CONFIG = "C:\config\anvil.toml"
+anvil list
 
 # Add workload search paths
-$env:WINFORGE_WORKLOADS = "C:\Workloads;D:\MoreWorkloads"
-winforge list
+$env:ANVIL_WORKLOADS = "C:\Workloads;D:\MoreWorkloads"
+anvil list
 
 # Enable debug logging
-$env:WINFORGE_LOG = "debug"
-winforge install rust-developer
+$env:ANVIL_LOG = "debug"
+anvil install rust-developer
 
 # Disable colors
 $env:NO_COLOR = "1"
-winforge list
+anvil list
 ```
 
 ---
@@ -879,7 +879,7 @@ winforge list
 Before applying any workload, preview the changes:
 
 ```powershell
-winforge install my-workload --dry-run
+anvil install my-workload --dry-run
 ```
 
 This shows what will happen without making changes.
@@ -890,10 +890,10 @@ Verify your system state periodically:
 
 ```powershell
 # Quick check
-winforge health rust-developer
+anvil health rust-developer
 
 # Detailed report
-winforge health rust-developer --verbose --output html --file health.html
+anvil health rust-developer --verbose --output html --file health.html
 ```
 
 ### Keep Backups
@@ -901,13 +901,13 @@ winforge health rust-developer --verbose --output html --file health.html
 Enable automatic backups in configuration:
 
 ```powershell
-winforge config set backup.enabled true
+anvil config set backup.enabled true
 ```
 
 Or create manual backups before major changes:
 
 ```powershell
-winforge backup create --name "before-upgrade"
+anvil backup create --name "before-upgrade"
 ```
 
 ### Version Your Workloads
@@ -958,7 +958,7 @@ Add validation to your CI/CD pipeline:
 ```powershell
 # Validate all workloads
 Get-ChildItem -Directory | ForEach-Object {
-    winforge validate $_.Name --strict
+    anvil validate $_.Name --strict
 }
 ```
 
@@ -968,11 +968,11 @@ When things go wrong:
 
 ```powershell
 # Increase verbosity
-winforge -vvv install my-workload
+anvil -vvv install my-workload
 
 # Enable trace logging
-$env:WINFORGE_LOG = "trace"
-winforge install my-workload
+$env:ANVIL_LOG = "trace"
+anvil install my-workload
 ```
 
 ### Script Error Handling
@@ -1004,11 +1004,11 @@ catch {
 
 ```powershell
 # General help
-winforge --help
+anvil --help
 
 # Command-specific help
-winforge install --help
-winforge health --help
+anvil install --help
+anvil health --help
 ```
 
 ### Resources
@@ -1022,12 +1022,12 @@ winforge health --help
 
 When reporting issues, include:
 
-1. Winforge version: `winforge --version`
+1. Anvil version: `anvil --version`
 2. Windows version: `winver`
 3. Command that failed
-4. Verbose output: `winforge -vvv <command>`
+4. Verbose output: `anvil -vvv <command>`
 5. Relevant workload files (sanitized)
 
 ---
 
-*This guide is for Winforge v0.3.1. For other versions, check the corresponding documentation.*
+*This guide is for Anvil v0.3.1. For other versions, check the corresponding documentation.*

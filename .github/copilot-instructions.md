@@ -1,4 +1,4 @@
-# Copilot Instructions for Winforge
+# Copilot Instructions for Anvil
 
 ## Build, Test, and Lint
 
@@ -17,7 +17,7 @@ cargo fmt                    # Auto-format
 
 ## Architecture
 
-Winforge is a declarative Windows workstation configuration tool. Users define environments in YAML workload files; Winforge installs packages (via winget), copies files, runs PowerShell scripts, and validates system health.
+Anvil is a declarative Windows workstation configuration tool. Users define environments in YAML workload files; Anvil installs packages (via winget), copies files, runs PowerShell scripts, and validates system health.
 
 ### Module layout and data flow
 
@@ -31,7 +31,7 @@ main.rs → cli/ → operations/ → providers/
 - **`config/`** — Workload YAML parsing (`workload.rs`), schema validation (`schema.rs`), inheritance resolution (`inheritance.rs`), global config (`global.rs`). The central type is `ConfigManager` which discovers and loads workloads.
 - **`operations/`** — One file per CLI command (`install.rs`, `health.rs`, `list.rs`, etc.). Each exposes an `execute(args, cli)` function called from `main.rs`.
 - **`providers/`** — External system integrations: `winget.rs` (package manager), `filesystem.rs` (file copy with backup/hash verification), `script.rs` (PowerShell execution), `template.rs` (Handlebars templates), `backup.rs`
-- **`state/`** — Tracks installation state (`installation.rs`), file state with hashes (`files.rs`), and package cache (`cache.rs`). State persisted to `~/.winforge/state/`.
+- **`state/`** — Tracks installation state (`installation.rs`), file state with hashes (`files.rs`), and package cache (`cache.rs`). State persisted to `~/.anvil/state/`.
 
 ### Workload structure
 
@@ -78,4 +78,4 @@ Title format: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 
 ### Adding a new workload
 
-Create `workloads/<name>/workload.yaml` (plus optional `files/` and `scripts/`). Validate with `winforge validate <name> --strict`. Use `extends: [essentials]` for common dev tools.
+Create `workloads/<name>/workload.yaml` (plus optional `files/` and `scripts/`). Validate with `anvil validate <name> --strict`. Use `extends: [essentials]` for common dev tools.

@@ -137,7 +137,7 @@ impl OutputFormatter for TableFormatter {
         )?;
         writeln!(
             writer,
-            "│                    Winforge Health Check Report                     │"
+            "│                    Anvil Health Check Report                     │"
         )?;
         writeln!(
             writer,

@@ -1,6 +1,6 @@
-# Contributing to Winforge
+# Contributing to Anvil
 
-Thank you for your interest in contributing to Winforge! This document provides guidelines and instructions for contributing to the project.
+Thank you for your interest in contributing to Anvil! This document provides guidelines and instructions for contributing to the project.
 
 ## Table of Contents
 
@@ -30,17 +30,17 @@ Before reporting a bug:
 
 1. Check existing [issues](https://github.com/kafkade/anvil/issues) to avoid duplicates
 2. Gather relevant information:
-   - Winforge version (`winforge --version`)
+   - Anvil version (`anvil --version`)
    - Windows version
    - Steps to reproduce
    - Expected vs actual behavior
-   - Verbose output (`winforge -vvv <command>`)
+   - Verbose output (`anvil -vvv <command>`)
 
 Create a bug report with this template:
 
 ```markdown
 ## Environment
-- Winforge version: 
+- Anvil version: 
 - Windows version: 
 - PowerShell version: 
 
@@ -104,8 +104,8 @@ What actually happened.
 
 ```powershell
 # Clone your fork
-git clone https://github.com/YOUR_USERNAME/winforge.git
-cd winforge
+git clone https://github.com/YOUR_USERNAME/anvil.git
+cd anvil
 
 # Build debug version
 cargo build
@@ -150,7 +150,7 @@ cargo test -- --nocapture
 ## Project Structure
 
 ```
-winforge/
+anvil/
 ├── src/
 │   ├── main.rs              # Entry point
 │   ├── cli/                 # Command line interface
@@ -341,7 +341,7 @@ Add integration tests in `tests/cli_tests.rs`:
 ```rust
 #[test]
 fn new_command_works() {
-    winforge()
+    anvil()
         .args(["new-command", "arg"])
         .assert()
         .success()
@@ -396,7 +396,7 @@ Contributions of new bundled workloads are welcome! See the [Workload Authoring 
 3. **Test on clean Windows installation** - Ensure it works from scratch
 4. **Use inheritance** for common bases (extend `essentials` if appropriate)
 5. **Keep packages minimal** - Only include what's necessary
-6. **Validate before submitting** - `winforge validate your-workload --strict`
+6. **Validate before submitting** - `anvil validate your-workload --strict`
 
 ### Workload Structure
 
@@ -442,4 +442,4 @@ By contributing to Anvil, you agree that your contributions will be licensed und
 - Check the [Documentation](docs/)
 - Review existing [Issues](https://github.com/kafkade/anvil/issues)
 
-Thank you for contributing to Winforge! 🎉
+Thank you for contributing to Anvil! 🎉

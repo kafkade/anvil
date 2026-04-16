@@ -11,7 +11,7 @@ body:
     id: version
     attributes:
       label: Anvil version
-      description: Run `winforge --version` to find this
+      description: Run `anvil --version` to find this
       placeholder: "0.3.1"
     validations:
       required: true
@@ -37,7 +37,7 @@ body:
       description: How can we reproduce this behavior?
       placeholder: |
         1. Create a workload with ...
-        2. Run `winforge install ...`
+        2. Run `anvil install ...`
         3. See error
     validations:
       required: true

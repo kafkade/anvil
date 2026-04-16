@@ -1,4 +1,4 @@
-//! Winforge - Windows Workstation Configuration Management System
+//! Anvil - Windows Workstation Configuration Management System
 //!
 //! A declarative configuration management tool for Windows workstations that automates
 //! the setup and validation of development environments through composable workload definitions.
@@ -67,7 +67,7 @@ fn main() -> Result<()> {
 /// Initialize the logging/tracing subsystem
 fn init_logging() {
     let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("winforge=info"));
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("anvil=info"));
 
     tracing_subscriber::registry()
         .with(fmt::layer().with_target(false).without_time())

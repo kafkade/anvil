@@ -49,9 +49,9 @@ jobs:
       - name: Create release directory
         shell: pwsh
         run: |
-          $releaseDir = "winforge-${{ steps.version.outputs.VERSION }}-windows-x64"
+          $releaseDir = "anvil-${{ steps.version.outputs.VERSION }}-windows-x64"
           New-Item -ItemType Directory -Path $releaseDir
-          Copy-Item target/release/winforge.exe $releaseDir/
+          Copy-Item target/release/anvil.exe $releaseDir/
           Copy-Item README.md $releaseDir/
           Copy-Item LICENSE $releaseDir/ -ErrorAction SilentlyContinue
           Copy-Item CHANGELOG.md $releaseDir/ -ErrorAction SilentlyContinue
@@ -61,14 +61,14 @@ jobs:
       - name: Create ZIP archive
         shell: pwsh
         run: |
-          $releaseDir = "winforge-${{ steps.version.outputs.VERSION }}-windows-x64"
+          $releaseDir = "anvil-${{ steps.version.outputs.VERSION }}-windows-x64"
           Compress-Archive -Path $releaseDir -DestinationPath "$releaseDir.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: winforge-${{ steps.version.outputs.VERSION }}-windows-x64
-          path: winforge-${{ steps.version.outputs.VERSION }}-windows-x64.zip
+          name: anvil-${{ steps.version.outputs.VERSION }}-windows-x64
+          path: anvil-${{ steps.version.outputs.VERSION }}-windows-x64.zip
           retention-days: 5
 
   release:
@@ -103,12 +103,12 @@ jobs:
           echo "" >> changelog.md
           echo "## Installation" >> changelog.md
           echo "" >> changelog.md
-          echo "Download \`winforge-${{ github.ref_name }}-windows-x64.zip\`, extract, and add to your PATH." >> changelog.md
+          echo "Download \`anvil-${{ github.ref_name }}-windows-x64.zip\`, extract, and add to your PATH." >> changelog.md
           echo "" >> changelog.md
           echo "Or build from source:" >> changelog.md
           echo "\`\`\`powershell" >> changelog.md
           echo "git clone https://github.com/${{ github.repository }}.git" >> changelog.md
-          echo "cd winforge" >> changelog.md
+          echo "cd anvil" >> changelog.md
           echo "cargo build --release" >> changelog.md
           echo "\`\`\`" >> changelog.md
 

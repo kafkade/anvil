@@ -266,7 +266,7 @@ impl FilesystemProvider {
     pub fn new() -> Self {
         let backup_dir = dirs::data_local_dir()
             .unwrap_or_else(|| PathBuf::from("."))
-            .join("winforge")
+            .join("anvil")
             .join("backups");
 
         Self {

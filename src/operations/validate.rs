@@ -1,4 +1,4 @@
-//! Validate operation for Winforge CLI
+//! Validate operation for Anvil CLI
 //!
 //! This module implements the `validate` command which checks
 //! workload definition files for syntax and semantic errors.
@@ -627,7 +627,7 @@ fn detect_circular_dependency(
 fn print_json_schema() -> Result<()> {
     let schema = r##"{
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "Winforge Workload Definition",
+  "title": "Anvil Workload Definition",
   "type": "object",
   "required": ["name", "version", "description"],
   "properties": {

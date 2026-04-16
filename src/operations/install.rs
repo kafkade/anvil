@@ -1,6 +1,6 @@
 //! Install operation module
 //!
-//! This module implements the `winforge install` command which applies
+//! This module implements the `anvil install` command which applies
 //! a workload configuration to the system by:
 //! 1. Validating winget availability
 //! 2. Running pre-installation scripts
@@ -218,7 +218,7 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
 
     if !summary.is_successful() {
         print_warning(&format!(
-            "Some packages failed to install. Run 'winforge health {}' to check status.",
+            "Some packages failed to install. Run 'anvil health {}' to check status.",
             workload.name
         ));
     }
@@ -612,7 +612,7 @@ fn run_pre_install_scripts(
                     crate::providers::script::ScriptError::ElevationRequired { .. } => {
                         print_error(&format!("        ✗ {} requires elevation", script.path));
                         print_warning(
-                            "        Run Winforge as Administrator or use --skip-pre-scripts",
+                            "        Run Anvil as Administrator or use --skip-pre-scripts",
                         );
                     }
                     crate::providers::script::ScriptError::Timeout {
@@ -1628,7 +1628,7 @@ fn run_post_install_scripts(
                             script.path
                         ));
                         print_info(
-                            "        Run Winforge as Administrator to execute elevated scripts",
+                            "        Run Anvil as Administrator to execute elevated scripts",
                         );
                     }
                     crate::providers::script::ScriptError::Timeout {
@@ -1727,7 +1727,7 @@ fn print_final_summary(summary: &InstallationSummary, dry_run: bool, workload_na
         }
         println!();
         print_info(&format!(
-            "  To retry: winforge install {} --retry-failed",
+            "  To retry: anvil install {} --retry-failed",
             workload_name
         ));
     }

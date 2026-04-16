@@ -97,13 +97,13 @@ jobs:
         run: cargo build --release
 
       - name: Verify binary
-        run: ./target/release/winforge.exe --version
+        run: ./target/release/anvil.exe --version
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: winforge-windows
-          path: target/release/winforge.exe
+          name: anvil-windows
+          path: target/release/anvil.exe
           retention-days: 7
 
   docs:

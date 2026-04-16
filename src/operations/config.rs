@@ -1,6 +1,6 @@
 //! Config operation module
 //!
-//! This module implements the `winforge config` command which provides
+//! This module implements the `anvil config` command which provides
 //! global configuration management functionality.
 
 use std::io::Write;

@@ -1,4 +1,4 @@
-//! Script execution provider for Winforge
+//! Script execution provider for Anvil
 //!
 //! This module handles execution of PowerShell scripts for:
 //! - Pre-installation scripts
@@ -53,7 +53,7 @@ pub enum ScriptError {
     SpawnFailed(String),
 
     /// Elevated execution required but not available
-    #[error("Elevated execution required for script: {path}\n\nThis script needs to run as Administrator. Options:\n  1. Run Winforge as Administrator (right-click Terminal → Run as Administrator)\n  2. Skip elevated scripts with --skip-scripts\n  3. Mark script as non-elevated in workload.yaml if safe")]
+    #[error("Elevated execution required for script: {path}\n\nThis script needs to run as Administrator. Options:\n  1. Run Anvil as Administrator (right-click Terminal → Run as Administrator)\n  2. Skip elevated scripts with --skip-scripts\n  3. Mark script as non-elevated in workload.yaml if safe")]
     ElevationRequired { path: PathBuf },
 
     /// Invalid shell specified
@@ -689,26 +689,26 @@ impl ScriptProvider {
 
     /// Inject environment variables into script config
     pub fn inject_environment_variables(&self, config: &mut ScriptConfig, context: &ScriptContext) {
-        // Winforge-specific variables
+        // Anvil-specific variables
         config.environment.insert(
-            "WINFORGE_WORKLOAD".to_string(),
+            "ANVIL_WORKLOAD".to_string(),
             context.workload_name.clone(),
         );
         config.environment.insert(
-            "WINFORGE_WORKLOAD_PATH".to_string(),
+            "ANVIL_WORKLOAD_PATH".to_string(),
             context.workload_path.display().to_string(),
         );
         config
             .environment
-            .insert("WINFORGE_DRY_RUN".to_string(), context.dry_run.to_string());
+            .insert("ANVIL_DRY_RUN".to_string(), context.dry_run.to_string());
         config
             .environment
-            .insert("WINFORGE_VERBOSE".to_string(), context.verbose.to_string());
+            .insert("ANVIL_VERBOSE".to_string(), context.verbose.to_string());
         config
             .environment
-            .insert("WINFORGE_PHASE".to_string(), context.phase.to_string());
+            .insert("ANVIL_PHASE".to_string(), context.phase.to_string());
         config.environment.insert(
-            "WINFORGE_VERSION".to_string(),
+            "ANVIL_VERSION".to_string(),
             env!("CARGO_PKG_VERSION").to_string(),
         );
     }

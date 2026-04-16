@@ -1,4 +1,4 @@
-//! List operation for Winforge CLI
+//! List operation for Anvil CLI
 //!
 //! This module implements the `list` command which displays
 //! available workloads from all configured search paths.
@@ -36,11 +36,11 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
                 println!(
                     "  {} Create a workload with '{}'",
                     "→".dimmed(),
-                    "winforge init <name>".cyan()
+                    "anvil init <name>".cyan()
                 );
             } else {
                 println!("No workloads found.");
-                println!("Hint: Create a workload with 'winforge init <name>'");
+                println!("Hint: Create a workload with 'anvil init <name>'");
             }
         }
         return Ok(());

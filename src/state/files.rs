@@ -1,6 +1,6 @@
-//! File state tracking for Winforge
+//! File state tracking for Anvil
 //!
-//! This module tracks all files managed by Winforge, enabling:
+//! This module tracks all files managed by Anvil, enabling:
 //! - Detection of file drift (changes since installation)
 //! - Tracking which workload manages which file
 //! - Conflict detection when multiple workloads target the same file
@@ -408,7 +408,7 @@ impl FileStateManager {
         })
     }
 
-    /// Get the default state file path (~/.winforge/state/files.json)
+    /// Get the default state file path (~/.anvil/state/files.json)
     pub fn default_state_file() -> FileStateResult<PathBuf> {
         let home = dirs::home_dir().ok_or_else(|| {
             FileStateError::Io(std::io::Error::new(
@@ -416,7 +416,7 @@ impl FileStateManager {
                 "Could not determine home directory",
             ))
         })?;
-        let state_dir = home.join(".winforge").join("state");
+        let state_dir = home.join(".anvil").join("state");
 
         if !state_dir.exists() {
             fs::create_dir_all(&state_dir)?;

@@ -1,4 +1,4 @@
-# Winforge - Windows Workstation Configuration Management System
+# Anvil - Windows Workstation Configuration Management System
 
 ## Specification Document
 
@@ -26,7 +26,7 @@
 
 ### 1.1 Purpose
 
-Winforge is a Windows workstation configuration management system designed to automate the setup and validation of development environments. It provides a declarative approach to defining workstation configurations ("workloads") and offers both installation and health-check capabilities.
+Anvil is a Windows workstation configuration management system designed to automate the setup and validation of development environments. It provides a declarative approach to defining workstation configurations ("workloads") and offers both installation and health-check capabilities.
 
 ### 1.2 Core Modes of Operation
 
@@ -252,7 +252,7 @@ For pre/post installation scripts and health check validators, PowerShell remain
 ### 4.1 Repository Layout
 
 ```
-winforge/
+anvil/
 ├── .github/
 │   └── workflows/
 │       ├── ci.yml                    # Continuous integration
@@ -559,7 +559,7 @@ environment:
 
 ### 5.3 Variable Expansion
 
-Winforge supports variable expansion in destination paths and template files:
+Anvil supports variable expansion in destination paths and template files:
 
 | Variable | Expansion |
 |----------|-----------|
@@ -569,8 +569,8 @@ Winforge supports variable expansion in destination paths and template files:
 | `${LOCALAPPDATA}` | Local application data |
 | `${PROGRAMFILES}` | Program Files directory |
 | `${PROGRAMFILES_X86}` | Program Files (x86) directory |
-| `${WINFORGE_WORKLOAD}` | Current workload name |
-| `${WINFORGE_VERSION}` | Winforge version |
+| `${ANVIL_WORKLOAD}` | Current workload name |
+| `${ANVIL_VERSION}` | Anvil version |
 
 ---
 
@@ -579,7 +579,7 @@ Winforge supports variable expansion in destination paths and template files:
 ### 6.1 Command Overview
 
 ```
-winforge <COMMAND> [OPTIONS]
+anvil <COMMAND> [OPTIONS]
 
 Commands:
   install     Apply a workload configuration to the system
@@ -607,7 +607,7 @@ Options:
 #### 6.2.1 Install Command
 
 ```
-winforge install [OPTIONS] <WORKLOAD>
+anvil install [OPTIONS] <WORKLOAD>
 
 Apply a workload configuration to the system
 
@@ -628,16 +628,16 @@ Options:
   --timeout <SECONDS>     Global timeout for operations (default: 3600)
   
 Examples:
-  winforge install rust-developer
-  winforge install ./custom-workload/workload.yaml
-  winforge install python-developer --dry-run
-  winforge install essentials --packages-only
+  anvil install rust-developer
+  anvil install ./custom-workload/workload.yaml
+  anvil install python-developer --dry-run
+  anvil install essentials --packages-only
 ```
 
 #### 6.2.2 Health Command
 
 ```
-winforge health [OPTIONS] <WORKLOAD>
+anvil health [OPTIONS] <WORKLOAD>
 
 Check system health against a workload definition
 
@@ -659,15 +659,15 @@ Exit Codes:
   2  Configuration or runtime error
 
 Examples:
-  winforge health rust-developer
-  winforge health python-developer --output json --file report.json
-  winforge health essentials --fail-fast
+  anvil health rust-developer
+  anvil health python-developer --output json --file report.json
+  anvil health essentials --fail-fast
 ```
 
 #### 6.2.3 List Command
 
 ```
-winforge list [OPTIONS]
+anvil list [OPTIONS]
 
 List available workloads
 
@@ -678,15 +678,15 @@ Options:
   -o, --output <FORMAT>   Output format: table, json, yaml (default: table)
 
 Examples:
-  winforge list
-  winforge list --long
-  winforge list --output json
+  anvil list
+  anvil list --long
+  anvil list --output json
 ```
 
 #### 6.2.4 Show Command
 
 ```
-winforge show <WORKLOAD>
+anvil show <WORKLOAD>
 
 Display detailed workload information
 
@@ -698,14 +698,14 @@ Options:
   -o, --output <FORMAT>   Output format: yaml, json (default: yaml)
 
 Examples:
-  winforge show rust-developer
-  winforge show python-developer --resolved
+  anvil show rust-developer
+  anvil show python-developer --resolved
 ```
 
 #### 6.2.5 Validate Command
 
 ```
-winforge validate [OPTIONS] <PATH>
+anvil validate [OPTIONS] <PATH>
 
 Validate workload definition syntax
 
@@ -717,14 +717,14 @@ Options:
   --schema               Output JSON schema for workload definitions
 
 Examples:
-  winforge validate workloads/rust-developer/
-  winforge validate ./custom-workload/workload.yaml --strict
+  anvil validate workloads/rust-developer/
+  anvil validate ./custom-workload/workload.yaml --strict
 ```
 
 #### 6.2.6 Init Command
 
 ```
-winforge init [OPTIONS] <NAME>
+anvil init [OPTIONS] <NAME>
 
 Initialize a new workload template
 
@@ -737,9 +737,9 @@ Options:
   -o, --output <PATH>     Output directory (default: ./workloads/<NAME>)
 
 Examples:
-  winforge init my-workload
-  winforge init frontend-dev --extends essentials
-  winforge init minimal-setup --template minimal
+  anvil init my-workload
+  anvil init frontend-dev --extends essentials
+  anvil init minimal-setup --template minimal
 ```
 
 ### 6.3 Output Formats
@@ -747,10 +747,10 @@ Examples:
 #### 6.3.1 Table Format (Default)
 
 ```
-$ winforge health rust-developer
+$ anvil health rust-developer
 
 ╭─────────────────────────────────────────────────────────────────────╮
-│                    Winforge Health Check Report                      │
+│                    Anvil Health Check Report                      │
 │                    Workload: rust-developer                          │
 ├─────────────────────────────────────────────────────────────────────┤
 │ Component          │ Status  │ Details                              │
@@ -1300,8 +1300,8 @@ Write-Host "Rust development environment configured successfully!" -ForegroundCo
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
-| 1.0.0 | 2025-01-15 | Winforge Team | Initial specification |
+| 1.0.0 | 2025-01-15 | Anvil Team | Initial specification |
 
 ---
 
-*This specification serves as the authoritative reference for implementing Winforge. Subsequent implementation prompts should reference this document for architecture decisions, schemas, and interfaces.*
+*This specification serves as the authoritative reference for implementing Anvil. Subsequent implementation prompts should reference this document for architecture decisions, schemas, and interfaces.*

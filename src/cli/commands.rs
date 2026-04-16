@@ -1,4 +1,4 @@
-//! Command argument definitions for Winforge CLI
+//! Command argument definitions for Anvil CLI
 //!
 //! This module defines the argument structures for each CLI command.
 

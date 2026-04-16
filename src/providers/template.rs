@@ -1,4 +1,4 @@
-//! Template processor for Winforge
+//! Template processor for Anvil
 //!
 //! This module provides template processing using Handlebars, supporting:
 //! - Variable expansion (HOME, APPDATA, workload metadata, etc.)
@@ -154,9 +154,9 @@ impl TemplateProcessor {
             self.set_variable("programfiles_x86", &pf86);
         }
 
-        // Winforge info
-        self.set_variable("winforge_version", env!("CARGO_PKG_VERSION"));
-        self.set_variable("WINFORGE_VERSION", env!("CARGO_PKG_VERSION"));
+        // Anvil info
+        self.set_variable("anvil_version", env!("CARGO_PKG_VERSION"));
+        self.set_variable("ANVIL_VERSION", env!("CARGO_PKG_VERSION"));
 
         // CPU count
         let cpu_count = std::thread::available_parallelism()

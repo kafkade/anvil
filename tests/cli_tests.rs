@@ -1,4 +1,4 @@
-//! Integration tests for Winforge CLI
+//! Integration tests for Anvil CLI
 //!
 //! These tests verify the CLI commands work correctly end-to-end.
 
@@ -9,9 +9,9 @@ use predicates::prelude::*;
 use std::fs;
 use tempfile::TempDir;
 
-/// Helper to get winforge command
-fn winforge() -> Command {
-    Command::cargo_bin("winforge").unwrap()
+/// Helper to get anvil command
+fn anvil() -> Command {
+    Command::cargo_bin("anvil").unwrap()
 }
 
 mod list_command {
@@ -21,17 +21,17 @@ mod list_command {
     fn list_shows_available_workloads() {
         // List may return no bundled workloads in the open-source repo,
         // but the command itself should succeed
-        winforge().arg("list").assert().success();
+        anvil().arg("list").assert().success();
     }
 
     #[test]
     fn list_with_long_format() {
-        winforge().args(["list", "--long"]).assert().success();
+        anvil().args(["list", "--long"]).assert().success();
     }
 
     #[test]
     fn list_with_json_output() {
-        winforge()
+        anvil()
             .args(["list", "--output", "json"])
             .assert()
             .success();
@@ -39,7 +39,7 @@ mod list_command {
 
     #[test]
     fn list_with_yaml_output() {
-        winforge()
+        anvil()
             .args(["list", "--output", "yaml"])
             .assert()
             .success();
@@ -57,7 +57,7 @@ mod list_command {
         )
         .unwrap();
 
-        winforge()
+        anvil()
             .args(["list", "--path", temp.path().to_str().unwrap()])
             .assert()
             .success()
@@ -68,7 +68,7 @@ mod list_command {
     fn list_empty_directory() {
         let temp = TempDir::new().unwrap();
 
-        winforge()
+        anvil()
             .args(["list", "--path", temp.path().to_str().unwrap()])
             .assert()
             .success();
@@ -80,7 +80,7 @@ mod show_command {
 
     #[test]
     fn show_displays_workload_details() {
-        winforge()
+        anvil()
             .args(["show", "./examples/minimal"])
             .assert()
             .success()
@@ -89,7 +89,7 @@ mod show_command {
 
     #[test]
     fn show_nonexistent_workload_fails() {
-        winforge()
+        anvil()
             .args(["show", "nonexistent-workload-xyz"])
             .assert()
             .failure()
@@ -101,7 +101,7 @@ mod show_command {
 
     #[test]
     fn show_with_inheritance_flag() {
-        winforge()
+        anvil()
             .args(["show", "./examples/rust-developer"])
             .assert()
             .success();
@@ -109,7 +109,7 @@ mod show_command {
 
     #[test]
     fn show_json_output() {
-        winforge()
+        anvil()
             .args(["show", "./examples/minimal", "--output", "json"])
             .assert()
             .success()
@@ -118,7 +118,7 @@ mod show_command {
 
     #[test]
     fn show_yaml_output() {
-        winforge()
+        anvil()
             .args(["show", "./examples/minimal", "--output", "yaml"])
             .assert()
             .success()
@@ -127,7 +127,7 @@ mod show_command {
 
     #[test]
     fn show_resolved_workload() {
-        winforge()
+        anvil()
             .args(["show", "./examples/rust-developer", "--resolved"])
             .assert()
             .success();
@@ -154,7 +154,7 @@ packages:
         )
         .unwrap();
 
-        winforge()
+        anvil()
             .args(["validate", workload_dir.to_str().unwrap()])
             .assert()
             .success();
@@ -163,7 +163,7 @@ packages:
     #[test]
     fn validate_bundled_workloads() {
         // Validate essentials
-        winforge()
+        anvil()
             .args(["validate", "./examples/minimal"])
             .assert()
             .success();
@@ -177,7 +177,7 @@ packages:
         // Missing required 'name' field
         fs::write(workload_dir.join("workload.yaml"), "version: \"1.0.0\"\n").unwrap();
 
-        winforge()
+        anvil()
             .args(["validate", workload_dir.to_str().unwrap()])
             .assert()
             .failure();
@@ -195,7 +195,7 @@ packages:
         )
         .unwrap();
 
-        winforge()
+        anvil()
             .args(["validate", workload_dir.to_str().unwrap()])
             .assert()
             .failure();
@@ -216,7 +216,7 @@ description: "Test workload for strict validation"
         )
         .unwrap();
 
-        winforge()
+        anvil()
             .args(["validate", workload_dir.to_str().unwrap(), "--strict"])
             .assert()
             .success();
@@ -224,7 +224,7 @@ description: "Test workload for strict validation"
 
     #[test]
     fn validate_schema_output() {
-        winforge().args(["validate", "--schema"]).assert().success();
+        anvil().args(["validate", "--schema"]).assert().success();
     }
 }
 
@@ -238,7 +238,7 @@ mod init_command {
         // Create output in a subdirectory that doesn't exist yet
         let output_path = temp.path().join("output").join(workload_name);
 
-        winforge()
+        anvil()
             .args([
                 "init",
                 workload_name,
@@ -257,7 +257,7 @@ mod init_command {
         let workload_name = "minimal-workload";
         let output_path = temp.path().join("output").join(workload_name);
 
-        winforge()
+        anvil()
             .args([
                 "init",
                 workload_name,
@@ -281,7 +281,7 @@ mod init_command {
         let workload_name = "full-workload";
         let output_path = temp.path().join("output").join(workload_name);
 
-        winforge()
+        anvil()
             .args([
                 "init",
                 workload_name,
@@ -303,7 +303,7 @@ mod init_command {
         let output_path = temp.path().join("output").join(workload_name);
 
         // Note: This may warn about parent not found, but should still succeed
-        winforge()
+        anvil()
             .args([
                 "init",
                 workload_name,
@@ -326,7 +326,7 @@ mod install_command {
 
     #[test]
     fn install_dry_run_shows_plan() {
-        winforge()
+        anvil()
             .args(["install", "./examples/minimal", "--dry-run"])
             .assert()
             .success();
@@ -334,7 +334,7 @@ mod install_command {
 
     #[test]
     fn install_nonexistent_workload_fails() {
-        winforge()
+        anvil()
             .args(["install", "nonexistent-workload-xyz"])
             .assert()
             .failure();
@@ -342,7 +342,7 @@ mod install_command {
 
     #[test]
     fn install_with_skip_packages() {
-        winforge()
+        anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--skip-packages"])
             .assert()
             .success();
@@ -350,7 +350,7 @@ mod install_command {
 
     #[test]
     fn install_with_skip_files() {
-        winforge()
+        anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--skip-files"])
             .assert()
             .success();
@@ -358,7 +358,7 @@ mod install_command {
 
     #[test]
     fn install_with_skip_scripts() {
-        winforge()
+        anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--skip-scripts"])
             .assert()
             .success();
@@ -366,7 +366,7 @@ mod install_command {
 
     #[test]
     fn install_with_all_skip_flags() {
-        winforge()
+        anvil()
             .args([
                 "install",
                 "./examples/minimal",
@@ -381,7 +381,7 @@ mod install_command {
 
     #[test]
     fn install_packages_only() {
-        winforge()
+        anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--packages-only"])
             .assert()
             .success();
@@ -389,7 +389,7 @@ mod install_command {
 
     #[test]
     fn install_files_only() {
-        winforge()
+        anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--files-only"])
             .assert()
             .success();
@@ -402,7 +402,7 @@ mod health_command {
     #[test]
     fn health_check_runs() {
         // Health check should complete (pass or fail based on system state)
-        let result = winforge().args(["health", "./examples/minimal"]).assert();
+        let result = anvil().args(["health", "./examples/minimal"]).assert();
         // We just verify it runs - it may pass or fail depending on system state
         // but shouldn't panic or error unexpectedly
         result.code(predicate::in_iter([0, 1]));
@@ -410,7 +410,7 @@ mod health_command {
 
     #[test]
     fn health_json_output() {
-        winforge()
+        anvil()
             .args(["health", "./examples/minimal", "--output", "json"])
             .assert()
             .stdout(predicate::str::starts_with("{"));
@@ -418,7 +418,7 @@ mod health_command {
 
     #[test]
     fn health_yaml_output() {
-        winforge()
+        anvil()
             .args(["health", "./examples/minimal", "--output", "yaml"])
             .assert()
             .code(predicate::in_iter([0, 1]));
@@ -426,7 +426,7 @@ mod health_command {
 
     #[test]
     fn health_nonexistent_workload_fails() {
-        winforge()
+        anvil()
             .args(["health", "nonexistent-workload-xyz"])
             .assert()
             .failure();
@@ -434,7 +434,7 @@ mod health_command {
 
     #[test]
     fn health_packages_only() {
-        winforge()
+        anvil()
             .args(["health", "./examples/minimal", "--packages-only"])
             .assert()
             .code(predicate::in_iter([0, 1]));
@@ -442,7 +442,7 @@ mod health_command {
 
     #[test]
     fn health_fail_fast() {
-        winforge()
+        anvil()
             .args(["health", "./examples/minimal", "--fail-fast"])
             .assert()
             .code(predicate::in_iter([0, 1]));
@@ -453,7 +453,7 @@ mod health_command {
         let temp = TempDir::new().unwrap();
         let output_file = temp.path().join("health-report.json");
 
-        winforge()
+        anvil()
             .args([
                 "health",
                 "./examples/minimal",
@@ -474,7 +474,7 @@ mod completions_command {
 
     #[test]
     fn generates_powershell_completions() {
-        winforge()
+        anvil()
             .args(["completions", "powershell"])
             .assert()
             .success()
@@ -483,16 +483,16 @@ mod completions_command {
 
     #[test]
     fn generates_bash_completions() {
-        winforge()
+        anvil()
             .args(["completions", "bash"])
             .assert()
             .success()
-            .stdout(predicate::str::contains("complete").or(predicate::str::contains("_winforge")));
+            .stdout(predicate::str::contains("complete").or(predicate::str::contains("_anvil")));
     }
 
     #[test]
     fn generates_zsh_completions() {
-        winforge()
+        anvil()
             .args(["completions", "zsh"])
             .assert()
             .success()
@@ -501,7 +501,7 @@ mod completions_command {
 
     #[test]
     fn generates_fish_completions() {
-        winforge()
+        anvil()
             .args(["completions", "fish"])
             .assert()
             .success()
@@ -514,12 +514,12 @@ mod config_command {
 
     #[test]
     fn config_list_displays_settings() {
-        winforge().args(["config", "list"]).assert().success();
+        anvil().args(["config", "list"]).assert().success();
     }
 
     #[test]
     fn config_list_json_output() {
-        winforge()
+        anvil()
             .args(["config", "list", "--output", "json"])
             .assert()
             .success();
@@ -527,12 +527,12 @@ mod config_command {
 
     #[test]
     fn config_path_shows_location() {
-        winforge().args(["config", "path"]).assert().success();
+        anvil().args(["config", "path"]).assert().success();
     }
 
     #[test]
     fn config_get_nonexistent_key() {
-        winforge()
+        anvil()
             .args(["config", "get", "nonexistent.key.xyz"])
             .assert()
             .failure();
@@ -544,12 +544,12 @@ mod status_command {
 
     #[test]
     fn status_runs() {
-        winforge().args(["status"]).assert().success();
+        anvil().args(["status"]).assert().success();
     }
 
     #[test]
     fn status_for_workload() {
-        winforge()
+        anvil()
             .args(["status", "./examples/minimal"])
             .assert()
             .code(predicate::in_iter([0, 1]));
@@ -557,7 +557,7 @@ mod status_command {
 
     #[test]
     fn status_json_output() {
-        winforge()
+        anvil()
             .args(["status", "--output", "json"])
             .assert()
             .success();
@@ -565,7 +565,7 @@ mod status_command {
 
     #[test]
     fn status_long_format() {
-        winforge().args(["status", "--long"]).assert().success();
+        anvil().args(["status", "--long"]).assert().success();
     }
 }
 
@@ -574,12 +574,12 @@ mod backup_command {
 
     #[test]
     fn backup_list_runs() {
-        winforge().args(["backup", "list"]).assert().success();
+        anvil().args(["backup", "list"]).assert().success();
     }
 
     #[test]
     fn backup_list_json_output() {
-        winforge()
+        anvil()
             .args(["backup", "list", "--output", "json"])
             .assert()
             .success();
@@ -587,7 +587,7 @@ mod backup_command {
 
     #[test]
     fn backup_show_nonexistent() {
-        winforge()
+        anvil()
             .args(["backup", "show", "nonexistent-backup-id"])
             .assert()
             .failure();
@@ -599,16 +599,16 @@ mod global_flags {
 
     #[test]
     fn help_flag_works() {
-        winforge()
+        anvil()
             .arg("--help")
             .assert()
             .success()
-            .stdout(predicate::str::contains("Windows").or(predicate::str::contains("winforge")));
+            .stdout(predicate::str::contains("Windows").or(predicate::str::contains("anvil")));
     }
 
     #[test]
     fn version_flag_works() {
-        winforge()
+        anvil()
             .arg("--version")
             .assert()
             .success()
@@ -617,33 +617,33 @@ mod global_flags {
 
     #[test]
     fn verbose_flag_accepted() {
-        winforge().args(["-v", "list"]).assert().success();
+        anvil().args(["-v", "list"]).assert().success();
     }
 
     #[test]
     fn double_verbose_flag_accepted() {
-        winforge().args(["-vv", "list"]).assert().success();
+        anvil().args(["-vv", "list"]).assert().success();
     }
 
     #[test]
     fn triple_verbose_flag_accepted() {
-        winforge().args(["-vvv", "list"]).assert().success();
+        anvil().args(["-vvv", "list"]).assert().success();
     }
 
     #[test]
     fn quiet_flag_accepted() {
-        winforge().args(["-q", "list"]).assert().success();
+        anvil().args(["-q", "list"]).assert().success();
     }
 
     #[test]
     fn no_color_flag_accepted() {
-        winforge().args(["--no-color", "list"]).assert().success();
+        anvil().args(["--no-color", "list"]).assert().success();
     }
 
     #[test]
     fn no_args_shows_help() {
         // With arg_required_else_help, no args should show help
-        winforge()
+        anvil()
             .assert()
             .failure()
             .stderr(predicate::str::contains("Usage").or(predicate::str::contains("Commands")));
@@ -655,7 +655,7 @@ mod error_handling {
 
     #[test]
     fn unknown_command_shows_error() {
-        winforge()
+        anvil()
             .arg("unknown-command-xyz")
             .assert()
             .failure()
@@ -664,27 +664,27 @@ mod error_handling {
 
     #[test]
     fn install_missing_required_argument() {
-        winforge().arg("install").assert().failure();
+        anvil().arg("install").assert().failure();
     }
 
     #[test]
     fn show_missing_required_argument() {
-        winforge().arg("show").assert().failure();
+        anvil().arg("show").assert().failure();
     }
 
     #[test]
     fn health_missing_required_argument() {
-        winforge().arg("health").assert().failure();
+        anvil().arg("health").assert().failure();
     }
 
     #[test]
     fn completions_missing_shell() {
-        winforge().arg("completions").assert().failure();
+        anvil().arg("completions").assert().failure();
     }
 
     #[test]
     fn completions_invalid_shell() {
-        winforge()
+        anvil()
             .args(["completions", "invalid-shell"])
             .assert()
             .failure();
@@ -713,7 +713,7 @@ packages:
         )
         .unwrap();
 
-        winforge()
+        anvil()
             .args(["validate", workload_dir.to_str().unwrap()])
             .assert()
             .success();
@@ -739,7 +739,7 @@ files:
         )
         .unwrap();
 
-        winforge()
+        anvil()
             .args(["validate", workload_dir.to_str().unwrap()])
             .assert()
             .success();
@@ -766,7 +766,7 @@ scripts:
         )
         .unwrap();
 
-        winforge()
+        anvil()
             .args(["validate", workload_dir.to_str().unwrap()])
             .assert()
             .success();
@@ -803,7 +803,7 @@ extends:
         .unwrap();
 
         // Use list command with --path to verify workloads are found
-        winforge()
+        anvil()
             .args(["list", "--path", temp.path().to_str().unwrap()])
             .assert()
             .success()

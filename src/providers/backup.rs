@@ -1,4 +1,4 @@
-//! Backup management for Winforge
+//! Backup management for Anvil
 //!
 //! This module provides comprehensive backup management including:
 //! - Backup creation with hash verification
@@ -234,11 +234,11 @@ impl BackupManager {
         })
     }
 
-    /// Get the default backup directory (~/.winforge/backups)
+    /// Get the default backup directory (~/.anvil/backups)
     pub fn default_backup_dir() -> BackupResult<PathBuf> {
         let home = dirs::home_dir()
             .ok_or_else(|| BackupError::IndexError("Could not determine home directory".into()))?;
-        Ok(home.join(".winforge").join("backups"))
+        Ok(home.join(".anvil").join("backups"))
     }
 
     /// Set dry run mode

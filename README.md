@@ -1,4 +1,4 @@
-# Winforge
+# Anvil
 
 [![CI](https://github.com/kafkade/anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/kafkade/anvil/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/kafkade/anvil)](https://github.com/kafkade/anvil/releases)
@@ -7,7 +7,7 @@
 
 **Windows Workstation Configuration Management System**
 
-Winforge is a declarative configuration management tool for Windows workstations. Define your development environment in YAML, and Winforge will install packages, copy configuration files, run setup scripts, and verify system health.
+Anvil is a declarative configuration management tool for Windows workstations. Define your development environment in YAML, and Anvil will install packages, copy configuration files, run setup scripts, and verify system health.
 
 ## ✨ Features
 
@@ -28,9 +28,9 @@ Winforge is a declarative configuration management tool for Windows workstations
 
 ```powershell
 # Download latest release
-Invoke-WebRequest -Uri "https://github.com/kafkade/anvil/releases/latest/download/winforge-windows-x64.zip" -OutFile winforge.zip
-Expand-Archive winforge.zip -DestinationPath C:\Tools\winforge
-$env:PATH += ";C:\Tools\winforge"
+Invoke-WebRequest -Uri "https://github.com/kafkade/anvil/releases/latest/download/anvil-windows-x64.zip" -OutFile anvil.zip
+Expand-Archive anvil.zip -DestinationPath C:\Tools\anvil
+$env:PATH += ";C:\Tools\anvil"
 ```
 
 **Option 2: Build from Source**
@@ -40,26 +40,26 @@ $env:PATH += ";C:\Tools\winforge"
 git clone https://github.com/kafkade/anvil.git
 cd anvil
 cargo build --release
-# Binary is at target/release/winforge.exe
+# Binary is at target/release/anvil.exe
 ```
 
 ### Basic Usage
 
 ```powershell
 # List available workloads
-winforge list
+anvil list
 
 # Preview what would happen
-winforge install rust-developer --dry-run
+anvil install rust-developer --dry-run
 
 # Install a workload
-winforge install rust-developer
+anvil install rust-developer
 
 # Check system health
-winforge health rust-developer
+anvil health rust-developer
 
 # Generate HTML health report
-winforge health rust-developer --output html --file report.html
+anvil health rust-developer --output html --file report.html
 ```
 
 ## 📦 Bundled Workloads
@@ -114,7 +114,7 @@ scripts:
 ## 🔧 CLI Reference
 
 ```
-winforge <COMMAND>
+anvil <COMMAND>
 
 Commands:
   install      Apply a workload configuration

@@ -1,6 +1,6 @@
 //! Health check operation module
 //!
-//! This module implements the `winforge health` command, which validates
+//! This module implements the `anvil health` command, which validates
 //! the current system state against a workload definition.
 
 use std::path::Path;
@@ -946,7 +946,7 @@ fn print_recommendations(report: &HealthReport) {
         }
         println!();
         print_warning(&format!(
-            "Run 'winforge install {}' to install missing packages",
+            "Run 'anvil install {}' to install missing packages",
             report.workload
         ));
     }
@@ -960,7 +960,7 @@ fn print_recommendations(report: &HealthReport) {
         }
         println!();
         print_warning(&format!(
-            "Run 'winforge install {} --upgrade' to update packages",
+            "Run 'anvil install {} --upgrade' to update packages",
             report.workload
         ));
     }
@@ -974,7 +974,7 @@ fn print_recommendations(report: &HealthReport) {
         }
         println!();
         print_warning(&format!(
-            "Run 'winforge install {} --files-only' to restore files",
+            "Run 'anvil install {} --files-only' to restore files",
             report.workload
         ));
     }

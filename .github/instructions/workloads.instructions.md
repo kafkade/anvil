@@ -2,9 +2,9 @@
 applyTo: "workloads/**/*"
 ---
 
-# Winforge Workload Authoring Instructions
+# Anvil Workload Authoring Instructions
 
-You are editing Winforge workloads. Follow these conventions exactly.
+You are editing Anvil workloads. Follow these conventions exactly.
 
 ## Workload Directory Structure
 

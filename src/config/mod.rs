@@ -1,4 +1,4 @@
-//! Configuration module for Winforge
+//! Configuration module for Anvil
 //!
 //! This module handles parsing and validation of workload definitions,
 //! including support for workload inheritance and variable expansion.
@@ -32,7 +32,7 @@ pub fn default_workload_paths() -> Vec<PathBuf> {
 
     // 2. User workloads directory
     if let Some(data_dir) = dirs::data_local_dir() {
-        paths.push(data_dir.join("winforge").join("workloads"));
+        paths.push(data_dir.join("anvil").join("workloads"));
     }
 
     // 3. Current directory workloads
@@ -252,8 +252,8 @@ pub struct WorkloadInfo {
 /// - `${TEMP}` - Temporary directory
 /// - `${USERNAME}` - Current username
 /// - `${COMPUTERNAME}` - Computer name
-/// - `${WINFORGE_WORKLOAD}` - Current workload name
-/// - `${WINFORGE_VERSION}` - Winforge version
+/// - `${ANVIL_WORKLOAD}` - Current workload name
+/// - `${ANVIL_VERSION}` - Anvil version
 /// - `${ENV:VARNAME}` - Any environment variable
 pub fn expand_variables(input: &str, workload_name: Option<&str>) -> String {
     expand_variables_with_context(input, workload_name, None)
@@ -344,14 +344,14 @@ pub fn expand_variables_with_context(
         vars.insert("programfiles_x86", pf86);
     }
 
-    // Winforge-specific variables
+    // Anvil-specific variables
     if let Some(name) = workload_name {
-        vars.insert("WINFORGE_WORKLOAD", name.to_string());
-        vars.insert("winforge_workload", name.to_string());
+        vars.insert("ANVIL_WORKLOAD", name.to_string());
+        vars.insert("anvil_workload", name.to_string());
     }
 
-    vars.insert("WINFORGE_VERSION", env!("CARGO_PKG_VERSION").to_string());
-    vars.insert("winforge_version", env!("CARGO_PKG_VERSION").to_string());
+    vars.insert("ANVIL_VERSION", env!("CARGO_PKG_VERSION").to_string());
+    vars.insert("anvil_version", env!("CARGO_PKG_VERSION").to_string());
 
     // Expand all known variables
     for (var_name, value) in &vars {
@@ -455,13 +455,13 @@ pub fn get_available_variables(workload_name: Option<&str>) -> HashMap<String, S
         vars.insert("PROGRAMFILES_X86".to_string(), pf86);
     }
 
-    // Winforge-specific variables
+    // Anvil-specific variables
     if let Some(name) = workload_name {
-        vars.insert("WINFORGE_WORKLOAD".to_string(), name.to_string());
+        vars.insert("ANVIL_WORKLOAD".to_string(), name.to_string());
     }
 
     vars.insert(
-        "WINFORGE_VERSION".to_string(),
+        "ANVIL_VERSION".to_string(),
         env!("CARGO_PKG_VERSION").to_string(),
     );
 
@@ -559,13 +559,13 @@ mod tests {
 
     #[test]
     fn test_expand_workload_name() {
-        let expanded = expand_variables("${WINFORGE_WORKLOAD}", Some("rust-developer"));
+        let expanded = expand_variables("${ANVIL_WORKLOAD}", Some("rust-developer"));
         assert_eq!(expanded, "rust-developer");
     }
 
     #[test]
     fn test_expand_version() {
-        let expanded = expand_variables("${WINFORGE_VERSION}", None);
+        let expanded = expand_variables("${ANVIL_VERSION}", None);
         assert_eq!(expanded, env!("CARGO_PKG_VERSION"));
     }
 
@@ -578,17 +578,17 @@ mod tests {
 
     #[test]
     fn test_expand_env_syntax() {
-        std::env::set_var("WINFORGE_TEST_VAR", "test_value");
-        let expanded = expand_variables("${ENV:WINFORGE_TEST_VAR}", None);
+        std::env::set_var("ANVIL_TEST_VAR", "test_value");
+        let expanded = expand_variables("${ENV:ANVIL_TEST_VAR}", None);
         assert_eq!(expanded, "test_value");
-        std::env::remove_var("WINFORGE_TEST_VAR");
+        std::env::remove_var("ANVIL_TEST_VAR");
     }
 
     #[test]
     fn test_expand_nested_variables() {
         let home = dirs::home_dir().unwrap();
         let expanded =
-            expand_variables("${HOME}/.config/${WINFORGE_WORKLOAD}", Some("my-workload"));
+            expand_variables("${HOME}/.config/${ANVIL_WORKLOAD}", Some("my-workload"));
         assert!(expanded.starts_with(home.to_string_lossy().as_ref()));
         assert!(expanded.ends_with("/.config/my-workload"));
     }
@@ -606,9 +606,9 @@ mod tests {
     fn test_get_available_variables() {
         let vars = get_available_variables(Some("test-workload"));
         assert!(vars.contains_key("HOME"));
-        assert!(vars.contains_key("WINFORGE_VERSION"));
+        assert!(vars.contains_key("ANVIL_VERSION"));
         assert_eq!(
-            vars.get("WINFORGE_WORKLOAD"),
+            vars.get("ANVIL_WORKLOAD"),
             Some(&"test-workload".to_string())
         );
     }

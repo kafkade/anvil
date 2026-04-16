@@ -1,6 +1,6 @@
 //! Status operation module
 //!
-//! This module implements the `winforge status` command which displays
+//! This module implements the `anvil status` command which displays
 //! the current installation state and cached information for workloads.
 
 use anyhow::{Context, Result};
@@ -79,7 +79,7 @@ fn show_workload_status(workload_name: &str, args: &StatusArgs, use_color: bool)
                 "No installation state found for workload: {}",
                 workload_name
             ));
-            print_info("Run 'winforge install <workload>' to create installation state.");
+            print_info("Run 'anvil install <workload>' to create installation state.");
         }
     }
 
@@ -92,7 +92,7 @@ fn show_all_status(_args: &StatusArgs, use_color: bool) -> Result<()> {
 
     if !state_dir.exists() {
         print_info("No installation state found.");
-        print_info("Run 'winforge install <workload>' to create installation state.");
+        print_info("Run 'anvil install <workload>' to create installation state.");
         return Ok(());
     }
 
@@ -108,12 +108,12 @@ fn show_all_status(_args: &StatusArgs, use_color: bool) -> Result<()> {
 
     if entries.is_empty() {
         print_info("No installation state found.");
-        print_info("Run 'winforge install <workload>' to create installation state.");
+        print_info("Run 'anvil install <workload>' to create installation state.");
         return Ok(());
     }
 
     println!();
-    println!("{}", "=== Winforge Installation Status ===".bold());
+    println!("{}", "=== Anvil Installation Status ===".bold());
     println!();
 
     for entry in entries {
@@ -297,7 +297,7 @@ fn print_state_details(state: &InstallationState, long_format: bool, _use_color:
 
         println!();
         print_info(&format!(
-            "To retry failed packages: winforge install {} --retry-failed",
+            "To retry failed packages: anvil install {} --retry-failed",
             state.workload_name
         ));
     }

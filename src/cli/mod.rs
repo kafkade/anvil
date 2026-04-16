@@ -1,6 +1,6 @@
 //! CLI module - Command line interface definitions and handlers
 //!
-//! This module defines the CLI structure for Winforge using clap's derive macros.
+//! This module defines the CLI structure for Anvil using clap's derive macros.
 
 pub mod commands;
 pub mod completions;
@@ -10,9 +10,9 @@ pub mod progress;
 
 use clap::{Parser, Subcommand};
 
-/// Winforge - Windows Workstation Configuration Management System
+/// Anvil - Windows Workstation Configuration Management System
 #[derive(Parser, Debug)]
-#[command(name = "winforge")]
+#[command(name = "anvil")]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
 #[command(arg_required_else_help = true)]

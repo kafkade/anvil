@@ -1,6 +1,6 @@
 # Troubleshooting Guide
 
-A guide to diagnosing and resolving common Winforge issues.
+A guide to diagnosing and resolving common Anvil issues.
 
 ## Table of Contents
 
@@ -17,10 +17,10 @@ A guide to diagnosing and resolving common Winforge issues.
 
 ## 1. Installation Issues
 
-### Winforge won't run
+### Anvil won't run
 
 **Symptoms:**
-- "winforge" is not recognized as a command
+- "anvil" is not recognized as a command
 - Missing DLL errors
 - Application crashes immediately
 
@@ -28,15 +28,15 @@ A guide to diagnosing and resolving common Winforge issues.
 
 1. **Check PATH configuration**
    ```powershell
-   # Verify winforge is in PATH
-   where.exe winforge
+   # Verify anvil is in PATH
+   where.exe anvil
    
    # If not found, add to PATH
-   $env:PATH += ";C:\path\to\winforge"
+   $env:PATH += ";C:\path\to\anvil"
    ```
 
 2. **Verify Windows version compatibility**
-   - Winforge requires Windows 10 (1809+) or Windows 11
+   - Anvil requires Windows 10 (1809+) or Windows 11
    ```powershell
    # Check Windows version
    winver
@@ -44,7 +44,7 @@ A guide to diagnosing and resolving common Winforge issues.
 
 3. **Check for antivirus interference**
    - Some antivirus software may block unsigned executables
-   - Add winforge.exe to your antivirus allowlist
+   - Add anvil.exe to your antivirus allowlist
    - Check Windows Defender exclusions
 
 4. **Verify the download isn't corrupted**
@@ -148,7 +148,7 @@ A guide to diagnosing and resolving common Winforge issues.
 
 1. **Check for interactive prompts**
    - Some installers require user interaction
-   - Run winforge without `--quiet` to see prompts
+   - Run anvil without `--quiet` to see prompts
    
 2. **Use silent install overrides**
    ```yaml
@@ -217,8 +217,8 @@ A guide to diagnosing and resolving common Winforge issues.
    # Start elevated PowerShell
    Start-Process powershell -Verb RunAs
    
-   # Then run winforge
-   winforge install my-workload
+   # Then run anvil
+   anvil install my-workload
    ```
 
 2. **Check installation scope**
@@ -327,10 +327,10 @@ A guide to diagnosing and resolving common Winforge issues.
 2. **Verify backup directory permissions**
    ```powershell
    # Default backup location
-   Test-Path "$env:APPDATA\winforge\backups"
+   Test-Path "$env:APPDATA\anvil\backups"
    
    # Create if missing
-   New-Item -ItemType Directory -Path "$env:APPDATA\winforge\backups" -Force
+   New-Item -ItemType Directory -Path "$env:APPDATA\anvil\backups" -Force
    ```
 
 3. **Check path length**
@@ -343,7 +343,7 @@ A guide to diagnosing and resolving common Winforge issues.
 
 4. **Specify custom backup location**
    ```powershell
-   $env:WINFORGE_BACKUP_DIR = "D:\Backups\winforge"
+   $env:ANVIL_BACKUP_DIR = "D:\Backups\anvil"
    ```
 
 ---
@@ -404,7 +404,7 @@ A guide to diagnosing and resolving common Winforge issues.
      post_install:
        - path: scripts/setup.ps1
          shell: powershell
-         # Winforge handles execution policy internally
+         # Anvil handles execution policy internally
    ```
 
 3. **Check group policy restrictions**
@@ -462,9 +462,9 @@ A guide to diagnosing and resolving common Winforge issues.
 
 **Solutions:**
 
-1. **Run winforge as administrator**
+1. **Run anvil as administrator**
    ```powershell
-   Start-Process powershell -Verb RunAs -ArgumentList "winforge install my-workload"
+   Start-Process powershell -Verb RunAs -ArgumentList "anvil install my-workload"
    ```
 
 2. **Check UAC settings**
@@ -510,7 +510,7 @@ A guide to diagnosing and resolving common Winforge issues.
 
 3. **Run with verbose output**
    ```powershell
-   winforge health my-workload --verbose
+   anvil health my-workload --verbose
    ```
 
 4. **Check script logic**
@@ -537,7 +537,7 @@ A guide to diagnosing and resolving common Winforge issues.
 
 1. **Review verbose output**
    ```powershell
-   winforge health my-workload -vvv
+   anvil health my-workload -vvv
    ```
 
 2. **Check for script errors**
@@ -547,7 +547,7 @@ A guide to diagnosing and resolving common Winforge issues.
 3. **Verify all scripts exist**
    ```powershell
    # List all scripts in workload
-   winforge show my-workload | Select-String "script"
+   anvil show my-workload | Select-String "script"
    ```
 
 ---
@@ -566,28 +566,28 @@ A guide to diagnosing and resolving common Winforge issues.
 1. **Check file location**
    ```powershell
    # Default location
-   Test-Path "$env:APPDATA\winforge\config.toml"
+   Test-Path "$env:APPDATA\anvil\config.toml"
    
    # Or check environment variable
-   $env:WINFORGE_CONFIG
+   $env:ANVIL_CONFIG
    ```
 
 2. **Validate TOML syntax**
    ```powershell
    # View config file
-   Get-Content "$env:APPDATA\winforge\config.toml"
+   Get-Content "$env:APPDATA\anvil\config.toml"
    
    # Common issues: missing quotes, invalid characters
    ```
 
 3. **Reset configuration**
    ```powershell
-   winforge config reset
+   anvil config reset
    ```
 
 4. **View current configuration**
    ```powershell
-   winforge config show
+   anvil config show
    ```
 
 ---
@@ -596,14 +596,14 @@ A guide to diagnosing and resolving common Winforge issues.
 
 **Symptoms:**
 - Error: "Workload 'X' not found"
-- Empty list from `winforge list`
+- Empty list from `anvil list`
 - Custom workloads not discovered
 
 **Solutions:**
 
 1. **Check search paths**
    ```powershell
-   winforge config show
+   anvil config show
    ```
 
 2. **Verify workload directory structure**
@@ -614,17 +614,17 @@ A guide to diagnosing and resolving common Winforge issues.
 
 3. **Use explicit path**
    ```powershell
-   winforge list --path C:\MyWorkloads
-   winforge install my-workload --path C:\MyWorkloads
+   anvil list --path C:\MyWorkloads
+   anvil install my-workload --path C:\MyWorkloads
    ```
 
 4. **Configure additional paths**
    ```powershell
-   winforge config set workload_paths "C:\Workloads;D:\MoreWorkloads"
+   anvil config set workload_paths "C:\Workloads;D:\MoreWorkloads"
    ```
 
 5. **Check file permissions**
-   - Ensure winforge can read the workload directories
+   - Ensure anvil can read the workload directories
 
 ---
 
@@ -635,7 +635,7 @@ A guide to diagnosing and resolving common Winforge issues.
 | Error | Description | Solution |
 |-------|-------------|----------|
 | `E001` | Workload not found | Check name and search paths |
-| `E002` | Invalid workload schema | Run `winforge validate` for details |
+| `E002` | Invalid workload schema | Run `anvil validate` for details |
 | `E003` | Circular dependency | Review `extends` chain in workloads |
 | `E004` | Package installation failed | Check winget logs, verify package ID |
 | `E005` | File operation failed | Check permissions, verify paths |
@@ -652,8 +652,8 @@ A guide to diagnosing and resolving common Winforge issues.
 Error: Workload 'my-workload' not found
 
 Searched in:
-  - C:\Users\user\AppData\Roaming\winforge\workloads
-  - C:\Program Files\winforge\workloads
+  - C:\Users\user\AppData\Roaming\anvil\workloads
+  - C:\Program Files\anvil\workloads
 ```
 
 **Solution:** 
@@ -671,7 +671,7 @@ Validation errors:
 ```
 
 **Solution:**
-- Run `winforge validate my-workload` for full details
+- Run `anvil validate my-workload` for full details
 - Fix reported schema errors
 - Refer to [Workload Authoring Guide](WORKLOAD_AUTHORING.md)
 
@@ -694,13 +694,13 @@ Dependency chain:
 
 ### Verbose Output
 
-Get more detailed information about what Winforge is doing:
+Get more detailed information about what Anvil is doing:
 
 ```powershell
 # Increasing levels of verbosity
-winforge -v <command>      # Some detail
-winforge -vv <command>     # More detail  
-winforge -vvv <command>    # Maximum detail (debug level)
+anvil -v <command>      # Some detail
+anvil -vv <command>     # More detail  
+anvil -vvv <command>    # Maximum detail (debug level)
 ```
 
 ### Enable Logging
@@ -709,8 +709,8 @@ Set environment variable for persistent logging:
 
 ```powershell
 # Enable debug logging
-$env:WINFORGE_LOG = "debug"
-winforge install my-workload
+$env:ANVIL_LOG = "debug"
+anvil install my-workload
 
 # Available levels: error, warn, info, debug, trace
 ```
@@ -719,7 +719,7 @@ winforge install my-workload
 
 ```powershell
 # Capture output for sharing
-winforge -vvv install my-workload 2>&1 | Tee-Object -FilePath "winforge-output.log"
+anvil -vvv install my-workload 2>&1 | Tee-Object -FilePath "anvil-output.log"
 ```
 
 ### System Information
@@ -727,8 +727,8 @@ winforge -vvv install my-workload 2>&1 | Tee-Object -FilePath "winforge-output.l
 Gather helpful system information:
 
 ```powershell
-# Winforge version
-winforge --version
+# Anvil version
+anvil --version
 
 # Windows version
 [System.Environment]::OSVersion
@@ -744,7 +744,7 @@ winget --version
 
 When reporting issues on GitHub, include:
 
-1. **Winforge version**: `winforge --version`
+1. **Anvil version**: `anvil --version`
 2. **Windows version**: Output of `winver` or `[System.Environment]::OSVersion`
 3. **Command that failed**: Exact command you ran
 4. **Error message**: Complete error output
@@ -756,7 +756,7 @@ When reporting issues on GitHub, include:
 
 ```markdown
 ## Environment
-- Winforge version: 
+- Anvil version: 
 - Windows version: 
 - PowerShell version: 
 
@@ -765,7 +765,7 @@ Brief description of the issue.
 
 ## Command
 ```
-winforge <command>
+anvil <command>
 ```
 
 ## Expected Behavior
@@ -799,47 +799,47 @@ What actually happened.
 ### Common Commands for Troubleshooting
 
 ```powershell
-# Check Winforge installation
-winforge --version
+# Check Anvil installation
+anvil --version
 
 # Validate workload
-winforge validate my-workload --strict
+anvil validate my-workload --strict
 
 # Preview installation (dry run)
-winforge install my-workload --dry-run
+anvil install my-workload --dry-run
 
 # Verbose health check
-winforge health my-workload -vvv
+anvil health my-workload -vvv
 
 # View current configuration
-winforge config show
+anvil config show
 
 # Reset configuration
-winforge config reset
+anvil config reset
 
 # List workloads in custom path
-winforge list --path C:\MyWorkloads
+anvil list --path C:\MyWorkloads
 ```
 
 ### Environment Variables
 
 ```powershell
 # Custom config file
-$env:WINFORGE_CONFIG = "C:\path\to\config.toml"
+$env:ANVIL_CONFIG = "C:\path\to\config.toml"
 
 # Additional workload paths
-$env:WINFORGE_WORKLOADS = "C:\Workloads;D:\More"
+$env:ANVIL_WORKLOADS = "C:\Workloads;D:\More"
 
 # Debug logging
-$env:WINFORGE_LOG = "debug"
+$env:ANVIL_LOG = "debug"
 
 # Disable colors
 $env:NO_COLOR = "1"
 
 # Custom backup directory
-$env:WINFORGE_BACKUP_DIR = "D:\Backups"
+$env:ANVIL_BACKUP_DIR = "D:\Backups"
 ```
 
 ---
 
-*This guide is for Winforge v0.3.1. For other versions, check the corresponding documentation.*
+*This guide is for Anvil v0.3.1. For other versions, check the corresponding documentation.*

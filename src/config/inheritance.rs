@@ -308,7 +308,7 @@ impl InheritanceError {
             InheritanceError::ParentNotFound { parent } => {
                 format!(
                     "Ensure the workload '{}' exists in one of the search paths.\n\
-                     Run 'winforge list' to see available workloads.",
+                     Run 'anvil list' to see available workloads.",
                     parent
                 )
             }

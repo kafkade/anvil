@@ -172,6 +172,6 @@ mod tests {
 
         // Should have pretty formatting (indented)
         assert!(content.contains("  "));
-        assert!(content.contains("winforge_version"));
+        assert!(content.contains("anvil_version"));
     }
 }

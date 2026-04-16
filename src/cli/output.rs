@@ -1,4 +1,4 @@
-//! Output formatting module for Winforge CLI
+//! Output formatting module for Anvil CLI
 //!
 //! This module provides utilities for formatting output in various formats:
 //! - Table: Human-readable formatted tables

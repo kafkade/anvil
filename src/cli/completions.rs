@@ -1,4 +1,4 @@
-//! Shell completions generator for Winforge CLI
+//! Shell completions generator for Anvil CLI
 //!
 //! This module provides functionality to generate and install shell completion scripts
 //! for various shells including Bash, Zsh, Fish, PowerShell, and Elvish.
@@ -37,13 +37,13 @@ impl From<ShellType> for Shell {
 ///
 /// ```bash
 /// # Generate and install PowerShell completions
-/// winforge completions powershell | Out-File -FilePath $PROFILE -Append
+/// anvil completions powershell | Out-File -FilePath $PROFILE -Append
 ///
 /// # Generate Bash completions
-/// winforge completions bash > /etc/bash_completion.d/winforge
+/// anvil completions bash > /etc/bash_completion.d/anvil
 ///
 /// # Generate Zsh completions
-/// winforge completions zsh > ~/.zsh/completions/_winforge
+/// anvil completions zsh > ~/.zsh/completions/_anvil
 /// ```
 pub fn generate_completions(args: &CompletionsArgs) -> Result<()> {
     let shell: Shell = args.shell.into();
@@ -53,7 +53,7 @@ pub fn generate_completions(args: &CompletionsArgs) -> Result<()> {
 
     // Generate the actual completions
     let mut cmd = Cli::command();
-    clap_complete::generate(shell, &mut cmd, "winforge", &mut io::stdout());
+    clap_complete::generate(shell, &mut cmd, "anvil", &mut io::stdout());
 
     Ok(())
 }
@@ -84,38 +84,38 @@ fn print_installation_instructions(shell: ShellType) -> Result<()> {
 fn get_installation_instructions(shell: ShellType) -> String {
     match shell {
         ShellType::Powershell => {
-            r#"Winforge PowerShell Completions
+            r#"Anvil PowerShell Completions
 
 Installation:
   1. Save this output to a file:
-     winforge completions powershell > "$HOME\Documents\PowerShell\winforge-completions.ps1"
+     anvil completions powershell > "$HOME\Documents\PowerShell\anvil-completions.ps1"
 
   2. Add to your PowerShell profile ($PROFILE):
-     . "$HOME\Documents\PowerShell\winforge-completions.ps1"
+     . "$HOME\Documents\PowerShell\anvil-completions.ps1"
 
   3. Restart PowerShell or run: . $PROFILE
 
 Alternative (add directly to profile):
-  winforge completions powershell >> $PROFILE"#.to_string()
+  anvil completions powershell >> $PROFILE"#.to_string()
         }
         ShellType::Bash => {
-            r#"Winforge Bash Completions
+            r#"Anvil Bash Completions
 
 Installation (system-wide, requires root):
-  winforge completions bash | sudo tee /etc/bash_completion.d/winforge > /dev/null
+  anvil completions bash | sudo tee /etc/bash_completion.d/anvil > /dev/null
 
 Installation (user-only):
   1. Create completions directory:
      mkdir -p ~/.local/share/bash-completion/completions
 
   2. Save completions:
-     winforge completions bash > ~/.local/share/bash-completion/completions/winforge
+     anvil completions bash > ~/.local/share/bash-completion/completions/anvil
 
   3. Restart your shell or run:
-     source ~/.local/share/bash-completion/completions/winforge"#.to_string()
+     source ~/.local/share/bash-completion/completions/anvil"#.to_string()
         }
         ShellType::Zsh => {
-            r#"Winforge Zsh Completions
+            r#"Anvil Zsh Completions
 
 Installation:
   1. Create a completions directory if it doesn't exist:
@@ -125,7 +125,7 @@ Installation:
      fpath=(~/.zfunc $fpath)
 
   3. Save completions:
-     winforge completions zsh > ~/.zfunc/_winforge
+     anvil completions zsh > ~/.zfunc/_anvil
 
   4. Regenerate completions cache:
      rm -f ~/.zcompdump; compinit
@@ -133,25 +133,25 @@ Installation:
   5. Restart your shell"#.to_string()
         }
         ShellType::Fish => {
-            r#"Winforge Fish Completions
+            r#"Anvil Fish Completions
 
 Installation:
-  winforge completions fish > ~/.config/fish/completions/winforge.fish
+  anvil completions fish > ~/.config/fish/completions/anvil.fish
 
 The completions will be automatically loaded on next shell start."#.to_string()
         }
         ShellType::Elvish => {
-            r#"Winforge Elvish Completions
+            r#"Anvil Elvish Completions
 
 Installation:
   1. Create lib directory:
      mkdir -p ~/.config/elvish/lib
 
   2. Save completions:
-     winforge completions elvish > ~/.config/elvish/lib/winforge.elv
+     anvil completions elvish > ~/.config/elvish/lib/anvil.elv
 
   3. Add to your rc.elv:
-     use winforge"#.to_string()
+     use anvil"#.to_string()
         }
     }
 }
@@ -168,24 +168,24 @@ pub fn get_completion_install_path(shell: ShellType) -> Result<PathBuf> {
                 .join("share")
                 .join("bash-completion")
                 .join("completions")
-                .join("winforge");
+                .join("anvil");
             Ok(local_path)
         }
         ShellType::Zsh => {
             let home = dirs::home_dir().context("Cannot find home directory")?;
-            Ok(home.join(".zfunc").join("_winforge"))
+            Ok(home.join(".zfunc").join("_anvil"))
         }
         ShellType::Fish => {
             let config = dirs::config_dir().context("Cannot find config directory")?;
-            Ok(config.join("fish").join("completions").join("winforge.fish"))
+            Ok(config.join("fish").join("completions").join("anvil.fish"))
         }
         ShellType::Powershell => {
             let docs = dirs::document_dir().context("Cannot find documents directory")?;
-            Ok(docs.join("PowerShell").join("winforge-completions.ps1"))
+            Ok(docs.join("PowerShell").join("anvil-completions.ps1"))
         }
         ShellType::Elvish => {
             let config = dirs::config_dir().context("Cannot find config directory")?;
-            Ok(config.join("elvish").join("lib").join("winforge.elv"))
+            Ok(config.join("elvish").join("lib").join("anvil.elv"))
         }
     }
 }
@@ -205,7 +205,7 @@ pub fn install_completions(shell: ShellType) -> Result<PathBuf> {
     let mut buffer = Vec::new();
     let mut cmd = Cli::command();
     let clap_shell: Shell = shell.into();
-    clap_complete::generate(clap_shell, &mut cmd, "winforge", &mut buffer);
+    clap_complete::generate(clap_shell, &mut cmd, "anvil", &mut buffer);
 
     // Write to file
     std::fs::write(&install_path, buffer)
@@ -242,7 +242,7 @@ pub fn print_install_success(shell: ShellType, path: &PathBuf) {
         }
         ShellType::Elvish => {
             println!("Add to your rc.elv:");
-            println!("  use winforge");
+            println!("  use anvil");
         }
     }
 }
@@ -251,7 +251,7 @@ pub fn print_install_success(shell: ShellType, path: &PathBuf) {
 #[allow(dead_code)]
 pub fn generate_to<W: Write>(shell: Shell, writer: &mut W) -> Result<()> {
     let mut cmd = Cli::command();
-    clap_complete::generate(shell, &mut cmd, "winforge", writer);
+    clap_complete::generate(shell, &mut cmd, "anvil", writer);
     Ok(())
 }
 
@@ -264,7 +264,7 @@ mod tests {
         let mut output = Vec::new();
         generate_to(Shell::PowerShell, &mut output).unwrap();
         let content = String::from_utf8(output).unwrap();
-        assert!(content.contains("winforge"));
+        assert!(content.contains("anvil"));
     }
 
     #[test]
@@ -272,7 +272,7 @@ mod tests {
         let mut output = Vec::new();
         generate_to(Shell::Bash, &mut output).unwrap();
         let content = String::from_utf8(output).unwrap();
-        assert!(content.contains("winforge"));
+        assert!(content.contains("anvil"));
     }
 
     #[test]

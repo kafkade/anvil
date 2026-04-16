@@ -1,6 +1,6 @@
 //! Init operation - Create new workload templates
 //!
-//! This module implements the `winforge init` command which creates
+//! This module implements the `anvil init` command which creates
 //! a new workload directory with template files.
 
 use anyhow::{Context, Result};
@@ -234,12 +234,12 @@ pub fn execute(args: &InitArgs, cli: &Cli) -> Result<()> {
         println!(
             "  {} Validate with: {}",
             "4.".dimmed(),
-            format!("winforge validate {}", output_dir.display()).yellow()
+            format!("anvil validate {}", output_dir.display()).yellow()
         );
         println!(
             "  {} Test with: {}",
             "5.".dimmed(),
-            format!("winforge install {} --dry-run", args.name).yellow()
+            format!("anvil install {} --dry-run", args.name).yellow()
         );
     } else {
         println!("Next steps:");
@@ -256,10 +256,10 @@ pub fn execute(args: &InitArgs, cli: &Cli) -> Result<()> {
             output_dir.display()
         );
         println!(
-            "  4. Validate with: winforge validate {}",
+            "  4. Validate with: anvil validate {}",
             output_dir.display()
         );
-        println!("  5. Test with: winforge install {} --dry-run", args.name);
+        println!("  5. Test with: anvil install {} --dry-run", args.name);
     }
 
     Ok(())
@@ -287,7 +287,7 @@ fn generate_minimal_yaml(name: &str, extends: Option<&str>) -> String {
         r#"# {name} Workload
 # Minimal workload template - add packages, files, and scripts as needed
 #
-# Documentation: https://github.com/winforge/winforge#workload-schema
+# Documentation: https://github.com/anvil/anvil#workload-schema
 
 name: {name}
 version: "1.0.0"
@@ -322,8 +322,8 @@ fn generate_standard_yaml(name: &str, extends: Option<&str>) -> String {
         r#"# {name} Workload
 # Standard workload template with common sections
 #
-# Documentation: https://github.com/winforge/winforge#workload-schema
-# Validate with: winforge validate workloads/{name}
+# Documentation: https://github.com/anvil/anvil#workload-schema
+# Validate with: anvil validate workloads/{name}
 
 name: {name}
 version: "1.0.0"
@@ -383,9 +383,9 @@ fn generate_full_yaml(name: &str, extends: Option<&str>) -> String {
         r#"# {name} Workload
 # Full workload template with all available options documented
 #
-# Documentation: https://github.com/winforge/winforge#workload-schema
-# Validate with: winforge validate workloads/{name}
-# JSON Schema:   winforge validate --schema
+# Documentation: https://github.com/anvil/anvil#workload-schema
+# Validate with: anvil validate workloads/{name}
+# JSON Schema:   anvil validate --schema
 
 # Required: Unique workload identifier
 # Rules: lowercase letters, numbers, hyphens only; must start with letter

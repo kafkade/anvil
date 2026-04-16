@@ -1,4 +1,4 @@
-//! Schema validation module for Winforge workload definitions
+//! Schema validation module for Anvil workload definitions
 //!
 //! This module provides validation logic for workload YAML files,
 //! ensuring they conform to the expected schema and contain valid values.

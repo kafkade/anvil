@@ -19,7 +19,7 @@
 *.log
 logs/
 
-# Backup files created by winforge
+# Backup files created by anvil
 backups/
 
 # Test artifacts

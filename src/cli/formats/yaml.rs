@@ -276,7 +276,7 @@ mod tests {
 
         assert!(content.contains("test-workload"));
         assert!(content.contains("1.0.0"));
-        assert!(content.contains("winforge_version"));
+        assert!(content.contains("anvil_version"));
     }
 
     #[test]

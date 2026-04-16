@@ -1,6 +1,6 @@
-//! Global configuration management for Winforge
+//! Global configuration management for Anvil
 //!
-//! This module handles the global configuration file at `~/.winforge/config.yaml`
+//! This module handles the global configuration file at `~/.anvil/config.yaml`
 //! which stores user preferences and default settings.
 
 use std::path::PathBuf;
@@ -80,7 +80,7 @@ impl GlobalConfig {
     /// Get the path to the global configuration file
     pub fn config_path() -> Result<PathBuf> {
         let home = dirs::home_dir().context("Cannot find home directory")?;
-        Ok(home.join(".winforge").join("config.yaml"))
+        Ok(home.join(".anvil").join("config.yaml"))
     }
 
     /// Get a configuration value by key path (e.g., "defaults.shell")

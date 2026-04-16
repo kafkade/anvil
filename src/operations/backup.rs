@@ -1,6 +1,6 @@
 //! Backup operation module
 //!
-//! This module implements the `winforge backup` command, which provides
+//! This module implements the `anvil backup` command, which provides
 //! backup management functionality including list, show, restore, clean, and verify.
 
 use std::io::Write;
@@ -96,7 +96,7 @@ fn create_backup(
         name: name.map(|s| s.to_string()),
         created_at: chrono::Utc::now(),
         workload: workload.map(|s| s.to_string()),
-        winforge_version: env!("CARGO_PKG_VERSION").to_string(),
+        anvil_version: env!("CARGO_PKG_VERSION").to_string(),
         system_info: get_system_info(),
         files: Vec::new(),
         packages: if include_packages {
@@ -144,7 +144,7 @@ struct BackupManifest {
     name: Option<String>,
     created_at: chrono::DateTime<chrono::Utc>,
     workload: Option<String>,
-    winforge_version: String,
+    anvil_version: String,
     system_info: SystemInfo,
     files: Vec<BackupFileEntry>,
     packages: Option<PackageSnapshot>,
@@ -375,7 +375,7 @@ fn print_backup_html(backups: &[BackupEntry]) {
         r#"<!DOCTYPE html>
 <html>
 <head>
-    <title>Winforge Backups</title>
+    <title>Anvil Backups</title>
     <style>
         body {{ font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; margin: 20px; }}
         table {{ border-collapse: collapse; width: 100%; }}
@@ -388,7 +388,7 @@ fn print_backup_html(backups: &[BackupEntry]) {
     </style>
 </head>
 <body>
-    <h1>Winforge Backups</h1>
+    <h1>Anvil Backups</h1>
     <table>
         <thead>
             <tr>

@@ -1,4 +1,4 @@
-//! Operations module for Winforge CLI
+//! Operations module for Anvil CLI
 //!
 //! This module contains the implementation of each CLI command.
 //! Each submodule corresponds to a command and contains an `execute` function
@@ -156,7 +156,7 @@ impl<'a> OperationContext<'a> {
 /// 1. Custom path if provided
 /// 2. Current directory's `workloads/` folder
 /// 3. Executable directory's `workloads/` folder
-/// 4. User's home directory under `.winforge/workloads/`
+/// 4. User's home directory under `.anvil/workloads/`
 pub fn find_workloads_dir(custom_path: Option<&Path>) -> Result<PathBuf> {
     // Check custom path first
     if let Some(path) = custom_path {
@@ -184,7 +184,7 @@ pub fn find_workloads_dir(custom_path: Option<&Path>) -> Result<PathBuf> {
 
     // Check home directory
     if let Some(home) = dirs::home_dir() {
-        let home_workloads = home.join(".winforge").join("workloads");
+        let home_workloads = home.join(".anvil").join("workloads");
         if home_workloads.exists() {
             return Ok(home_workloads);
         }

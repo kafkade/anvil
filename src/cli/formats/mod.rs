@@ -1,4 +1,4 @@
-//! Output format module for Winforge CLI
+//! Output format module for Anvil CLI
 //!
 //! This module provides multiple output formats for CLI commands:
 //! - Table: Human-readable formatted tables (default)
@@ -25,8 +25,8 @@ use crate::config::WorkloadInfo;
 pub struct OutputMetadata {
     /// Timestamp of the output
     pub timestamp: DateTime<Utc>,
-    /// Winforge version
-    pub winforge_version: String,
+    /// Anvil version
+    pub anvil_version: String,
     /// Optional workload version
     #[serde(skip_serializing_if = "Option::is_none")]
     pub workload_version: Option<String>,
@@ -36,7 +36,7 @@ impl Default for OutputMetadata {
     fn default() -> Self {
         Self {
             timestamp: Utc::now(),
-            winforge_version: env!("CARGO_PKG_VERSION").to_string(),
+            anvil_version: env!("CARGO_PKG_VERSION").to_string(),
             workload_version: None,
         }
     }
@@ -255,7 +255,7 @@ mod tests {
     #[test]
     fn test_output_metadata_default() {
         let meta = OutputMetadata::default();
-        assert_eq!(meta.winforge_version, env!("CARGO_PKG_VERSION"));
+        assert_eq!(meta.anvil_version, env!("CARGO_PKG_VERSION"));
         assert!(meta.workload_version.is_none());
     }
 

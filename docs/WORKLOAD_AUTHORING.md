@@ -1,6 +1,6 @@
 # Workload Authoring Guide
 
-A comprehensive guide to creating custom workloads for Winforge.
+A comprehensive guide to creating custom workloads for Anvil.
 
 ## Table of Contents
 
@@ -701,7 +701,7 @@ files:
 
 ### Inheritance Chains
 
-Winforge resolves inheritance chains automatically:
+Anvil resolves inheritance chains automatically:
 
 ```
 my-workload
@@ -721,10 +721,10 @@ Circular dependencies are detected and rejected:
 
 ```powershell
 # Show inheritance tree
-winforge show my-workload --inheritance-tree
+anvil show my-workload --inheritance-tree
 
 # Show fully resolved workload
-winforge show my-workload --resolved
+anvil show my-workload --resolved
 ```
 
 ---
@@ -883,12 +883,12 @@ environment:
 
 1. **Validate Before Committing**
    ```powershell
-   winforge validate my-workload --strict
+   anvil validate my-workload --strict
    ```
 
 2. **Test with Dry Run**
    ```powershell
-   winforge install my-workload --dry-run
+   anvil install my-workload --dry-run
    ```
 
 3. **Test on Clean System**
@@ -1045,7 +1045,7 @@ catch {
 
 ## Resources
 
-- [Winforge User Guide](USER_GUIDE.md)
+- [Anvil User Guide](USER_GUIDE.md)
 - [Troubleshooting Guide](TROUBLESHOOTING.md)
 - [GitHub Repository](https://github.com/kafkade/anvil)
 - [Winget Documentation](https://learn.microsoft.com/en-us/windows/package-manager/)
@@ -1053,4 +1053,4 @@ catch {
 
 ---
 
-*This guide is for Winforge v0.3.1. For other versions, check the corresponding documentation.*
+*This guide is for Anvil v0.3.1. For other versions, check the corresponding documentation.*
