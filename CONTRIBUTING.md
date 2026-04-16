@@ -18,12 +18,7 @@ Thank you for your interest in contributing to Winforge! This document provides 
 
 ## Code of Conduct
 
-Please be respectful and constructive in all interactions. We're building something useful together, and a positive environment helps everyone contribute their best work.
-
-- Be welcoming to newcomers
-- Be patient with questions
-- Focus on constructive feedback
-- Respect differing viewpoints and experiences
+This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). Please be respectful and constructive in all interactions.
 
 ---
 
@@ -437,7 +432,7 @@ scripts:
 
 ## License
 
-By contributing to Winforge, you agree that your contributions will be licensed under the [MIT License](LICENSE).
+By contributing to Anvil, you agree that your contributions will be licensed under the [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) license, at the user's choice.
 
 ---
 

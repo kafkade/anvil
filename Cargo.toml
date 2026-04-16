@@ -2,13 +2,15 @@
 name = "winforge"
 version = "0.3.1"
 edition = "2021"
-authors = ["Winforge Team"]
-description = "Windows Workstation Configuration Management System"
-license = "MIT"
+authors = ["Anvil Contributors"]
+description = "Declarative Windows workstation configuration management"
+license = "MIT OR Apache-2.0"
 repository = "https://github.com/kafkade/anvil"
+homepage = "https://github.com/kafkade/anvil"
 readme = "README.md"
 keywords = ["windows", "configuration", "winget", "devops", "automation"]
 categories = ["command-line-utilities", "config", "development-tools"]
+rust-version = "1.75"
 
 [dependencies]
 # CLI framework

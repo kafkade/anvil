@@ -1,0 +1,65 @@
+name: Bug Report
+description: Report a bug in Anvil
+title: "[Bug]: "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting a bug! Please fill out the form below to help us investigate.
+  - type: input
+    id: version
+    attributes:
+      label: Anvil version
+      description: Run `winforge --version` to find this
+      placeholder: "0.3.1"
+    validations:
+      required: true
+  - type: input
+    id: os-version
+    attributes:
+      label: Windows version
+      description: Run `winver` or `[System.Environment]::OSVersion.Version` in PowerShell
+      placeholder: "Windows 11 23H2"
+    validations:
+      required: true
+  - type: textarea
+    id: what-happened
+    attributes:
+      label: What happened?
+      description: Describe the bug. What did you observe?
+    validations:
+      required: true
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to reproduce
+      description: How can we reproduce this behavior?
+      placeholder: |
+        1. Create a workload with ...
+        2. Run `winforge install ...`
+        3. See error
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What did you expect to happen?
+  - type: textarea
+    id: workload
+    attributes:
+      label: Workload YAML (if applicable)
+      description: Paste the relevant workload.yaml content
+      render: yaml
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant log output
+      description: Paste any relevant logs or error messages
+      render: shell
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Any other information that might help
