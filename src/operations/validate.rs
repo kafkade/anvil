@@ -779,6 +779,14 @@ fn print_json_schema() -> Result<()> {
         }
       }
     },
+    "commands": {
+      "type": "object",
+      "description": "Inline command definitions",
+      "properties": {
+        "pre_install": { "$ref": "#/definitions/commandList" },
+        "post_install": { "$ref": "#/definitions/commandList" }
+      }
+    },
     "environment": {
       "type": "object",
       "properties": {
@@ -866,6 +874,48 @@ fn print_json_schema() -> Result<()> {
             "minimum": 5,
             "maximum": 3600,
             "description": "Timeout in seconds"
+          }
+        }
+      }
+    },
+    "commandList": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["run"],
+        "properties": {
+          "run": {
+            "type": "string",
+            "description": "Shell command string to execute"
+          },
+          "description": { "type": "string" },
+          "timeout": {
+            "type": "integer",
+            "default": 300,
+            "minimum": 1,
+            "maximum": 3600,
+            "description": "Timeout in seconds"
+          },
+          "elevated": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether the command requires admin privileges"
+          },
+          "when": {
+            "type": "object",
+            "description": "Condition that must be true for this command to run (uses condition engine types)",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["command_exists", "file_exists", "dir_exists", "env_var", "path_contains", "registry_value", "shell", "all_of", "any_of"]
+              }
+            }
+          },
+          "continue_on_error": {
+            "type": "boolean",
+            "default": false,
+            "description": "Whether to continue if this command fails"
           }
         }
       }

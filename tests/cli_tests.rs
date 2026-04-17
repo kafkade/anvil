@@ -410,6 +410,31 @@ mod install_command {
             .assert()
             .success();
     }
+
+    #[test]
+    fn install_deprecation_warning_when_commands_and_scripts_coexist() {
+        let temp = TempDir::new().unwrap();
+        common::create_workload_with_commands_and_scripts(temp.path(), "coexist-test").unwrap();
+        let workload_path = temp.path().join("coexist-test");
+
+        // When both commands and scripts exist for the same phase, stderr should contain deprecation warnings
+        anvil()
+            .args([
+                "install",
+                workload_path.to_str().unwrap(),
+                "--dry-run",
+                "--skip-scripts",
+                "--skip-packages",
+            ])
+            .assert()
+            .success()
+            .stderr(predicate::str::contains(
+                "scripts.pre_install` is deprecated when used alongside `commands.pre_install`",
+            ))
+            .stderr(predicate::str::contains(
+                "scripts.post_install` is deprecated when used alongside `commands.post_install`",
+            ));
+    }
 }
 
 mod health_command {

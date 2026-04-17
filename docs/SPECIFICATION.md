@@ -448,6 +448,73 @@ assertions:
       command: git
 ```
 
+### 5.1.2 Commands and Legacy Scripts Coexistence
+
+Anvil supports two mechanisms for running actions during installation:
+
+| Mechanism | Field | Introduced | Status |
+|-----------|-------|-----------|--------|
+| Inline commands | `commands.pre_install` / `commands.post_install` | v0.6 | **Recommended** |
+| Script files | `scripts.pre_install` / `scripts.post_install` | v0.1 | Deprecated when used with commands |
+
+**Execution order**: When both exist for the same phase, commands run first, then legacy scripts.
+
+**Deprecation timeline**:
+- **v0.6**: Warning emitted when `scripts.pre_install`/`scripts.post_install` is used alongside `commands.pre_install`/`commands.post_install`
+- **v0.8**: Warning emitted for any use of `scripts.pre_install`/`scripts.post_install`
+- **v1.0**: `scripts.pre_install` and `scripts.post_install` removed; use `commands` exclusively
+
+**Migration**: Convert script entries to inline commands:
+```yaml
+# Before (legacy script)
+scripts:
+  post_install:
+    - path: setup.ps1
+      description: "Install Rust components"
+
+# After (inline command)
+commands:
+  post_install:
+    - run: rustup default stable
+      description: "Set stable as default toolchain"
+    - run: cargo install cargo-watch
+      description: "Install cargo-watch"
+      when:
+        type: command_exists
+        command: cargo
+```
+
+Note: `scripts.health_check` follows a separate deprecation path (see §5.1.1).
+
+### 5.1.3 Command Execution Semantics
+
+Commands defined in `commands.pre_install` and `commands.post_install` are executed inline during the install flow.
+
+**Execution rules:**
+- Commands run sequentially in the order defined
+- Default behavior: **stop on first failure** (non-zero exit code)
+- `continue_on_error: true` overrides this per-command
+- Commands with `when:` conditions are evaluated before execution; if the condition fails, the command is skipped
+
+**Output handling:**
+- stdout and stderr are captured and included in reports
+- In verbose mode (`-v`), output is streamed in real-time
+- In quiet mode (`-q`), output is suppressed unless the command fails
+
+**Timeout behavior:**
+- Default timeout: 300 seconds
+- On timeout: process is terminated (SIGTERM on Unix, TerminateProcess on Windows)
+- Timed-out commands are reported as failures
+
+**Elevated commands:**
+- Commands with `elevated: true` require admin privileges
+- On Windows: validated via `whoami /priv` or equivalent before attempting
+- If elevation is unavailable, the command fails with a clear error message
+
+**Exit codes:**
+- Exit code 0 = success
+- Any non-zero exit code = failure (unless `continue_on_error: true`)
+
 ### 5.2 Example Workloads
 
 #### 5.2.1 Essentials Workload

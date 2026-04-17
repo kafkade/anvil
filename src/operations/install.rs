@@ -161,6 +161,45 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         }
     }
 
+    // Deprecation warning: scripts alongside commands
+    if let (Some(commands), Some(scripts)) = (&workload.commands, &workload.scripts) {
+        let has_cmd_pre = commands
+            .pre_install
+            .as_ref()
+            .map(|c| !c.is_empty())
+            .unwrap_or(false);
+        let has_script_pre = scripts
+            .pre_install
+            .as_ref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
+        if has_cmd_pre && has_script_pre {
+            print_warning(
+                "Deprecation notice: `scripts.pre_install` is deprecated when used alongside \
+                 `commands.pre_install`. Migrate scripts to inline commands. \
+                 See docs/SPECIFICATION.md for details.",
+            );
+        }
+
+        let has_cmd_post = commands
+            .post_install
+            .as_ref()
+            .map(|c| !c.is_empty())
+            .unwrap_or(false);
+        let has_script_post = scripts
+            .post_install
+            .as_ref()
+            .map(|s| !s.is_empty())
+            .unwrap_or(false);
+        if has_cmd_post && has_script_post {
+            print_warning(
+                "Deprecation notice: `scripts.post_install` is deprecated when used alongside \
+                 `commands.post_install`. Migrate scripts to inline commands. \
+                 See docs/SPECIFICATION.md for details.",
+            );
+        }
+    }
+
     if !args.force && !args.dry_run && !confirm_installation(&workload)? {
         print_info("Installation cancelled by user");
         return Ok(());
@@ -168,6 +207,13 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
 
     // Initialize installation state
     let mut state = InstallationState::new(&workload.name, &workload.version);
+
+    // Run pre-install commands (skip if files_only)
+    let pre_cmd_summary = if !args.files_only {
+        run_pre_install_commands(&context, args)?
+    } else {
+        crate::commands::CommandSummary::new()
+    };
 
     // Run pre-installation scripts (skip if files_only)
     let mut pre_script_summary = ScriptExecutionSummary::new();
@@ -188,14 +234,24 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         copy_files(&context, args)?;
     }
 
+    // Run post-install commands (skip if packages_only or files_only)
+    let post_cmd_summary = if !args.packages_only && !args.files_only {
+        run_post_install_commands(&context, args)?
+    } else {
+        crate::commands::CommandSummary::new()
+    };
+
     // Run post-installation scripts (skip if files_only)
     let mut post_script_summary = ScriptExecutionSummary::new();
     if !args.skip_scripts && !args.skip_post_scripts && !args.packages_only && !args.files_only {
         post_script_summary = run_post_install_scripts(&context, args)?;
     }
 
-    // Check if any scripts require reboot
+    // Check if any scripts or commands require reboot
     if pre_script_summary.requires_reboot || post_script_summary.requires_reboot {
+        summary.reboot_required = true;
+    }
+    if pre_cmd_summary.requires_reboot || post_cmd_summary.requires_reboot {
         summary.reboot_required = true;
     }
 
@@ -481,6 +537,110 @@ fn confirm_installation(workload: &Workload) -> Result<bool> {
     io::stdin().read_line(&mut input)?;
 
     Ok(input.trim().eq_ignore_ascii_case("y") || input.trim().eq_ignore_ascii_case("yes"))
+}
+
+/// Run pre-install inline commands
+fn run_pre_install_commands(
+    context: &OperationContext,
+    _args: &InstallArgs,
+) -> Result<crate::commands::CommandSummary> {
+    let commands = match &context.workload.commands {
+        Some(c) => c.pre_install.as_ref(),
+        None => return Ok(crate::commands::CommandSummary::new()),
+    };
+
+    let commands = match commands {
+        Some(c) if !c.is_empty() => c,
+        _ => return Ok(crate::commands::CommandSummary::new()),
+    };
+
+    if context.verbosity >= 1 {
+        println!();
+        print_info(&format!(
+            "Running {} pre-install command(s)...",
+            commands.len()
+        ));
+    }
+
+    let summary = crate::commands::execute_commands(
+        commands,
+        "pre_install",
+        context.verbosity >= 2,
+        context.dry_run,
+    );
+
+    if context.verbosity >= 1 {
+        print_command_summary(&summary, "Pre-install");
+    }
+
+    if !summary.is_successful() {
+        print_warning("Pre-install commands had failures");
+    }
+
+    Ok(summary)
+}
+
+/// Run post-install inline commands
+fn run_post_install_commands(
+    context: &OperationContext,
+    _args: &InstallArgs,
+) -> Result<crate::commands::CommandSummary> {
+    let commands = match &context.workload.commands {
+        Some(c) => c.post_install.as_ref(),
+        None => return Ok(crate::commands::CommandSummary::new()),
+    };
+
+    let commands = match commands {
+        Some(c) if !c.is_empty() => c,
+        _ => return Ok(crate::commands::CommandSummary::new()),
+    };
+
+    if context.verbosity >= 1 {
+        println!();
+        print_info(&format!(
+            "Running {} post-install command(s)...",
+            commands.len()
+        ));
+    }
+
+    let summary = crate::commands::execute_commands(
+        commands,
+        "post_install",
+        context.verbosity >= 2,
+        context.dry_run,
+    );
+
+    if context.verbosity >= 1 {
+        print_command_summary(&summary, "Post-install");
+    }
+
+    if !summary.is_successful() {
+        print_warning("Post-install commands had failures");
+    }
+
+    Ok(summary)
+}
+
+/// Print a brief command execution summary
+fn print_command_summary(summary: &crate::commands::CommandSummary, phase: &str) {
+    if summary.total == 0 {
+        return;
+    }
+
+    if summary.is_successful() {
+        print_success(&format!(
+            "{} commands complete ({} succeeded, {} skipped, {:.1}s total)",
+            phase,
+            summary.succeeded,
+            summary.skipped,
+            summary.total_duration.as_secs_f64()
+        ));
+    } else {
+        print_warning(&format!(
+            "{} commands: {} succeeded, {} failed, {} skipped",
+            phase, summary.succeeded, summary.failed, summary.skipped
+        ));
+    }
 }
 
 /// Run pre-installation scripts with enhanced output and tracking
