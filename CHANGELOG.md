@@ -22,9 +22,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Search precedence with conflict resolution: explicit path > user-configured > defaults; first match wins
 - `anvil list --all-paths` to show all discovered paths including shadowed duplicates
 - Cross-platform release builds for Linux (x86_64, aarch64), macOS (x86_64, aarch64), and Windows (x86_64)
+- Documentation website powered by mdBook, served at [anvil.kafkade.com](https://anvil.kafkade.com)
 
 ### Changed
 - Crate renamed to `anvil-cli` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-cli`)
+- Tracing/log output now writes to stderr instead of stdout, preventing pollution of structured output (JSON, YAML)
+
+### Fixed
+- Integration tests no longer fail on Linux and macOS due to winget-dependent tests running on non-Windows platforms
 
 ### Deprecated
 - `scripts.health_check` when used alongside `assertions` (migrate to declarative assertions; removal planned for v1.0)
