@@ -6,7 +6,7 @@
 use anyhow::{Context, Result};
 use std::path::Path;
 
-use super::workload::Workload;
+use super::workload::{Packages, Workload};
 
 /// Validation severity levels
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -345,6 +345,94 @@ impl SchemaValidator {
                     }
                 }
             }
+
+            // Validate brew packages
+            if let Some(brew_packages) = &packages.brew {
+                for (i, package) in brew_packages.iter().enumerate() {
+                    let path = format!("packages.brew[{}]", i);
+
+                    if package.name.is_empty() {
+                        result.add_error(format!("{}.name", path), "Package name is required");
+                    }
+
+                    // Validate tap format if provided (must be "owner/repo")
+                    if let Some(ref tap) = package.tap {
+                        if !is_valid_brew_tap(tap) {
+                            result.add_warning(
+                                format!("{}.tap", path),
+                                format!(
+                                    "Tap '{}' may not be valid. Expected format: 'owner/repo'",
+                                    tap
+                                ),
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Validate apt packages
+            if let Some(apt_packages) = &packages.apt {
+                for (i, package) in apt_packages.iter().enumerate() {
+                    let path = format!("packages.apt[{}]", i);
+
+                    if package.name.is_empty() {
+                        result.add_error(format!("{}.name", path), "Package name is required");
+                    }
+
+                    // Validate version string if provided
+                    if let Some(ref version) = package.version {
+                        if version.is_empty() {
+                            result.add_warning(
+                                format!("{}.version", path),
+                                "Version string is empty, will install latest",
+                            );
+                        }
+                    }
+                }
+            }
+
+            // Check platform availability
+            self.validate_manager_availability(packages, result);
+        }
+    }
+
+    /// Warn if workload references package managers not available on the current platform
+    fn validate_manager_availability(&self, packages: &Packages, result: &mut ValidationResult) {
+        if cfg!(target_os = "windows") {
+            if packages
+                .brew
+                .as_ref()
+                .map(|b| !b.is_empty())
+                .unwrap_or(false)
+            {
+                result.add_warning(
+                    "packages.brew",
+                    "Homebrew packages defined but Homebrew is not available on Windows",
+                );
+            }
+            if packages
+                .apt
+                .as_ref()
+                .map(|a| !a.is_empty())
+                .unwrap_or(false)
+            {
+                result.add_warning(
+                    "packages.apt",
+                    "APT packages defined but APT is not available on Windows",
+                );
+            }
+        }
+        if !cfg!(target_os = "windows")
+            && packages
+                .winget
+                .as_ref()
+                .map(|w| !w.is_empty())
+                .unwrap_or(false)
+        {
+            result.add_warning(
+                "packages.winget",
+                "Winget packages defined but winget is only available on Windows",
+            );
         }
     }
 
@@ -832,9 +920,19 @@ fn is_valid_env_var_name(name: &str) -> bool {
     name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_')
 }
 
+/// Check if a Homebrew tap identifier is valid (format: "owner/repo")
+fn is_valid_brew_tap(tap: &str) -> bool {
+    if tap.is_empty() {
+        return false;
+    }
+    let parts: Vec<&str> = tap.split('/').collect();
+    parts.len() == 2 && !parts[0].is_empty() && !parts[1].is_empty()
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::workload::{AptPackage, BrewPackage};
 
     // Workload name tests
     #[test]
@@ -1020,5 +1118,156 @@ mod tests {
         let result = validator.validate(&workload);
         assert!(result.is_valid()); // Invalid format is just a warning
         assert!(result.warning_count() > 0);
+    }
+
+    #[test]
+    fn test_validate_brew_packages_valid() {
+        let mut workload = Workload::new("test-workload", "1.0.0", "A test workload");
+        workload.packages = Some(Packages {
+            winget: None,
+            brew: Some(vec![
+                BrewPackage {
+                    name: "git".to_string(),
+                    cask: false,
+                    tap: None,
+                },
+                BrewPackage {
+                    name: "visual-studio-code".to_string(),
+                    cask: true,
+                    tap: Some("homebrew/cask".to_string()),
+                },
+            ]),
+            apt: None,
+        });
+
+        let validator = SchemaValidator::new();
+        let result = validator.validate(&workload);
+        // No errors expected (warnings about platform availability are ok)
+        assert!(result.is_valid());
+    }
+
+    #[test]
+    fn test_validate_brew_empty_name() {
+        let mut workload = Workload::new("test-workload", "1.0.0", "A test workload");
+        workload.packages = Some(Packages {
+            winget: None,
+            brew: Some(vec![BrewPackage {
+                name: "".to_string(),
+                cask: false,
+                tap: None,
+            }]),
+            apt: None,
+        });
+
+        let validator = SchemaValidator::new();
+        let result = validator.validate(&workload);
+        assert!(!result.is_valid());
+        assert!(result
+            .errors()
+            .any(|e| e.path.contains("brew") && e.message.contains("name")));
+    }
+
+    #[test]
+    fn test_validate_brew_invalid_tap() {
+        let mut workload = Workload::new("test-workload", "1.0.0", "A test workload");
+        workload.packages = Some(Packages {
+            winget: None,
+            brew: Some(vec![BrewPackage {
+                name: "font-fira-code".to_string(),
+                cask: true,
+                tap: Some("invalid-tap".to_string()),
+            }]),
+            apt: None,
+        });
+
+        let validator = SchemaValidator::new();
+        let result = validator.validate(&workload);
+        assert!(result.is_valid()); // Invalid tap is a warning, not error
+        assert!(result
+            .warnings()
+            .any(|w| w.path.contains("tap") && w.message.contains("owner/repo")));
+    }
+
+    #[test]
+    fn test_validate_apt_packages_valid() {
+        let mut workload = Workload::new("test-workload", "1.0.0", "A test workload");
+        workload.packages = Some(Packages {
+            winget: None,
+            brew: None,
+            apt: Some(vec![
+                AptPackage {
+                    name: "git".to_string(),
+                    version: None,
+                },
+                AptPackage {
+                    name: "build-essential".to_string(),
+                    version: Some("12.9".to_string()),
+                },
+            ]),
+        });
+
+        let validator = SchemaValidator::new();
+        let result = validator.validate(&workload);
+        assert!(result.is_valid());
+    }
+
+    #[test]
+    fn test_validate_apt_empty_name() {
+        let mut workload = Workload::new("test-workload", "1.0.0", "A test workload");
+        workload.packages = Some(Packages {
+            winget: None,
+            brew: None,
+            apt: Some(vec![AptPackage {
+                name: "".to_string(),
+                version: None,
+            }]),
+        });
+
+        let validator = SchemaValidator::new();
+        let result = validator.validate(&workload);
+        assert!(!result.is_valid());
+        assert!(result
+            .errors()
+            .any(|e| e.path.contains("apt") && e.message.contains("name")));
+    }
+
+    #[test]
+    fn test_validate_manager_availability_on_windows() {
+        let mut workload = Workload::new("test-workload", "1.0.0", "A test workload");
+        workload.packages = Some(Packages {
+            winget: None,
+            brew: Some(vec![BrewPackage {
+                name: "git".to_string(),
+                cask: false,
+                tap: None,
+            }]),
+            apt: Some(vec![AptPackage {
+                name: "git".to_string(),
+                version: None,
+            }]),
+        });
+
+        let validator = SchemaValidator::new();
+        let result = validator.validate(&workload);
+
+        if cfg!(target_os = "windows") {
+            assert!(result.warnings().any(
+                |w| w.path == "packages.brew" && w.message.contains("not available on Windows")
+            ));
+            assert!(result.warnings().any(
+                |w| w.path == "packages.apt" && w.message.contains("not available on Windows")
+            ));
+        }
+    }
+
+    #[test]
+    fn test_validate_brew_tap_format() {
+        assert!(is_valid_brew_tap("homebrew/cask"));
+        assert!(is_valid_brew_tap("homebrew/cask-fonts"));
+        assert!(is_valid_brew_tap("user/repo"));
+        assert!(!is_valid_brew_tap(""));
+        assert!(!is_valid_brew_tap("invalid"));
+        assert!(!is_valid_brew_tap("/empty-owner"));
+        assert!(!is_valid_brew_tap("empty-repo/"));
     }
 }

@@ -15,6 +15,7 @@ pub mod winget;
 pub use filesystem::FilesystemProvider;
 pub use winget::WingetProvider;
 
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Errors that can occur in providers
@@ -127,5 +128,316 @@ impl ProviderConfig {
     pub fn with_retries(mut self, count: u32) -> Self {
         self.retry_count = count;
         self
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Package-manager abstraction layer
+// ---------------------------------------------------------------------------
+
+/// A package specification that is manager-agnostic.
+/// Each package manager can interpret these fields as needed.
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct PackageSpec {
+    /// Package identifier (e.g. "Git.Git" for winget, "git" for brew)
+    pub id: String,
+    /// Specific version to install (None = latest)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
+    /// Package source or tap
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source: Option<String>,
+}
+
+/// Result of installing a package
+#[allow(dead_code)]
+#[derive(Debug, Clone)]
+pub struct PackageInstallResult {
+    /// Package that was installed
+    pub package_id: String,
+    /// Whether the installation succeeded
+    pub success: bool,
+    /// Whether the package was already installed (no-op)
+    pub already_installed: bool,
+    /// Version that was installed
+    pub installed_version: Option<String>,
+    /// Whether a reboot is required
+    pub needs_reboot: bool,
+    /// Human-readable message
+    pub message: String,
+}
+
+/// Information about an installed package
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize)]
+pub struct InstalledPackage {
+    /// Package identifier
+    pub id: String,
+    /// Installed version
+    pub version: Option<String>,
+    /// Available version (if upgrade available)
+    pub available_version: Option<String>,
+    /// Package source
+    pub source: Option<String>,
+}
+
+/// Trait abstracting a system package manager (winget, brew, apt, etc.)
+///
+/// Implementations provide package installation, querying, and listing
+/// capabilities. Only `winget` is implemented today; `brew` and `apt`
+/// are planned for future cross-platform support.
+#[allow(dead_code)]
+pub trait PackageManager: Send + Sync {
+    /// Return the manager's human-readable name (e.g., "winget", "brew", "apt")
+    fn name(&self) -> &str;
+
+    /// Check whether the manager binary is available on this system
+    fn is_available(&self) -> bool;
+
+    /// Install a package from a specification
+    fn install(&self, package: &PackageSpec) -> Result<PackageInstallResult, ProviderError>;
+
+    /// Check whether a package is installed, returning its version if so
+    fn is_installed(&self, package_id: &str) -> Result<Option<String>, ProviderError>;
+
+    /// List all packages managed by this provider
+    fn list_installed(&self) -> Result<Vec<InstalledPackage>, ProviderError>;
+}
+
+/// Registry of available package managers.
+/// At runtime, managers are detected and only available ones are used.
+#[allow(dead_code)]
+pub struct PackageManagerRegistry {
+    managers: Vec<Box<dyn PackageManager>>,
+}
+
+#[allow(dead_code)]
+impl PackageManagerRegistry {
+    /// Create a new registry with no managers
+    pub fn new() -> Self {
+        Self {
+            managers: Vec::new(),
+        }
+    }
+
+    /// Register a package manager
+    pub fn register(&mut self, manager: Box<dyn PackageManager>) {
+        self.managers.push(manager);
+    }
+
+    /// Get a manager by name
+    pub fn get(&self, name: &str) -> Option<&dyn PackageManager> {
+        self.managers
+            .iter()
+            .find(|m| m.name() == name)
+            .map(|m| m.as_ref())
+    }
+
+    /// Get all available managers (those whose is_available() returns true)
+    pub fn available(&self) -> Vec<&dyn PackageManager> {
+        self.managers
+            .iter()
+            .filter(|m| m.is_available())
+            .map(|m| m.as_ref())
+            .collect()
+    }
+
+    /// Get all registered manager names
+    pub fn registered_names(&self) -> Vec<&str> {
+        self.managers.iter().map(|m| m.name()).collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// Mock package manager for testing the trait and registry.
+    struct MockManager {
+        manager_name: String,
+        available: bool,
+        packages: Vec<InstalledPackage>,
+    }
+
+    impl MockManager {
+        fn new(name: &str, available: bool) -> Self {
+            Self {
+                manager_name: name.to_string(),
+                available,
+                packages: Vec::new(),
+            }
+        }
+
+        fn with_package(mut self, id: &str, version: &str) -> Self {
+            self.packages.push(InstalledPackage {
+                id: id.to_string(),
+                version: Some(version.to_string()),
+                available_version: None,
+                source: None,
+            });
+            self
+        }
+    }
+
+    impl PackageManager for MockManager {
+        fn name(&self) -> &str {
+            &self.manager_name
+        }
+
+        fn is_available(&self) -> bool {
+            self.available
+        }
+
+        fn install(&self, package: &PackageSpec) -> Result<PackageInstallResult, ProviderError> {
+            Ok(PackageInstallResult {
+                package_id: package.id.clone(),
+                success: true,
+                already_installed: false,
+                installed_version: package.version.clone(),
+                needs_reboot: false,
+                message: format!("Installed {}", package.id),
+            })
+        }
+
+        fn is_installed(&self, package_id: &str) -> Result<Option<String>, ProviderError> {
+            Ok(self
+                .packages
+                .iter()
+                .find(|p| p.id == package_id)
+                .and_then(|p| p.version.clone()))
+        }
+
+        fn list_installed(&self) -> Result<Vec<InstalledPackage>, ProviderError> {
+            Ok(self.packages.clone())
+        }
+    }
+
+    // -- PackageSpec tests --
+
+    #[test]
+    fn test_package_spec_creation() {
+        let spec = PackageSpec {
+            id: "Git.Git".to_string(),
+            version: Some("2.42.0".to_string()),
+            source: None,
+        };
+        assert_eq!(spec.id, "Git.Git");
+        assert_eq!(spec.version.as_deref(), Some("2.42.0"));
+        assert!(spec.source.is_none());
+    }
+
+    #[test]
+    fn test_package_spec_serde_roundtrip_full() {
+        let spec = PackageSpec {
+            id: "Git.Git".to_string(),
+            version: Some("2.42.0".to_string()),
+            source: Some("winget".to_string()),
+        };
+        let json = serde_json::to_string(&spec).unwrap();
+        let deserialized: PackageSpec = serde_json::from_str(&json).unwrap();
+        assert_eq!(deserialized.id, "Git.Git");
+        assert_eq!(deserialized.version.as_deref(), Some("2.42.0"));
+        assert_eq!(deserialized.source.as_deref(), Some("winget"));
+    }
+
+    #[test]
+    fn test_package_spec_serde_roundtrip_minimal() {
+        let json = r#"{"id":"ripgrep"}"#;
+        let spec: PackageSpec = serde_json::from_str(json).unwrap();
+        assert_eq!(spec.id, "ripgrep");
+        assert!(spec.version.is_none());
+        assert!(spec.source.is_none());
+
+        // Re-serialize should omit None fields
+        let reserialized = serde_json::to_string(&spec).unwrap();
+        assert!(!reserialized.contains("version"));
+        assert!(!reserialized.contains("source"));
+    }
+
+    // -- PackageManagerRegistry tests --
+
+    #[test]
+    fn test_registry_empty() {
+        let registry = PackageManagerRegistry::new();
+        assert!(registry.get("winget").is_none());
+        assert!(registry.available().is_empty());
+        assert!(registry.registered_names().is_empty());
+    }
+
+    #[test]
+    fn test_registry_register_and_get() {
+        let mut registry = PackageManagerRegistry::new();
+        registry.register(Box::new(MockManager::new("winget", true)));
+        registry.register(Box::new(MockManager::new("brew", false)));
+
+        assert!(registry.get("winget").is_some());
+        assert_eq!(registry.get("winget").unwrap().name(), "winget");
+        assert!(registry.get("brew").is_some());
+        assert!(registry.get("apt").is_none());
+    }
+
+    #[test]
+    fn test_registry_available_filters_unavailable() {
+        let mut registry = PackageManagerRegistry::new();
+        registry.register(Box::new(MockManager::new("winget", true)));
+        registry.register(Box::new(MockManager::new("brew", false)));
+        registry.register(Box::new(MockManager::new("apt", true)));
+
+        let available = registry.available();
+        assert_eq!(available.len(), 2);
+        let names: Vec<&str> = available.iter().map(|m| m.name()).collect();
+        assert!(names.contains(&"winget"));
+        assert!(names.contains(&"apt"));
+        assert!(!names.contains(&"brew"));
+    }
+
+    #[test]
+    fn test_registry_registered_names() {
+        let mut registry = PackageManagerRegistry::new();
+        registry.register(Box::new(MockManager::new("winget", true)));
+        registry.register(Box::new(MockManager::new("brew", false)));
+
+        let names = registry.registered_names();
+        assert_eq!(names, vec!["winget", "brew"]);
+    }
+
+    // -- Mock PackageManager behaviour --
+
+    #[test]
+    fn test_mock_install() {
+        let manager = MockManager::new("test", true);
+        let spec = PackageSpec {
+            id: "Pkg.Test".to_string(),
+            version: Some("1.0.0".to_string()),
+            source: None,
+        };
+        let result = manager.install(&spec).unwrap();
+        assert!(result.success);
+        assert!(!result.already_installed);
+        assert_eq!(result.package_id, "Pkg.Test");
+        assert_eq!(result.installed_version.as_deref(), Some("1.0.0"));
+    }
+
+    #[test]
+    fn test_mock_is_installed() {
+        let manager = MockManager::new("test", true).with_package("Git.Git", "2.42.0");
+        assert_eq!(
+            manager.is_installed("Git.Git").unwrap().as_deref(),
+            Some("2.42.0")
+        );
+        assert!(manager.is_installed("Unknown.Pkg").unwrap().is_none());
+    }
+
+    #[test]
+    fn test_mock_list_installed() {
+        let manager = MockManager::new("test", true)
+            .with_package("Git.Git", "2.42.0")
+            .with_package("Rustlang.Rust", "1.75.0");
+
+        let packages = manager.list_installed().unwrap();
+        assert_eq!(packages.len(), 2);
+        assert_eq!(packages[0].id, "Git.Git");
+        assert_eq!(packages[1].id, "Rustlang.Rust");
     }
 }

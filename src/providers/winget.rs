@@ -9,7 +9,10 @@ use std::time::{Duration, Instant};
 
 use thiserror::Error;
 
-use super::{ProviderConfig, ProviderStatus};
+use super::{
+    InstalledPackage as SharedInstalledPackage, PackageInstallResult, PackageManager, PackageSpec,
+    ProviderConfig, ProviderError, ProviderStatus,
+};
 use crate::config::workload::WingetPackage;
 
 /// Winget exit codes
@@ -1023,6 +1026,71 @@ impl ProviderStatus for WingetProvider {
     }
 }
 
+impl PackageManager for WingetProvider {
+    fn name(&self) -> &str {
+        "winget"
+    }
+
+    fn is_available(&self) -> bool {
+        <Self as ProviderStatus>::is_available(self)
+    }
+
+    fn install(&self, package: &PackageSpec) -> Result<PackageInstallResult, ProviderError> {
+        let winget_package = WingetPackage {
+            id: package.id.clone(),
+            version: package.version.clone(),
+            source: package.source.clone(),
+            override_args: None,
+            override_str: None,
+        };
+
+        // Delegate to the inherent install method (takes &WingetPackage)
+        match self.install(&winget_package) {
+            Ok(result) => {
+                let already_installed = matches!(
+                    result.exit_code,
+                    exit_codes::ALREADY_INSTALLED
+                        | exit_codes::ALREADY_INSTALLED_FRIENDLY
+                        | exit_codes::NO_APPLICABLE_INSTALLER
+                        | exit_codes::NO_APPLICABLE_INSTALLER_FRIENDLY
+                ) || result
+                    .message
+                    .as_deref()
+                    .is_some_and(|m| m.contains("already installed"));
+
+                Ok(PackageInstallResult {
+                    package_id: package.id.clone(),
+                    success: result.success,
+                    already_installed,
+                    installed_version: result.installed_version.clone(),
+                    needs_reboot: result.reboot_required,
+                    message: result.message.unwrap_or_default(),
+                })
+            }
+            Err(e) => Err(ProviderError::Winget(e)),
+        }
+    }
+
+    fn is_installed(&self, package_id: &str) -> Result<Option<String>, ProviderError> {
+        self.get_installed_version(package_id)
+            .map_err(ProviderError::Winget)
+    }
+
+    fn list_installed(&self) -> Result<Vec<SharedInstalledPackage>, ProviderError> {
+        // Delegate to the inherent list_installed (returns winget::InstalledPackage)
+        let packages = WingetProvider::list_installed(self).map_err(ProviderError::Winget)?;
+        Ok(packages
+            .into_iter()
+            .map(|p| SharedInstalledPackage {
+                id: p.id,
+                version: Some(p.version),
+                available_version: p.available_version,
+                source: p.source,
+            })
+            .collect())
+    }
+}
+
 /// Information about the winget installation
 #[derive(Debug, Clone)]
 pub struct WingetInfo {
@@ -1502,7 +1570,7 @@ mod tests {
     #[test]
     fn test_provider_name() {
         let provider = WingetProvider::new();
-        assert_eq!(provider.name(), "winget");
+        assert_eq!(ProviderStatus::name(&provider), "winget");
     }
 
     #[test]
@@ -1530,5 +1598,63 @@ mod tests {
     fn test_exit_codes() {
         assert_eq!(exit_codes::SUCCESS, 0);
         assert_eq!(exit_codes::ALREADY_INSTALLED, -1978335215);
+    }
+
+    // -- PackageManager trait tests --
+
+    #[test]
+    fn test_package_manager_name() {
+        let provider = WingetProvider::new();
+        assert_eq!(PackageManager::name(&provider), "winget");
+    }
+
+    #[test]
+    fn test_winget_provider_implements_package_manager() {
+        // Compile-time check: WingetProvider can be used as a dyn PackageManager
+        fn _assert_package_manager(_pm: &dyn PackageManager) {}
+        let provider = WingetProvider::new();
+        _assert_package_manager(&provider);
+    }
+
+    #[test]
+    fn test_package_spec_to_winget_package_conversion() {
+        // Verify that a PackageSpec can be used with the PackageManager::install interface
+        // by checking that the conversion logic in the trait impl is coherent
+        let spec = PackageSpec {
+            id: "Git.Git".to_string(),
+            version: Some("2.42.0".to_string()),
+            source: Some("winget".to_string()),
+        };
+
+        // Simulate the conversion done inside PackageManager::install
+        let winget_package = WingetPackage {
+            id: spec.id.clone(),
+            version: spec.version.clone(),
+            source: spec.source.clone(),
+            override_args: None,
+            override_str: None,
+        };
+
+        assert_eq!(winget_package.id, "Git.Git");
+        assert_eq!(winget_package.version, Some("2.42.0".to_string()));
+        assert_eq!(winget_package.source, Some("winget".to_string()));
+        assert!(winget_package.override_args.is_none());
+        assert!(winget_package.override_str.is_none());
+    }
+
+    #[test]
+    fn test_package_manager_is_available_delegates_to_provider_status() {
+        let provider = WingetProvider::new();
+        // Both traits should return the same result
+        let pm_result = PackageManager::is_available(&provider);
+        let ps_result = ProviderStatus::is_available(&provider);
+        assert_eq!(pm_result, ps_result);
+    }
+
+    #[test]
+    fn test_winget_provider_is_send_and_sync() {
+        // PackageManager requires Send + Sync; verify WingetProvider satisfies this
+        fn _assert_send_sync<T: Send + Sync>() {}
+        _assert_send_sync::<WingetProvider>();
     }
 }

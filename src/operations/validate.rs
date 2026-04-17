@@ -678,6 +678,47 @@ fn print_json_schema() -> Result<()> {
               }
             }
           }
+        },
+        "brew": {
+          "type": "array",
+          "description": "Homebrew packages (macOS/Linux)",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "Homebrew formula or cask name (e.g., 'git', 'visual-studio-code')"
+              },
+              "cask": {
+                "type": "boolean",
+                "default": false,
+                "description": "Whether this is a cask (GUI app) vs formula (CLI tool)"
+              },
+              "tap": {
+                "type": "string",
+                "description": "Tap source (e.g., 'homebrew/cask-fonts')"
+              }
+            }
+          }
+        },
+        "apt": {
+          "type": "array",
+          "description": "APT packages (Debian/Ubuntu)",
+          "items": {
+            "type": "object",
+            "required": ["name"],
+            "properties": {
+              "name": {
+                "type": "string",
+                "description": "APT package name (e.g., 'git', 'build-essential')"
+              },
+              "version": {
+                "type": "string",
+                "description": "Specific version constraint"
+              }
+            }
+          }
         }
       }
     },
