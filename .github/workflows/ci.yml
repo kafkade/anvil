@@ -11,8 +11,8 @@ env:
   RUST_BACKTRACE: 1
 
 jobs:
-  check:
-    name: Check
+  validate:
+    name: Validate
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -40,41 +40,16 @@ jobs:
       - name: Clippy
         run: cargo clippy --all-targets --all-features -- -D warnings
 
-      - name: Check
-        run: cargo check --all-features
-
-  test:
-    name: Test
-    runs-on: windows-latest
-    needs: check
-    steps:
-      - uses: actions/checkout@v4
-
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
-
       - name: Run unit tests
-        run: cargo test --lib --all-features
+        run: cargo test --bin anvil --all-features
 
       - name: Run integration tests
-        run: cargo test --test '*' --all-features
+        run: cargo test --test cli_tests --all-features
 
   build:
     name: Build
     runs-on: windows-latest
-    needs: test
+    needs: validate
     steps:
       - uses: actions/checkout@v4
 

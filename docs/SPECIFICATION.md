@@ -1,10 +1,10 @@
-# Anvil - Windows Workstation Configuration Management System
+# Anvil - Declarative Workstation Configuration Management
 
 ## Specification Document
 
-**Version:** 1.0.0  
-**Status:** Draft  
-**Last Updated:** 2025-01-15
+**Version:** 2.0.0  
+**Status:** Active  
+**Last Updated:** 2026-04-16
 
 ---
 
@@ -26,7 +26,7 @@
 
 ### 1.1 Purpose
 
-Anvil is a Windows workstation configuration management system designed to automate the setup and validation of development environments. It provides a declarative approach to defining workstation configurations ("workloads") and offers both installation and health-check capabilities.
+Anvil is a declarative workstation configuration management tool designed to automate the setup and validation of development environments. It provides a declarative approach to defining workstation configurations ("workloads") and offers both installation and health-check capabilities. Anvil currently targets Windows with winget as the primary package manager, with cross-platform support (Homebrew, APT) on the roadmap.
 
 ### 1.2 Core Modes of Operation
 
@@ -975,193 +975,174 @@ A extends B extends C extends A  →  ERROR: Circular dependency detected
 
 ---
 
-## 8. Implementation Roadmap
+## 8. Roadmap
 
-### 8.1 Phase Overview
+Phases 1–6 of the original implementation are complete. This section describes the forward-looking roadmap for Anvil, organized by milestone.
+
+### 8.1 Overview
 
 ```
-Phase 1: Foundation (Week 1-2)
+v0.4 — Declarative Assertions
     │
-    ├── Project scaffolding
-    ├── CLI framework setup
-    ├── Configuration parsing
-    └── Basic workload validation
-    
-Phase 2: Core Operations (Week 3-4)
+    ├── Reusable condition/predicate engine
+    ├── assertions: YAML schema
+    ├── Integration with health command
+    └── Backward compatibility with scripts.health_check
+
+v0.5 — Package Manager Abstraction
     │
-    ├── Winget provider
-    ├── Package installation
-    ├── Basic health checks
-    └── Console output formatting
-    
-Phase 3: File Management (Week 5-6)
+    ├── PackageManager trait
+    ├── WingetProvider adapter
+    └── Schema design for multi-manager support
+
+v0.6 — Commands Block
     │
-    ├── Filesystem provider
-    ├── File copying with backup
-    ├── Hash-based comparison
-    └── Variable expansion
-    
-Phase 4: Script Execution (Week 7-8)
+    ├── commands: YAML schema
+    ├── Conditional execution (when:)
+    ├── Failure semantics
+    └── Backward compatibility with scripts.post_install
+
+v0.7 — Workload Discovery & Separation
     │
-    ├── Script provider
-    ├── PowerShell integration
-    ├── Pre/post install hooks
-    └── Health check scripts
-    
-Phase 5: Advanced Features (Week 9-10)
+    ├── Wire search_paths through ConfigManager
+    ├── Search precedence and conflict resolution
+    └── Private workload repository pattern
+
+v1.0 — Polish & Distribution
     │
-    ├── Workload inheritance
-    ├── Multiple output formats
-    ├── Backup/restore
-    └── Shell completions
-    
-Phase 6: Polish & Release (Week 11-12)
-    │
-    ├── Documentation
-    ├── Integration tests
-    ├── CI/CD pipeline
-    └── Initial release
+    ├── crates.io publishing
+    ├── Cross-platform CI
+    └── Documentation review
 ```
 
-### 8.2 Phase 1: Foundation
+### 8.2 v0.4 — Declarative Assertions
 
-**Objectives:**
-- Set up Rust project structure
-- Implement CLI argument parsing
-- Create workload YAML parser
-- Implement schema validation
+**Goal:** Replace ~70% of PowerShell health-check scripts with declarative YAML assertions, evaluated natively in Rust.
 
-**Deliverables:**
-- [ ] `Cargo.toml` with dependencies
-- [ ] CLI structure with `clap`
-- [ ] Workload struct definitions with `serde`
-- [ ] YAML parsing with `serde_yaml`
-- [ ] Basic `list` and `show` commands
-- [ ] `validate` command
+**Before (current):**
+```yaml
+scripts:
+  health_check:
+    - path: health-check/check-rust.ps1
+      name: "Rust Toolchain"
+```
+Plus a 70-line PowerShell script.
 
-**Dependencies:**
-```toml
-[dependencies]
-clap = { version = "4", features = ["derive", "env"] }
-serde = { version = "1", features = ["derive"] }
-serde_yaml = "0.9"
-serde_json = "1"
-thiserror = "1"
-anyhow = "1"
+**After (proposed):**
+```yaml
+assertions:
+  - name: "Rust compiler"
+    check:
+      type: command_exists
+      command: rustc
+      min_version: "1.70"
+  - name: "Cargo config"
+    check:
+      type: file_exists
+      path: "~/.cargo/config.toml"
+  - name: "RUST_BACKTRACE set"
+    check:
+      type: env_var
+      name: RUST_BACKTRACE
+      value: "1"
 ```
 
-### 8.3 Phase 2: Core Operations
+**Assertion types:**
 
-**Objectives:**
-- Implement Winget provider
-- Create install operation workflow
-- Build basic health check functionality
-- Design console output formatting
+| Type | Parameters | Purpose |
+|------|-----------|---------|
+| `command_exists` | `command`, `min_version?` | Verify a CLI tool is installed |
+| `file_exists` | `path` | Verify a file exists |
+| `dir_exists` | `path` | Verify a directory exists |
+| `env_var` | `name`, `value?` | Verify an environment variable is set |
+| `path_contains` | `entry` | Verify PATH includes an entry |
+| `json_property` | `path`, `property`, `value` | Verify a JSON file property |
+| `registry_value` | `key`, `name`, `value` | Verify a Windows registry value |
+| `shell` | `command`, `expected_exit_code?` | Escape hatch — run a shell command |
+| `all_of` | `checks: [...]` | All sub-checks must pass (AND) |
+| `any_of` | `checks: [...]` | At least one sub-check must pass (OR) |
 
-**Deliverables:**
-- [ ] Winget command wrapper
-- [ ] Package installation logic
-- [ ] Package verification (is_installed, get_version)
-- [ ] `install` command (packages only)
-- [ ] `health` command (packages only)
-- [ ] Table output with `comfy-table`
+**Implementation:**
+- New module: `src/conditions/` — shared predicate engine reused by assertions and future `commands.when`
+- New module: `src/assertions/` — `Assertion` enum (tagged serde), `evaluate()` function
+- Update `src/config/workload.rs` — add `assertions` field to `Workload`
+- Update `src/operations/health.rs` — evaluate assertions alongside legacy `scripts.health_check`
+- **Backward compatible** — existing `scripts.health_check` continues to work
 
-**Dependencies:**
-```toml
-[dependencies]
-comfy-table = "7"
-indicatif = "0.17"        # Progress bars
-console = "0.15"          # Terminal colors/styling
+### 8.3 v0.5 — Package Manager Abstraction
+
+**Goal:** Introduce a `PackageManager` trait so the install flow is decoupled from winget, enabling future cross-platform support.
+
+**Proposed trait:**
+```rust
+pub trait PackageManager: Send + Sync {
+    fn name(&self) -> &str;
+    fn is_available(&self) -> bool;
+    fn install(&self, package: &PackageSpec) -> Result<InstallResult>;
+    fn is_installed(&self, package_id: &str) -> Result<Option<String>>;
+    fn list_installed(&self) -> Result<Vec<InstalledPackage>>;
+}
 ```
 
-### 8.4 Phase 3: File Management
-
-**Objectives:**
-- Implement filesystem provider
-- Add file copying with backup
-- Create hash-based file comparison
-- Support variable expansion in paths
-
-**Deliverables:**
-- [ ] File copy operations
-- [ ] SHA-256 hashing
-- [ ] Backup creation (timestamped)
-- [ ] Path variable expansion
-- [ ] File health checks
-- [ ] Extend `install` command for files
-- [ ] Extend `health` command for files
-
-**Dependencies:**
-```toml
-[dependencies]
-sha2 = "0.10"
-dirs = "5"                # Standard directories
-glob = "0.3"              # Glob pattern matching
+**Schema direction:**
+```yaml
+packages:
+  winget:
+    - id: Microsoft.VisualStudioCode
+  brew:
+    - id: visual-studio-code
+  apt:
+    - id: code
 ```
 
-### 8.5 Phase 4: Script Execution
+Anvil selects the available manager for the current platform. The v0.5 milestone implements the trait and refactors `WingetProvider` — other manager implementations are deferred.
 
-**Objectives:**
-- Implement script provider
-- Add PowerShell execution
-- Create pre/post install hooks
-- Add health check script execution
+### 8.4 v0.6 — Commands Block
 
-**Deliverables:**
-- [ ] PowerShell script executor
-- [ ] Elevated execution support
-- [ ] Timeout handling
-- [ ] Script output capture
-- [ ] Pre/post install integration
-- [ ] Health check script integration
+**Goal:** Replace post-install PowerShell scripts with inline commands that support conditional execution.
 
-**Key Implementation Notes:**
-- Use `std::process::Command` for script execution
-- Capture both stdout and stderr
-- Implement timeout with thread-based watchdog
-- Parse exit codes for success/failure determination
-
-### 8.6 Phase 5: Advanced Features
-
-**Objectives:**
-- Implement workload inheritance
-- Add multiple output formats
-- Create backup/restore functionality
-- Generate shell completions
-
-**Deliverables:**
-- [ ] Inheritance resolver
-- [ ] Circular dependency detection
-- [ ] JSON output format
-- [ ] YAML output format
-- [ ] HTML report generation
-- [ ] System backup before install
-- [ ] Restore from backup
-- [ ] Shell completions (PowerShell, bash, zsh, fish)
-
-**Dependencies:**
-```toml
-[dependencies]
-clap_complete = "4"
+**Proposed schema:**
+```yaml
+commands:
+  post_install:
+    - run: rustup default stable
+      description: "Set stable as default toolchain"
+    - run: cargo install cargo-watch
+      timeout: 900
+    - run: code --install-extension rust-lang.rust-analyzer
+      when:
+        command_exists: code
 ```
 
-### 8.7 Phase 6: Polish & Release
+**Failure semantics:**
+- Default: stop on first failure
+- `continue_on_error: true` to continue
+- Non-zero exit codes are errors unless `expected_exit_code` is set
+- Commands produce structured output for reporting
 
-**Objectives:**
-- Complete documentation
-- Write integration tests
-- Set up CI/CD
-- Prepare initial release
+The `when:` condition reuses the predicate engine from v0.4.
 
-**Deliverables:**
-- [ ] User guide documentation
-- [ ] Workload authoring guide
-- [ ] Troubleshooting guide
-- [ ] Integration test suite
-- [ ] GitHub Actions CI workflow
-- [ ] Release workflow (builds Windows binaries)
-- [ ] README with installation instructions
-- [ ] v0.1.0 release
+### 8.5 v0.7 — Workload Discovery & Separation
+
+**Goal:** Support multiple workload directories so private workloads live outside the main repo.
+
+**Current state:** `GlobalConfig` already has a `workloads.paths` field, but `ConfigManager` uses only `default_workload_paths()`. This milestone wires configured paths through all commands and defines precedence.
+
+**Search precedence:**
+1. Explicit path argument (highest priority)
+2. User-configured search paths (`~/.anvil/config.yaml`)
+3. Default paths (exe-relative, LOCALAPPDATA, cwd)
+
+Duplicate workload names produce a warning with the resolved path shown.
+
+### 8.6 v1.0 — Polish & Distribution
+
+**Goal:** Stable release with cross-platform CI and crates.io publishing.
+
+- Decide crate name (`anvil` is taken on crates.io — candidates: `anvil-cli`, `devsmith`, `forgekit`)
+- Cross-compilation CI for Windows, Linux, macOS
+- Comprehensive documentation review
+- First stable release
 
 ---
 
@@ -1300,6 +1281,7 @@ Write-Host "Rust development environment configured successfully!" -ForegroundCo
 
 | Version | Date | Author | Changes |
 |---------|------|--------|---------|
+| 2.0.0 | 2026-04-16 | Anvil Team | Rename to Anvil, updated roadmap (v0.4–v1.0) |
 | 1.0.0 | 2025-01-15 | Anvil Team | Initial specification |
 
 ---

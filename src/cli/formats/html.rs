@@ -264,7 +264,11 @@ impl HtmlFormatter {
             writer,
             "    <meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\">"
         )?;
-        writeln!(writer, "    <meta name=\"generator\" content=\"Anvil {}\">" , env!("CARGO_PKG_VERSION"))?;
+        writeln!(
+            writer,
+            "    <meta name=\"generator\" content=\"Anvil {}\">",
+            env!("CARGO_PKG_VERSION")
+        )?;
         writeln!(writer, "    <title>{}</title>", html_escape(title))?;
         writeln!(writer, "    <style>{}</style>", Self::css())?;
         writeln!(writer, "</head>")?;
@@ -278,7 +282,11 @@ impl HtmlFormatter {
             Utc::now().format("%Y-%m-%d %H:%M:%S UTC")
         )?;
         if !subtitle.is_empty() {
-            writeln!(writer, "    <p class=\"meta\">{}</p>", html_escape(subtitle))?;
+            writeln!(
+                writer,
+                "    <p class=\"meta\">{}</p>",
+                html_escape(subtitle)
+            )?;
         }
         writeln!(writer, "</header>")?;
         Ok(())
@@ -330,7 +338,10 @@ impl OutputFormatter for HtmlFormatter {
         // Summary cards
         writeln!(writer, "<div class=\"summary-cards\">")?;
         writeln!(writer, "    <div class=\"card\">")?;
-        writeln!(writer, "        <div class=\"card-title\">Total Workloads</div>")?;
+        writeln!(
+            writer,
+            "        <div class=\"card-title\">Total Workloads</div>"
+        )?;
         writeln!(
             writer,
             "        <div class=\"card-value info\">{}</div>",
@@ -340,7 +351,10 @@ impl OutputFormatter for HtmlFormatter {
 
         let total_packages: usize = workloads.iter().map(|w| w.package_count).sum();
         writeln!(writer, "    <div class=\"card\">")?;
-        writeln!(writer, "        <div class=\"card-title\">Total Packages</div>")?;
+        writeln!(
+            writer,
+            "        <div class=\"card-title\">Total Packages</div>"
+        )?;
         writeln!(
             writer,
             "        <div class=\"card-value\">{}</div>",
@@ -350,7 +364,10 @@ impl OutputFormatter for HtmlFormatter {
 
         let total_files: usize = workloads.iter().map(|w| w.file_count).sum();
         writeln!(writer, "    <div class=\"card\">")?;
-        writeln!(writer, "        <div class=\"card-title\">Total Files</div>")?;
+        writeln!(
+            writer,
+            "        <div class=\"card-title\">Total Files</div>"
+        )?;
         writeln!(
             writer,
             "        <div class=\"card-value\">{}</div>",
@@ -387,7 +404,12 @@ impl OutputFormatter for HtmlFormatter {
                     workload
                         .extends
                         .iter()
-                        .map(|e| format!("<span class=\"badge badge-secondary\">{}</span>", html_escape(e)))
+                        .map(|e| {
+                            format!(
+                                "<span class=\"badge badge-secondary\">{}</span>",
+                                html_escape(e)
+                            )
+                        })
                         .collect::<Vec<_>>()
                         .join(" ")
                 };
@@ -424,10 +446,7 @@ impl OutputFormatter for HtmlFormatter {
     }
 
     fn format_health(&self, report: &HealthReport, writer: &mut dyn Write) -> Result<()> {
-        let title = self
-            .title
-            .as_deref()
-            .unwrap_or("Anvil Health Check Report");
+        let title = self.title.as_deref().unwrap_or("Anvil Health Check Report");
         let subtitle = format!("Workload: {}", report.workload);
         self.write_header(writer, title, &subtitle)?;
 
@@ -449,7 +468,10 @@ impl OutputFormatter for HtmlFormatter {
         // Summary cards
         writeln!(writer, "<div class=\"summary-cards\">")?;
         writeln!(writer, "    <div class=\"card\">")?;
-        writeln!(writer, "        <div class=\"card-title\">Total Checks</div>")?;
+        writeln!(
+            writer,
+            "        <div class=\"card-title\">Total Checks</div>"
+        )?;
         writeln!(
             writer,
             "        <div class=\"card-value\">{}</div>",
@@ -512,11 +534,7 @@ impl OutputFormatter for HtmlFormatter {
             }
 
             writeln!(writer, "    <tr>")?;
-            writeln!(
-                writer,
-                "        <td>{}</td>",
-                html_escape(&check.name)
-            )?;
+            writeln!(writer, "        <td>{}</td>", html_escape(&check.name))?;
             writeln!(
                 writer,
                 "        <td>{}</td>",
@@ -562,7 +580,10 @@ impl OutputFormatter for HtmlFormatter {
 
         // Packages
         writeln!(writer, "    <div class=\"card\">")?;
-        writeln!(writer, "        <div class=\"card-title\">Packages Installed</div>")?;
+        writeln!(
+            writer,
+            "        <div class=\"card-title\">Packages Installed</div>"
+        )?;
         writeln!(
             writer,
             "        <div class=\"card-value success\">{}</div>",
@@ -571,7 +592,10 @@ impl OutputFormatter for HtmlFormatter {
         writeln!(writer, "    </div>")?;
 
         writeln!(writer, "    <div class=\"card\">")?;
-        writeln!(writer, "        <div class=\"card-title\">Files Copied</div>")?;
+        writeln!(
+            writer,
+            "        <div class=\"card-title\">Files Copied</div>"
+        )?;
         writeln!(
             writer,
             "        <div class=\"card-value success\">{}</div>",
@@ -580,7 +604,10 @@ impl OutputFormatter for HtmlFormatter {
         writeln!(writer, "    </div>")?;
 
         writeln!(writer, "    <div class=\"card\">")?;
-        writeln!(writer, "        <div class=\"card-title\">Scripts Executed</div>")?;
+        writeln!(
+            writer,
+            "        <div class=\"card-title\">Scripts Executed</div>"
+        )?;
         writeln!(
             writer,
             "        <div class=\"card-value success\">{}</div>",
@@ -717,11 +744,7 @@ impl OutputFormatter for HtmlFormatter {
                     "        <td><code>{}</code></td>",
                     html_escape(&error.location)
                 )?;
-                writeln!(
-                    writer,
-                    "        <td>{}</td>",
-                    html_escape(&error.message)
-                )?;
+                writeln!(writer, "        <td>{}</td>", html_escape(&error.message))?;
                 writeln!(writer, "    </tr>")?;
             }
             writeln!(writer, "</tbody>")?;
@@ -743,11 +766,7 @@ impl OutputFormatter for HtmlFormatter {
                     "        <td><code>{}</code></td>",
                     html_escape(&warning.location)
                 )?;
-                writeln!(
-                    writer,
-                    "        <td>{}</td>",
-                    html_escape(&warning.message)
-                )?;
+                writeln!(writer, "        <td>{}</td>", html_escape(&warning.message))?;
                 writeln!(writer, "    </tr>")?;
             }
             writeln!(writer, "</tbody>")?;

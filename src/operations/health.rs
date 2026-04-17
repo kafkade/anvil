@@ -126,7 +126,7 @@ fn check_packages(
     let mut cache_updated = false;
 
     let packages = match &workload.packages {
-        Some(p) => p.winget.as_ref().map(|w| w.as_slice()).unwrap_or(&[]),
+        Some(p) => p.winget.as_deref().unwrap_or(&[]),
         None => return Ok((results, packages_to_fix, packages_to_update)),
     };
 
@@ -383,7 +383,7 @@ fn check_directory_health(
     // Check if destination directory exists
     if !dest_base.exists() {
         results.push(CheckResult::fail(
-            &format!("{}/ (directory)", file.destination),
+            format!("{}/ (directory)", file.destination),
             "Files",
             "Directory not found",
         ));
@@ -392,7 +392,7 @@ fn check_directory_health(
 
     if !dest_base.is_dir() {
         results.push(CheckResult::fail(
-            &format!("{}/ (directory)", file.destination),
+            format!("{}/ (directory)", file.destination),
             "Files",
             "Expected directory but found file",
         ));
@@ -486,20 +486,20 @@ fn check_directory_health(
         );
         if found_missing > 0 {
             results.push(CheckResult::fail(
-                &format!("{}/ (directory)", file.destination),
+                format!("{}/ (directory)", file.destination),
                 "Files",
                 message,
             ));
         } else {
             results.push(CheckResult::warn(
-                &format!("{}/ (directory)", file.destination),
+                format!("{}/ (directory)", file.destination),
                 "Files",
                 message,
             ));
         }
     } else {
         results.push(CheckResult::ok_with_message(
-            &format!("{}/ (directory)", file.destination),
+            format!("{}/ (directory)", file.destination),
             "Files",
             format!("{} files OK", expected_files),
         ));
@@ -604,7 +604,7 @@ fn run_health_scripts(
     let mut results = Vec::new();
 
     let scripts = match &workload.scripts {
-        Some(s) => s.health_check.as_ref().map(|h| h.as_slice()).unwrap_or(&[]),
+        Some(s) => s.health_check.as_deref().unwrap_or(&[]),
         None => return Ok(results),
     };
 
@@ -882,9 +882,7 @@ fn report_and_exit(
     let has_failures = report.summary.failed > 0;
     let has_warnings = report.summary.warnings > 0;
 
-    if has_failures {
-        std::process::exit(1);
-    } else if args.strict && has_warnings {
+    if has_failures || (args.strict && has_warnings) {
         std::process::exit(1);
     }
 

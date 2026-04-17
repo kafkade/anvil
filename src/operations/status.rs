@@ -49,10 +49,9 @@ fn clear_state(workload: &Option<String>, _use_color: bool) -> Result<()> {
                 .extension()
                 .map(|e| e == "json")
                 .unwrap_or(false)
+                && std::fs::remove_file(entry.path()).is_ok()
             {
-                if std::fs::remove_file(entry.path()).is_ok() {
-                    count += 1;
-                }
+                count += 1;
             }
         }
 

@@ -296,9 +296,10 @@ pub struct CompletionsArgs {
 }
 
 /// Output format for health checks and listings
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum OutputFormat {
     /// Formatted table output
+    #[default]
     Table,
     /// JSON format
     Json,
@@ -308,42 +309,26 @@ pub enum OutputFormat {
     Html,
 }
 
-impl Default for OutputFormat {
-    fn default() -> Self {
-        Self::Table
-    }
-}
-
 /// Output format for configuration display
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum ConfigOutputFormat {
     /// YAML format
+    #[default]
     Yaml,
     /// JSON format
     Json,
 }
 
-impl Default for ConfigOutputFormat {
-    fn default() -> Self {
-        Self::Yaml
-    }
-}
-
 /// Workload template types for initialization
-#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, ValueEnum, Default)]
 pub enum WorkloadTemplate {
     /// Minimal workload with just metadata
     Minimal,
     /// Standard workload with common sections
+    #[default]
     Standard,
     /// Full workload with all sections and examples
     Full,
-}
-
-impl Default for WorkloadTemplate {
-    fn default() -> Self {
-        Self::Standard
-    }
 }
 
 /// Shell types for completion generation

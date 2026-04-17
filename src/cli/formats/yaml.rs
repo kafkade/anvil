@@ -252,7 +252,7 @@ mod tests {
 
     #[test]
     fn test_yaml_formatter_default() {
-        let formatter = YamlFormatter::default();
+        let formatter = YamlFormatter;
         assert_eq!(formatter.extension(), "yaml");
     }
 

@@ -478,7 +478,7 @@ impl BackupManager {
         for (_path, mut backups) in groups {
             if backups.len() > self.rotation_config.max_backups_per_file {
                 // Sort by timestamp, newest first
-                backups.sort_by(|a, b| b.timestamp.cmp(&a.timestamp));
+                backups.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
 
                 // Mark excess backups for removal
                 for backup in backups

@@ -11,6 +11,7 @@ use tempfile::TempDir;
 
 /// Helper to get anvil command
 fn anvil() -> Command {
+    #[allow(deprecated)]
     Command::cargo_bin("anvil").unwrap()
 }
 
@@ -343,7 +344,12 @@ mod install_command {
     #[test]
     fn install_with_skip_packages() {
         anvil()
-            .args(["install", "./examples/minimal", "--dry-run", "--skip-packages"])
+            .args([
+                "install",
+                "./examples/minimal",
+                "--dry-run",
+                "--skip-packages",
+            ])
             .assert()
             .success();
     }
@@ -359,7 +365,12 @@ mod install_command {
     #[test]
     fn install_with_skip_scripts() {
         anvil()
-            .args(["install", "./examples/minimal", "--dry-run", "--skip-scripts"])
+            .args([
+                "install",
+                "./examples/minimal",
+                "--dry-run",
+                "--skip-scripts",
+            ])
             .assert()
             .success();
     }
@@ -382,7 +393,12 @@ mod install_command {
     #[test]
     fn install_packages_only() {
         anvil()
-            .args(["install", "./examples/minimal", "--dry-run", "--packages-only"])
+            .args([
+                "install",
+                "./examples/minimal",
+                "--dry-run",
+                "--packages-only",
+            ])
             .assert()
             .success();
     }

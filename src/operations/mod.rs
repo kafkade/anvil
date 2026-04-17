@@ -132,6 +132,7 @@ impl<'a> OperationContext<'a> {
     }
 
     /// Log an info message if not in quiet mode
+    #[allow(dead_code)]
     pub fn info(&self, message: &str) {
         if self.verbosity >= 1 {
             tracing::info!("{}", message);

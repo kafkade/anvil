@@ -4,13 +4,14 @@
 
 pub mod commands;
 pub mod completions;
+#[allow(dead_code)]
 pub mod formats;
 pub mod output;
 pub mod progress;
 
 use clap::{Parser, Subcommand};
 
-/// Anvil - Windows Workstation Configuration Management System
+/// Anvil - Declarative Workstation Configuration Management
 #[derive(Parser, Debug)]
 #[command(name = "anvil")]
 #[command(author, version, about, long_about = None)]

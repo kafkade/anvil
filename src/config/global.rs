@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// Global configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct GlobalConfig {
     /// Default settings for commands
     pub defaults: DefaultsConfig,
@@ -28,18 +29,6 @@ pub struct GlobalConfig {
     pub logging: LoggingConfig,
 }
 
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        Self {
-            defaults: DefaultsConfig::default(),
-            backup: BackupConfig::default(),
-            install: InstallConfig::default(),
-            workloads: WorkloadsConfig::default(),
-            logging: LoggingConfig::default(),
-        }
-    }
-}
-
 impl GlobalConfig {
     /// Load global configuration from file
     ///
@@ -48,10 +37,12 @@ impl GlobalConfig {
         let config_path = Self::config_path()?;
 
         if config_path.exists() {
-            let content = std::fs::read_to_string(&config_path)
-                .with_context(|| format!("Failed to read config file: {}", config_path.display()))?;
-            let config: GlobalConfig = serde_yaml::from_str(&content)
-                .with_context(|| format!("Failed to parse config file: {}", config_path.display()))?;
+            let content = std::fs::read_to_string(&config_path).with_context(|| {
+                format!("Failed to read config file: {}", config_path.display())
+            })?;
+            let config: GlobalConfig = serde_yaml::from_str(&content).with_context(|| {
+                format!("Failed to parse config file: {}", config_path.display())
+            })?;
             Ok(config)
         } else {
             Ok(Self::default())
@@ -64,12 +55,12 @@ impl GlobalConfig {
 
         // Create parent directories if needed
         if let Some(parent) = config_path.parent() {
-            std::fs::create_dir_all(parent)
-                .with_context(|| format!("Failed to create config directory: {}", parent.display()))?;
+            std::fs::create_dir_all(parent).with_context(|| {
+                format!("Failed to create config directory: {}", parent.display())
+            })?;
         }
 
-        let content = serde_yaml::to_string(self)
-            .context("Failed to serialize configuration")?;
+        let content = serde_yaml::to_string(self).context("Failed to serialize configuration")?;
 
         std::fs::write(&config_path, content)
             .with_context(|| format!("Failed to write config file: {}", config_path.display()))?;
@@ -114,20 +105,29 @@ impl GlobalConfig {
                 self.defaults.shell = value.to_string();
             }
             ["defaults", "script_timeout"] => {
-                self.defaults.script_timeout = value.parse()
+                self.defaults.script_timeout = value
+                    .parse()
                     .with_context(|| format!("Invalid timeout value: {}", value))?;
             }
             ["defaults", "output_format"] => {
                 let valid = ["table", "json", "yaml", "html"];
                 if !valid.contains(&value) {
-                    anyhow::bail!("Invalid output format: {}. Valid values: {:?}", value, valid);
+                    anyhow::bail!(
+                        "Invalid output format: {}. Valid values: {:?}",
+                        value,
+                        valid
+                    );
                 }
                 self.defaults.output_format = value.to_string();
             }
             ["defaults", "color"] => {
                 let valid = ["auto", "always", "never"];
                 if !valid.contains(&value) {
-                    anyhow::bail!("Invalid color setting: {}. Valid values: {:?}", value, valid);
+                    anyhow::bail!(
+                        "Invalid color setting: {}. Valid values: {:?}",
+                        value,
+                        valid
+                    );
                 }
                 self.defaults.color = value.to_string();
             }
@@ -136,11 +136,13 @@ impl GlobalConfig {
                     .with_context(|| format!("Invalid boolean value: {}", value))?;
             }
             ["backup", "retention_days"] => {
-                self.backup.retention_days = value.parse()
+                self.backup.retention_days = value
+                    .parse()
                     .with_context(|| format!("Invalid retention_days value: {}", value))?;
             }
             ["backup", "max_backups"] => {
-                self.backup.max_backups = value.parse()
+                self.backup.max_backups = value
+                    .parse()
                     .with_context(|| format!("Invalid max_backups value: {}", value))?;
             }
             ["backup", "compress"] => {
@@ -186,39 +188,75 @@ impl GlobalConfig {
         let mut items = Vec::new();
 
         items.push(("defaults.shell".to_string(), self.defaults.shell.clone()));
-        items.push(("defaults.script_timeout".to_string(), self.defaults.script_timeout.to_string()));
-        items.push(("defaults.output_format".to_string(), self.defaults.output_format.clone()));
+        items.push((
+            "defaults.script_timeout".to_string(),
+            self.defaults.script_timeout.to_string(),
+        ));
+        items.push((
+            "defaults.output_format".to_string(),
+            self.defaults.output_format.clone(),
+        ));
         items.push(("defaults.color".to_string(), self.defaults.color.clone()));
 
-        items.push(("backup.auto_backup".to_string(), self.backup.auto_backup.to_string()));
-        items.push(("backup.retention_days".to_string(), self.backup.retention_days.to_string()));
-        items.push(("backup.max_backups".to_string(), self.backup.max_backups.to_string()));
-        items.push(("backup.compress".to_string(), self.backup.compress.to_string()));
+        items.push((
+            "backup.auto_backup".to_string(),
+            self.backup.auto_backup.to_string(),
+        ));
+        items.push((
+            "backup.retention_days".to_string(),
+            self.backup.retention_days.to_string(),
+        ));
+        items.push((
+            "backup.max_backups".to_string(),
+            self.backup.max_backups.to_string(),
+        ));
+        items.push((
+            "backup.compress".to_string(),
+            self.backup.compress.to_string(),
+        ));
 
-        items.push(("install.parallel_packages".to_string(), self.install.parallel_packages.to_string()));
-        items.push(("install.skip_installed".to_string(), self.install.skip_installed.to_string()));
-        items.push(("install.confirm".to_string(), self.install.confirm.to_string()));
+        items.push((
+            "install.parallel_packages".to_string(),
+            self.install.parallel_packages.to_string(),
+        ));
+        items.push((
+            "install.skip_installed".to_string(),
+            self.install.skip_installed.to_string(),
+        ));
+        items.push((
+            "install.confirm".to_string(),
+            self.install.confirm.to_string(),
+        ));
 
-        items.push(("workloads.paths".to_string(),
+        items.push((
+            "workloads.paths".to_string(),
             if self.workloads.paths.is_empty() {
                 "(default)".to_string()
             } else {
                 self.workloads.paths.join(", ")
-            }
+            },
         ));
 
         items.push(("logging.level".to_string(), self.logging.level.clone()));
-        items.push(("logging.file".to_string(), self.logging.file.clone().unwrap_or_else(|| "(none)".to_string())));
+        items.push((
+            "logging.file".to_string(),
+            self.logging
+                .file
+                .clone()
+                .unwrap_or_else(|| "(none)".to_string()),
+        ));
 
         items
     }
 
     /// Reset configuration to defaults
+    #[allow(dead_code)]
     pub fn reset(&mut self) {
         *self = Self::default();
     }
 
     /// Add a workload search path
+    #[allow(dead_code)]
     pub fn add_workload_path(&mut self, path: impl Into<String>) {
         let path_str = path.into();
         if !self.workloads.paths.contains(&path_str) {
@@ -227,6 +265,7 @@ impl GlobalConfig {
     }
 
     /// Remove a workload search path
+    #[allow(dead_code)]
     pub fn remove_workload_path(&mut self, path: &str) -> bool {
         if let Some(pos) = self.workloads.paths.iter().position(|p| p == path) {
             self.workloads.paths.remove(pos);
@@ -320,15 +359,10 @@ impl Default for InstallConfig {
 /// Workload search paths configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct WorkloadsConfig {
     /// Additional workload search paths
     pub paths: Vec<String>,
-}
-
-impl Default for WorkloadsConfig {
-    fn default() -> Self {
-        Self { paths: Vec::new() }
-    }
 }
 
 /// Logging configuration
@@ -377,7 +411,10 @@ mod tests {
     fn test_get_config_value() {
         let config = GlobalConfig::default();
         assert_eq!(config.get("defaults.shell"), Some("powershell".to_string()));
-        assert_eq!(config.get("defaults.script_timeout"), Some("300".to_string()));
+        assert_eq!(
+            config.get("defaults.script_timeout"),
+            Some("300".to_string())
+        );
         assert_eq!(config.get("backup.auto_backup"), Some("true".to_string()));
         assert_eq!(config.get("unknown.key"), None);
     }
@@ -441,7 +478,15 @@ mod tests {
 
         // Adding same path again should not duplicate
         config.add_workload_path("/custom/path");
-        assert_eq!(config.workloads.paths.iter().filter(|p| *p == "/custom/path").count(), 1);
+        assert_eq!(
+            config
+                .workloads
+                .paths
+                .iter()
+                .filter(|p| *p == "/custom/path")
+                .count(),
+            1
+        );
 
         // Remove path
         assert!(config.remove_workload_path("/custom/path"));

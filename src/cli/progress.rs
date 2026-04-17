@@ -234,7 +234,7 @@ impl InstallProgress {
     /// Create a new installation progress tracker
     pub fn new(manager: Arc<ProgressManager>, total: usize) -> Self {
         let summary_bar = manager.create_summary_bar(total as u64);
-        summary_bar.set_message(format!("Installed: 0 | Skipped: 0 | Failed: 0"));
+        summary_bar.set_message("Installed: 0 | Skipped: 0 | Failed: 0".to_string());
 
         Self {
             summary_bar,

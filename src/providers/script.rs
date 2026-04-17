@@ -8,6 +8,7 @@
 //! Features:
 //! - Proper timeout handling with process termination
 //! - Elevation detection and requirements
+#![allow(dead_code)]
 //! - Output streaming for real-time feedback
 //! - Environment variable injection
 //! - PowerShell Core (pwsh) support
@@ -75,8 +76,11 @@ pub enum ScriptError {
 
 /// Supported shell types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::enum_variant_names)]
+#[derive(Default)]
 pub enum Shell {
     /// Windows PowerShell (powershell.exe)
+    #[default]
     PowerShell,
     /// PowerShell Core (pwsh.exe)
     Pwsh,
@@ -130,12 +134,6 @@ impl Shell {
             .status()
             .map(|s| s.success())
             .unwrap_or(false)
-    }
-}
-
-impl Default for Shell {
-    fn default() -> Self {
-        Shell::PowerShell
     }
 }
 
@@ -690,10 +688,9 @@ impl ScriptProvider {
     /// Inject environment variables into script config
     pub fn inject_environment_variables(&self, config: &mut ScriptConfig, context: &ScriptContext) {
         // Anvil-specific variables
-        config.environment.insert(
-            "ANVIL_WORKLOAD".to_string(),
-            context.workload_name.clone(),
-        );
+        config
+            .environment
+            .insert("ANVIL_WORKLOAD".to_string(), context.workload_name.clone());
         config.environment.insert(
             "ANVIL_WORKLOAD_PATH".to_string(),
             context.workload_path.display().to_string(),
@@ -994,7 +991,7 @@ impl ScriptProvider {
         timeout: Duration,
         script_path: &Path,
     ) -> Result<Output, ScriptError> {
-        let mut child = cmd
+        let child = cmd
             .spawn()
             .map_err(|e| ScriptError::SpawnFailed(format!("Failed to spawn process: {}", e)))?;
 
@@ -1035,7 +1032,7 @@ impl ScriptProvider {
 
         let start = Instant::now();
 
-        let mut child = cmd
+        let child = cmd
             .spawn()
             .map_err(|e| ScriptError::SpawnFailed(format!("Failed to spawn process: {}", e)))?;
 

@@ -231,7 +231,7 @@ pub fn create_formatter(
 
 /// Format output and optionally write to file
 pub fn format_to_file_or_stdout<T: Serialize>(
-    formatter: &dyn OutputFormatter,
+    _formatter: &dyn OutputFormatter,
     data: &T,
     file_path: Option<&std::path::Path>,
 ) -> Result<()> {

@@ -122,12 +122,8 @@ impl FileState {
             return Ok(true); // File was deleted = drifted
         }
 
-        let current_hash = compute_file_hash(&self.path).map_err(|e| {
-            FileStateError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
+        let current_hash = compute_file_hash(&self.path)
+            .map_err(|e| FileStateError::Io(std::io::Error::other(e.to_string())))?;
         Ok(current_hash != self.installed_hash)
     }
 
@@ -137,12 +133,8 @@ impl FileState {
             return Ok(None);
         }
 
-        let hash = compute_file_hash(&self.path).map_err(|e| {
-            FileStateError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
-                e.to_string(),
-            ))
-        })?;
+        let hash = compute_file_hash(&self.path)
+            .map_err(|e| FileStateError::Io(std::io::Error::other(e.to_string())))?;
         Ok(Some(hash))
     }
 

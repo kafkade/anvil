@@ -1,6 +1,6 @@
-//! Anvil - Windows Workstation Configuration Management System
+//! Anvil - Declarative Workstation Configuration Management
 //!
-//! A declarative configuration management tool for Windows workstations that automates
+//! A declarative configuration management tool for developer workstations that automates
 //! the setup and validation of development environments through composable workload definitions.
 
 mod cli;
@@ -66,8 +66,7 @@ fn main() -> Result<()> {
 
 /// Initialize the logging/tracing subsystem
 fn init_logging() {
-    let filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("anvil=info"));
+    let filter = EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("anvil=info"));
 
     tracing_subscriber::registry()
         .with(fmt::layer().with_target(false).without_time())
