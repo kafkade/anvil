@@ -15,9 +15,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Assertion examples in `anvil init --template full` scaffold
 - Multi-manager workload schema: `packages.brew` (Homebrew) and `packages.apt` (APT) fields alongside existing `packages.winget`
 - Platform-aware validation warns when workload references an unavailable package manager
+- Inline `commands:` block for workload command execution with `pre_install` and `post_install` phases
+- Conditional command execution via `when:` field using the predicate engine
+- `continue_on_error` option for commands that should not block the install flow
 
 ### Deprecated
 - `scripts.health_check` when used alongside `assertions` (migrate to declarative assertions; removal planned for v1.0)
+- `scripts.pre_install` and `scripts.post_install` when used alongside `commands` (migrate to inline commands; removal planned for v1.0)
 
 ## [0.5.0] - 2026-04-17
 
