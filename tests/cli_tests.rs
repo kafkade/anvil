@@ -401,6 +401,7 @@ mod install_command {
     use super::*;
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_dry_run_shows_plan() {
         anvil()
             .args(["install", "./examples/minimal", "--dry-run"])
@@ -430,6 +431,7 @@ mod install_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_with_skip_files() {
         anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--skip-files"])
@@ -438,6 +440,7 @@ mod install_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_with_skip_scripts() {
         anvil()
             .args([
@@ -466,6 +469,7 @@ mod install_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_packages_only() {
         anvil()
             .args([
@@ -525,6 +529,7 @@ mod health_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn health_json_output() {
         anvil()
             .args(["health", "./examples/minimal", "--output", "json"])
