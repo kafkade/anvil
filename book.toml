@@ -1,0 +1,30 @@
+[book]
+authors = ["Kafkade"]
+language = "en"
+src = "docs/src"
+title = "Anvil Documentation"
+description = "Declarative Workstation Configuration Management"
+
+[build]
+build-dir = "docs/book"
+
+[output.html]
+default-theme = "navy"
+preferred-dark-theme = "navy"
+git-repository-url = "https://github.com/kafkade/anvil"
+edit-url-template = "https://github.com/kafkade/anvil/edit/main/{path}"
+site-url = "https://anvil.kafkade.com/"
+cname = "anvil.kafkade.com"
+no-section-label = false
+additional-css = ["docs/theme/custom.css"]
+
+[output.html.search]
+enable = true
+limit-results = 30
+
+[output.html.playground]
+editable = false
+
+[output.html.fold]
+enable = true
+level = 1

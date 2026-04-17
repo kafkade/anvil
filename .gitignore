@@ -42,6 +42,9 @@ workloads/
 # Temporary files
 tmp/
 
+# mdBook build output
+docs/book/
+
 # Cargo lock should be committed for applications
 # but uncomment if this is a library
 # Cargo.lock

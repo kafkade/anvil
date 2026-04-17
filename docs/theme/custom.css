@@ -1,0 +1,42 @@
+/* Anvil documentation theme */
+
+:root {
+    --sidebar-width: 280px;
+}
+
+/* Improve readability */
+.content main {
+    max-width: 48rem;
+}
+
+/* Style the landing page */
+.content main h1:first-child {
+    font-size: 2.2em;
+    margin-bottom: 0.3em;
+}
+
+/* Code block improvements */
+pre {
+    border-radius: 6px;
+}
+
+code {
+    border-radius: 3px;
+    padding: 0.1em 0.3em;
+}
+
+/* Table improvements */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 1em 0;
+}
+
+table th {
+    text-align: left;
+    font-weight: 600;
+}
+
+table td, table th {
+    padding: 0.5em 1em;
+}

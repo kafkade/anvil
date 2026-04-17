@@ -1,23 +1,6 @@
-# Workload Authoring Guide
+# Workload Authoring
 
 A comprehensive guide to creating custom workloads for Anvil.
-
-## Table of Contents
-
-1. [Workload Structure](#1-workload-structure)
-2. [Schema Reference](#2-schema-reference)
-3. [Package Definitions](#3-package-definitions)
-4. [File Definitions](#4-file-definitions)
-5. [Script Definitions](#5-script-definitions)
-6. [Environment Configuration](#6-environment-configuration)
-7. [Assertions](#7-assertions)
-8. [Inheritance](#8-inheritance)
-9. [Variable Expansion](#9-variable-expansion)
-10. [Best Practices](#10-best-practices)
-11. [Example Workloads](#11-example-workloads)
-12. [Private Workload Repositories](#12-private-workload-repositories)
-
----
 
 ## 1. Workload Structure
 

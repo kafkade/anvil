@@ -83,9 +83,9 @@ jobs:
       - name: Verify required docs exist
         run: |
           test -f README.md
-          test -f docs/USER_GUIDE.md
-          test -f docs/WORKLOAD_AUTHORING.md
-          test -f docs/TROUBLESHOOTING.md
+          test -f docs/src/user-guide.md
+          test -f docs/src/workload-authoring.md
+          test -f docs/src/troubleshooting.md
 
   ci-pass:
     name: CI Pass
