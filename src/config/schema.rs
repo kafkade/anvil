@@ -193,6 +193,9 @@ impl SchemaValidator {
         // Validate environment
         self.validate_environment(workload, &mut result);
 
+        // Validate assertions
+        self.validate_assertions(workload, &mut result);
+
         result
     }
 
@@ -550,6 +553,115 @@ impl SchemaValidator {
                     if path_entry.is_empty() {
                         result.add_error(path, "PATH addition cannot be empty");
                     }
+                }
+            }
+        }
+    }
+
+    /// Validate assertion definitions
+    fn validate_assertions(&self, workload: &Workload, result: &mut ValidationResult) {
+        if let Some(assertions) = &workload.assertions {
+            for (i, assertion) in assertions.iter().enumerate() {
+                let path = format!("assertions[{}]", i);
+
+                // Name is required
+                if assertion.name.is_empty() {
+                    result.add_error(format!("{}.name", path), "Assertion name is required");
+                }
+
+                // Validate the condition structure
+                self.validate_condition(&format!("{}.check", path), &assertion.check, result);
+            }
+        }
+    }
+
+    /// Validate a condition is structurally valid
+    fn validate_condition(
+        &self,
+        path: &str,
+        condition: &crate::conditions::Condition,
+        result: &mut ValidationResult,
+    ) {
+        use crate::conditions::Condition;
+
+        match condition {
+            Condition::CommandExists { command } => {
+                if command.is_empty() {
+                    result.add_error(format!("{}.command", path), "Command cannot be empty");
+                }
+            }
+            Condition::FileExists { path: file_path } => {
+                if file_path.is_empty() {
+                    result.add_error(format!("{}.path", path), "File path cannot be empty");
+                }
+            }
+            Condition::DirExists { path: dir_path } => {
+                if dir_path.is_empty() {
+                    result.add_error(format!("{}.path", path), "Directory path cannot be empty");
+                }
+            }
+            Condition::EnvVar { name, .. } => {
+                if name.is_empty() {
+                    result.add_error(
+                        format!("{}.name", path),
+                        "Environment variable name cannot be empty",
+                    );
+                }
+            }
+            Condition::PathContains { substring } => {
+                if substring.is_empty() {
+                    result.add_error(
+                        format!("{}.substring", path),
+                        "PATH substring cannot be empty",
+                    );
+                }
+            }
+            Condition::RegistryValue {
+                hive, key, name, ..
+            } => {
+                if hive.is_empty() {
+                    result.add_error(format!("{}.hive", path), "Registry hive cannot be empty");
+                } else {
+                    let valid_hives = ["HKCU", "HKLM"];
+                    if !valid_hives.contains(&hive.as_str()) {
+                        result.add_warning(
+                            format!("{}.hive", path),
+                            format!(
+                                "Unknown registry hive '{}'. Expected one of: {:?}",
+                                hive, valid_hives
+                            ),
+                        );
+                    }
+                }
+                if key.is_empty() {
+                    result.add_error(format!("{}.key", path), "Registry key cannot be empty");
+                }
+                if name.is_empty() {
+                    result.add_error(
+                        format!("{}.name", path),
+                        "Registry value name cannot be empty",
+                    );
+                }
+            }
+            Condition::Shell { command, .. } => {
+                if command.is_empty() {
+                    result.add_error(format!("{}.command", path), "Shell command cannot be empty");
+                }
+            }
+            Condition::AllOf { conditions } => {
+                if conditions.is_empty() {
+                    result.add_warning(path.to_string(), "all_of has no conditions");
+                }
+                for (j, cond) in conditions.iter().enumerate() {
+                    self.validate_condition(&format!("{}[{}]", path, j), cond, result);
+                }
+            }
+            Condition::AnyOf { conditions } => {
+                if conditions.is_empty() {
+                    result.add_warning(path.to_string(), "any_of has no conditions");
+                }
+                for (j, cond) in conditions.iter().enumerate() {
+                    self.validate_condition(&format!("{}[{}]", path, j), cond, result);
                 }
             }
         }

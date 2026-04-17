@@ -514,6 +514,17 @@ fn merge_workloads(parent: Workload, child: Workload) -> Workload {
 
         // Child overwrites health config, or use parent if child has none
         health: child.health.or(parent.health),
+
+        // Merge assertions: append child after parent
+        assertions: match (parent.assertions, child.assertions) {
+            (None, None) => None,
+            (Some(p), None) => Some(p),
+            (None, Some(c)) => Some(c),
+            (Some(mut p), Some(c)) => {
+                p.extend(c);
+                Some(p)
+            }
+        },
     }
 }
 

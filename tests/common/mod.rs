@@ -333,6 +333,89 @@ dir = "{{workload_dir}}"
     Ok(())
 }
 
+/// Create a workload with declarative assertions for testing
+///
+/// # Arguments
+/// * `dir` - Parent directory where the workload will be created
+/// * `name` - Name of the workload
+///
+/// # Returns
+/// Result indicating success or IO error
+#[allow(dead_code)]
+pub fn create_workload_with_assertions(dir: &Path, name: &str) -> std::io::Result<()> {
+    let workload_dir = dir.join(name);
+    fs::create_dir_all(&workload_dir)?;
+
+    let yaml = format!(
+        r#"name: {name}
+version: "1.0.0"
+description: "Workload with assertions for testing"
+
+assertions:
+  - name: "PATH is set"
+    check:
+      type: env_var
+      name: PATH
+  - name: "missing var should fail"
+    check:
+      type: env_var
+      name: ANVIL_TEST_NONEXISTENT_VAR_XYZ_12345
+"#
+    );
+
+    fs::write(workload_dir.join("workload.yaml"), yaml)?;
+    Ok(())
+}
+
+/// Create a workload with assertions disabled via health config
+#[allow(dead_code)]
+pub fn create_workload_assertions_disabled(dir: &Path, name: &str) -> std::io::Result<()> {
+    let workload_dir = dir.join(name);
+    fs::create_dir_all(&workload_dir)?;
+
+    let yaml = format!(
+        r#"name: {name}
+version: "1.0.0"
+description: "Workload with assertions disabled"
+
+health:
+  assertion_check: false
+
+assertions:
+  - name: "should be skipped"
+    check:
+      type: env_var
+      name: ANVIL_TEST_NONEXISTENT_VAR_XYZ_12345
+"#
+    );
+
+    fs::write(workload_dir.join("workload.yaml"), yaml)?;
+    Ok(())
+}
+
+/// Create a workload with only passing assertions
+#[allow(dead_code)]
+pub fn create_workload_passing_assertions(dir: &Path, name: &str) -> std::io::Result<()> {
+    let workload_dir = dir.join(name);
+    fs::create_dir_all(&workload_dir)?;
+
+    let yaml = format!(
+        r#"name: {name}
+version: "1.0.0"
+description: "Workload with only passing assertions"
+
+assertions:
+  - name: "PATH is set"
+    check:
+      type: env_var
+      name: PATH
+"#
+    );
+
+    fs::write(workload_dir.join("workload.yaml"), yaml)?;
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

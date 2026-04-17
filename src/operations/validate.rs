@@ -770,6 +770,31 @@ fn print_json_schema() -> Result<()> {
         "file_check": { "type": "boolean", "default": true },
         "script_check": { "type": "boolean", "default": true }
       }
+    },
+    "assertions": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["name", "check"],
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Display name for the assertion"
+          },
+          "check": {
+            "type": "object",
+            "description": "Condition to evaluate (uses condition engine types)",
+            "required": ["type"],
+            "properties": {
+              "type": {
+                "type": "string",
+                "enum": ["command_exists", "file_exists", "dir_exists", "env_var", "path_contains", "registry_value", "shell", "all_of", "any_of"]
+              }
+            }
+          }
+        }
+      },
+      "description": "Declarative assertions for health validation"
     }
   },
   "definitions": {
