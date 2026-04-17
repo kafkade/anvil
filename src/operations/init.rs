@@ -471,11 +471,30 @@ environment:
     - "~/.local/bin"
     # - "${{PROGRAMFILES}}/MyApp/bin"
 
+# Declarative health assertions
+# Assertions replace or complement health check scripts with simple checks
+assertions:
+  - name: Example tool check
+    check:
+      type: command_exists
+      command: git
+
+  # - name: Config directory exists
+  #   check:
+  #     type: dir_exists
+  #     path: "~/.config/app"
+
+  # - name: Environment variable set
+  #   check:
+  #     type: env_var
+  #     name: MY_APP_CONFIG
+
 # Health check configuration
 health:
   package_check: true    # Verify all packages are installed
   file_check: true       # Verify all files are deployed correctly
   script_check: true     # Run all health check scripts
+  assertion_check: true  # Evaluate declarative assertions
 "#,
         name = name,
         extends_section = extends_section.trim_start()

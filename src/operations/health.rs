@@ -48,6 +48,25 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
         tracing::info!("Checking health for workload: {}", workload.name);
     }
 
+    // Deprecation warning: scripts.health_check alongside assertions
+    let has_assertions = workload
+        .assertions
+        .as_ref()
+        .map(|a| !a.is_empty())
+        .unwrap_or(false);
+    let has_health_check_scripts = workload
+        .scripts
+        .as_ref()
+        .and_then(|s| s.health_check.as_ref())
+        .map(|h| !h.is_empty())
+        .unwrap_or(false);
+    if has_assertions && has_health_check_scripts {
+        print_warning(
+            "Deprecation notice: `scripts.health_check` is deprecated when used alongside `assertions`. \
+             Migrate health check scripts to declarative assertions. See docs/SPECIFICATION.md for details.",
+        );
+    }
+
     // Show spinner while checking
     let spinner = if !quiet {
         Some(SimpleProgress::spinner("Checking system health..."))

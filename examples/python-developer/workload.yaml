@@ -32,7 +32,26 @@ environment:
       value: "managed"
       scope: user
 
+assertions:
+  - name: uv command exists
+    check:
+      type: command_exists
+      command: uv
+  - name: Python is available
+    check:
+      type: any_of
+      conditions:
+        - type: command_exists
+          command: python
+        - type: command_exists
+          command: python3
+  - name: UV_PYTHON_PREFERENCE is set
+    check:
+      type: env_var
+      name: UV_PYTHON_PREFERENCE
+
 health:
   package_check: true
   file_check: true
   script_check: true
+  assertion_check: true
