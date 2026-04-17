@@ -1,42 +1,256 @@
-/* Anvil documentation theme */
+/* Anvil documentation theme — modern, clean design */
+
+/* ===== Fonts ===== */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lilex:wght@400;500&family=Space+Grotesk:wght@600;700&display=swap');
 
 :root {
     --sidebar-width: 280px;
+    font-size: 18px !important;
 }
 
-/* Improve readability */
+/* ===== Base typography ===== */
+html {
+    font-size: 18px !important;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-size: 18px !important;
+}
+
 .content main {
-    max-width: 48rem;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+    max-width: 50rem;
+    font-size: 18px !important;
+    letter-spacing: -0.011em;
+    line-height: 1.75;
 }
 
-/* Style the landing page */
+.content main p,
+.content main li,
+.content main td,
+.content main dd {
+    font-size: 18px !important;
+    line-height: 1.75;
+}
+
+/* ===== Headings ===== */
+.content main h1 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 700;
+    font-size: 36px !important;
+    letter-spacing: -0.03em;
+    margin-top: 1.5em;
+    margin-bottom: 0.4em;
+    border-bottom: none;
+    padding-bottom: 0;
+}
+
 .content main h1:first-child {
-    font-size: 2.2em;
-    margin-bottom: 0.3em;
+    font-size: 42px !important;
+    margin-top: 0;
 }
 
-/* Code block improvements */
-pre {
-    border-radius: 6px;
+.content main h2 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 28px !important;
+    letter-spacing: -0.02em;
+    margin-top: 2em;
+    margin-bottom: 0.5em;
+    padding-bottom: 0.3em;
+    border-bottom: 1px solid var(--table-border-color);
 }
 
+.content main h3 {
+    font-family: 'Space Grotesk', 'Inter', sans-serif;
+    font-weight: 600;
+    font-size: 22px !important;
+    letter-spacing: -0.01em;
+    margin-top: 1.6em;
+    margin-bottom: 0.4em;
+}
+
+.content main h4 {
+    font-weight: 600;
+    font-size: 19px !important;
+    margin-top: 1.4em;
+}
+
+/* ===== Paragraphs & lists ===== */
+.content main p {
+    margin-bottom: 1em;
+}
+
+.content main ul, .content main ol {
+    margin-bottom: 1em;
+    padding-left: 1.5em;
+}
+
+.content main li {
+    margin-bottom: 0.35em;
+}
+
+.content main li > p {
+    margin-bottom: 0.5em;
+}
+
+.content main strong {
+    font-weight: 600;
+}
+
+/* ===== Code ===== */
 code {
-    border-radius: 3px;
-    padding: 0.1em 0.3em;
+    font-family: 'Lilex', 'Cascadia Code', 'Fira Code', monospace !important;
+    font-size: 16px !important;
+    border-radius: 4px;
+    padding: 0.15em 0.35em;
 }
 
-/* Table improvements */
+pre {
+    border-radius: 8px;
+    padding: 1em 1.2em;
+    font-size: 16px !important;
+    line-height: 1.6;
+    border: 1px solid var(--table-border-color);
+}
+
+pre > code {
+    font-size: 16px !important;
+    padding: 0;
+}
+
+/* ===== Tables ===== */
 table {
     width: 100%;
     border-collapse: collapse;
-    margin: 1em 0;
+    margin: 1.2em 0;
+    font-size: 0.95em;
 }
 
 table th {
     text-align: left;
     font-weight: 600;
+    padding: 0.6em 1em;
+    font-size: 18px !important;
+    border-bottom: 2px solid var(--table-border-color);
 }
 
-table td, table th {
+table td {
+    padding: 0.55em 1em;
+    font-size: 18px !important;
+    border-bottom: 1px solid var(--table-border-color);
+}
+
+table tr:last-child td {
+    border-bottom: none;
+}
+
+/* ===== Sidebar ===== */
+.sidebar .sidebar-scrollbox {
+    padding-top: 1.5em;
+}
+
+.sidebar ol.chapter {
+    padding-left: 0;
+}
+
+.sidebar ol.chapter li a {
+    font-size: 16px !important;
+    font-weight: 500;
+    padding: 0.35em 1.2em;
+    border-radius: 4px;
+    transition: background-color 0.15s ease;
+}
+
+.sidebar ol.chapter li a:hover {
+    text-decoration: none;
+}
+
+.sidebar .chapter-item {
+    line-height: 1.8;
+}
+
+.sidebar-separator {
+    margin: 0.5em 0;
+}
+
+/* ===== Sidebar logo ===== */
+.sidebar .sidebar-scrollbox {
+    padding-top: 0.5em;
+}
+
+.sidebar .sidebar-scrollbox::before {
+    content: 'Anvil';
+    display: block;
+    text-align: center;
+    font-size: 1.15em;
+    font-weight: 700;
+    letter-spacing: -0.02em;
+    margin-bottom: 1em;
+    padding-top: 72px;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64' width='64' height='64'%3E%3Cdefs%3E%3ClinearGradient id='forge-sm' x1='0%25' y1='100%25' x2='0%25' y2='0%25'%3E%3Cstop offset='0%25' stop-color='%23dc2626'/%3E%3Cstop offset='35%25' stop-color='%23f97316'/%3E%3Cstop offset='70%25' stop-color='%23fbbf24'/%3E%3Cstop offset='100%25' stop-color='%23fef3c7'/%3E%3C/linearGradient%3E%3C/defs%3E%3Cg transform='translate(32, 35)'%3E%3Cpath d='M-22 25 L-4 -25 Q0 -32 4 -25 L22 25 L14 25 L8 6 L-8 6 L-14 25 Z' fill='url(%23forge-sm)'/%3E%3Crect x='-10' y='0' width='20' height='6' rx='1' fill='%23991b1b'/%3E%3Cpath d='M-5 6 L0 -12 L5 6 Z' fill='%230f172a'/%3E%3C/g%3E%3C/svg%3E");
+    background-size: 64px 64px;
+    background-repeat: no-repeat;
+    background-position: center top;
+    opacity: 0.9;
+}
+
+/* ===== Links ===== */
+.content main a {
+    text-decoration: underline;
+    text-decoration-thickness: 1px;
+    text-underline-offset: 2px;
+    transition: opacity 0.15s ease;
+}
+
+.content main a:hover {
+    opacity: 0.8;
+}
+
+/* ===== Blockquotes ===== */
+blockquote {
+    border-left: 3px solid var(--links);
     padding: 0.5em 1em;
+    margin: 1em 0;
+    border-radius: 0 4px 4px 0;
+    font-size: 0.95em;
+}
+
+/* ===== Horizontal rules ===== */
+hr {
+    border: none;
+    border-top: 1px solid var(--table-border-color);
+    margin: 2em 0;
+}
+
+/* ===== Search ===== */
+#searchbar {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+    border-radius: 6px;
+    font-size: 16px !important;
+}
+
+/* ===== Navigation buttons ===== */
+.nav-chapters {
+    font-size: 2em;
+    opacity: 0.6;
+    transition: opacity 0.15s ease;
+}
+
+.nav-chapters:hover {
+    opacity: 1;
+}
+
+/* ===== Landing page sponsor note ===== */
+.content main hr + p:last-child em {
+    font-size: 0.9em;
+    opacity: 0.7;
+}
+
+/* ===== Limit themes to Ayu (dark) and Rust (light) ===== */
+#theme-list > button:not([id="ayu"]):not([id="rust"]) {
+    display: none !important;
 }

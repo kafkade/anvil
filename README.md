@@ -1,11 +1,18 @@
-# Anvil
+<p align="center">
+  <img src="docs/assets/anvil-logo.svg" alt="Anvil" width="120" height="120">
+</p>
 
-[![CI](https://github.com/kafkade/anvil/actions/workflows/ci.yml/badge.svg)](https://github.com/kafkade/anvil/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/kafkade/anvil)](https://github.com/kafkade/anvil/releases)
-[![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
-[![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
+<h1 align="center">Anvil</h1>
 
-**Declarative Workstation Configuration Management**
+<p align="center">
+  <a href="https://github.com/kafkade/anvil/actions/workflows/ci.yml"><img src="https://github.com/kafkade/anvil/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
+  <a href="https://github.com/kafkade/anvil/releases"><img src="https://img.shields.io/github/v/release/kafkade/anvil" alt="Release"></a>
+  <a href="LICENSE-MIT"><img src="https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg" alt="License: MIT OR Apache-2.0"></a>
+  <a href="https://www.rust-lang.org/"><img src="https://img.shields.io/badge/rust-1.75%2B-orange.svg" alt="Rust"></a>
+  <a href="https://github.com/sponsors/kafkade"><img src="https://img.shields.io/badge/sponsor-♥-ea4aaa.svg" alt="Sponsor"></a>
+</p>
+
+<p align="center"><strong>Declarative Workstation Configuration Management</strong></p>
 
 Anvil is a declarative configuration management tool for developer workstations. Define your development environment in YAML, and Anvil will install packages, copy configuration files, run setup scripts, and verify system health. Currently supports Windows (winget), with cross-platform support planned.
 
