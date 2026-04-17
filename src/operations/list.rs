@@ -23,10 +23,16 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
         manager.add_search_path(path.clone());
     }
 
-    // List all available workloads
-    let workloads = manager.list_workloads().with_context(|| {
-        "Failed to list workloads. Ensure the workloads directory exists and is accessible."
-    })?;
+    // Choose between all-paths mode and normal mode
+    let workloads = if args.all_paths {
+        manager.list_all_workloads().with_context(|| {
+            "Failed to list workloads. Ensure the workloads directory exists and is accessible."
+        })?
+    } else {
+        manager.list_workloads().with_context(|| {
+            "Failed to list workloads. Ensure the workloads directory exists and is accessible."
+        })?
+    };
 
     if workloads.is_empty() {
         if !cli.quiet {
@@ -53,7 +59,12 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
 
     match format {
         crate::cli::commands::OutputFormat::Table => {
-            print_table(&workloads, args.long, !cli.should_disable_color());
+            print_table(
+                &workloads,
+                args.long,
+                args.all_paths,
+                !cli.should_disable_color(),
+            );
         }
         crate::cli::commands::OutputFormat::Json => {
             let json = serde_json::to_string_pretty(&workloads)
@@ -67,7 +78,7 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
         }
         crate::cli::commands::OutputFormat::Html => {
             // Fall back to table for now
-            print_table(&workloads, args.long, false);
+            print_table(&workloads, args.long, args.all_paths, false);
         }
     }
 
@@ -75,7 +86,12 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
 }
 
 /// Print workloads as a formatted table
-fn print_table(workloads: &[crate::config::WorkloadInfo], long_format: bool, use_color: bool) {
+fn print_table(
+    workloads: &[crate::config::WorkloadInfo],
+    long_format: bool,
+    show_all_paths: bool,
+    use_color: bool,
+) {
     use comfy_table::{presets::UTF8_FULL, Cell, Color, ContentArrangement, Table};
 
     let mut table = Table::new();
@@ -83,9 +99,9 @@ fn print_table(workloads: &[crate::config::WorkloadInfo], long_format: bool, use
         .load_preset(UTF8_FULL)
         .set_content_arrangement(ContentArrangement::Dynamic);
 
-    if long_format {
-        // Long format header
-        let headers = if use_color {
+    if long_format || show_all_paths {
+        // Long format header — includes Path column
+        let mut headers = if use_color {
             vec![
                 Cell::new("Name").fg(Color::Cyan),
                 Cell::new("Version").fg(Color::Cyan),
@@ -93,6 +109,7 @@ fn print_table(workloads: &[crate::config::WorkloadInfo], long_format: bool, use
                 Cell::new("Extends").fg(Color::Cyan),
                 Cell::new("Packages").fg(Color::Cyan),
                 Cell::new("Files").fg(Color::Cyan),
+                Cell::new("Path").fg(Color::Cyan),
             ]
         } else {
             vec![
@@ -102,8 +119,18 @@ fn print_table(workloads: &[crate::config::WorkloadInfo], long_format: bool, use
                 Cell::new("Extends"),
                 Cell::new("Packages"),
                 Cell::new("Files"),
+                Cell::new("Path"),
             ]
         };
+
+        if show_all_paths {
+            if use_color {
+                headers.push(Cell::new("Status").fg(Color::Cyan));
+            } else {
+                headers.push(Cell::new("Status"));
+            }
+        }
+
         table.set_header(headers);
 
         for workload in workloads {
@@ -113,14 +140,27 @@ fn print_table(workloads: &[crate::config::WorkloadInfo], long_format: bool, use
                 workload.extends.join(", ")
             };
 
-            let row = if use_color {
+            let is_shadowed = show_all_paths && !workload.shadowed_paths.is_empty();
+            let path_display = workload
+                .path
+                .parent()
+                .map(|p| p.to_string_lossy().to_string())
+                .unwrap_or_default();
+
+            let mut row = if use_color {
+                let name_color = if is_shadowed {
+                    Color::DarkGrey
+                } else {
+                    Color::Green
+                };
                 vec![
-                    Cell::new(&workload.name).fg(Color::Green),
+                    Cell::new(&workload.name).fg(name_color),
                     Cell::new(&workload.version),
                     Cell::new(truncate(&workload.description, 35)),
                     Cell::new(&extends_str).fg(Color::Yellow),
                     Cell::new(workload.package_count.to_string()),
                     Cell::new(workload.file_count.to_string()),
+                    Cell::new(&path_display),
                 ]
             } else {
                 vec![
@@ -130,8 +170,23 @@ fn print_table(workloads: &[crate::config::WorkloadInfo], long_format: bool, use
                     Cell::new(&extends_str),
                     Cell::new(workload.package_count.to_string()),
                     Cell::new(workload.file_count.to_string()),
+                    Cell::new(&path_display),
                 ]
             };
+
+            if show_all_paths {
+                if is_shadowed {
+                    let cell = if use_color {
+                        Cell::new("(shadowed)").fg(Color::DarkGrey)
+                    } else {
+                        Cell::new("(shadowed)")
+                    };
+                    row.push(cell);
+                } else {
+                    row.push(Cell::new(""));
+                }
+            }
+
             table.add_row(row);
         }
     } else {

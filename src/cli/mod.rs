@@ -110,6 +110,7 @@ mod tests {
                 all: false,
                 long: false,
                 path: None,
+                all_paths: false,
                 output: None,
             }),
         };
@@ -127,6 +128,7 @@ mod tests {
                 all: false,
                 long: false,
                 path: None,
+                all_paths: false,
                 output: None,
             }),
         };

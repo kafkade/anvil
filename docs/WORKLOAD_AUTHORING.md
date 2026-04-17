@@ -15,6 +15,7 @@ A comprehensive guide to creating custom workloads for Anvil.
 9. [Variable Expansion](#9-variable-expansion)
 10. [Best Practices](#10-best-practices)
 11. [Example Workloads](#11-example-workloads)
+12. [Private Workload Repositories](#12-private-workload-repositories)
 
 ---
 
@@ -1235,6 +1236,78 @@ catch {
     Write-Error "Setup failed: $_"
     exit 1
 }
+```
+
+---
+
+## 12. Private Workload Repositories
+
+You can maintain your own workloads in a separate Git repository and configure Anvil to discover them.
+
+### Recommended Directory Layout
+
+```
+my-workloads/
+├── my-dev-env/
+│   ├── workload.yaml
+│   ├── files/
+│   │   └── .gitconfig
+│   └── scripts/
+│       └── setup.ps1
+├── team-tools/
+│   ├── workload.yaml
+│   └── scripts/
+│       └── post-install.ps1
+└── README.md
+```
+
+Each subdirectory containing a `workload.yaml` is treated as a separate workload, following the same [directory structure](#1-workload-structure) as bundled workloads.
+
+### Setup
+
+1. Clone your workloads repository:
+   ```powershell
+   git clone https://github.com/your-org/workloads ~/my-workloads
+   ```
+
+2. Configure Anvil to search this path:
+   ```powershell
+   anvil config set workloads.paths '["~/my-workloads"]'
+   ```
+
+   Or edit `~/.anvil/config.yaml` directly:
+   ```yaml
+   workloads:
+     paths:
+       - "~/my-workloads"
+   ```
+
+3. Verify discovery:
+   ```powershell
+   anvil list
+   ```
+
+### Tips
+
+- **Inheritance**: Private workloads can `extends:` built-in workloads (e.g., `extends: [essentials]`)
+- **Version control**: Keep workloads in Git for team sharing and history
+- **Multiple repos**: Add multiple paths for team-shared and personal workloads
+- **Precedence**: If your workload has the same name as a built-in one, yours takes priority
+- **Validation**: Run `anvil validate <name> --strict` to check your workloads before committing
+
+### Complete Config Example
+
+```yaml
+# Anvil global configuration
+# Location: ~/.anvil/config.yaml
+
+workloads:
+  paths:
+    - "~/my-workloads"           # Personal workloads
+    - "~/work/team-workloads"    # Team-shared workloads
+
+logging:
+  level: info
 ```
 
 ---

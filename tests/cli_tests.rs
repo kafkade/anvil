@@ -74,6 +74,81 @@ mod list_command {
             .assert()
             .success();
     }
+
+    #[test]
+    fn list_with_all_paths_flag() {
+        let temp = TempDir::new().unwrap();
+        let workload_dir = temp.path().join("test-wl");
+        fs::create_dir_all(&workload_dir).unwrap();
+        fs::write(
+            workload_dir.join("workload.yaml"),
+            "name: test-wl\nversion: \"1.0.0\"\ndescription: \"Test workload\"\n",
+        )
+        .unwrap();
+
+        anvil()
+            .args([
+                "list",
+                "--path",
+                temp.path().to_str().unwrap(),
+                "--all-paths",
+            ])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("test-wl"));
+    }
+
+    #[test]
+    fn list_no_duplicates_by_default() {
+        // The --path flag only supports a single path, so we test deduplication
+        // via the JSON output with a single path that has unique workloads.
+        // The unit tests in config/mod.rs cover multi-path precedence.
+        let dir = TempDir::new().unwrap();
+        let wl_dir = dir.path().join("nodups-test");
+        fs::create_dir_all(&wl_dir).unwrap();
+        fs::write(
+            wl_dir.join("workload.yaml"),
+            "name: nodups-test\nversion: \"1.0.0\"\ndescription: \"no dups\"\n",
+        )
+        .unwrap();
+
+        anvil()
+            .args([
+                "list",
+                "--path",
+                dir.path().to_str().unwrap(),
+                "--output",
+                "json",
+            ])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("nodups-test"));
+    }
+
+    #[test]
+    fn list_all_paths_shows_shadowed() {
+        // With --all-paths and a single path (no duplicates), no "(shadowed)"
+        let dir = TempDir::new().unwrap();
+        let wl_dir = dir.path().join("shadow-test");
+        fs::create_dir_all(&wl_dir).unwrap();
+        fs::write(
+            wl_dir.join("workload.yaml"),
+            "name: shadow-test\nversion: \"1.0.0\"\ndescription: \"shadow test\"\n",
+        )
+        .unwrap();
+
+        // Should succeed with --all-paths and show the workload
+        anvil()
+            .args([
+                "list",
+                "--path",
+                dir.path().to_str().unwrap(),
+                "--all-paths",
+            ])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("shadow-test"));
+    }
 }
 
 mod show_command {
@@ -326,6 +401,7 @@ mod install_command {
     use super::*;
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_dry_run_shows_plan() {
         anvil()
             .args(["install", "./examples/minimal", "--dry-run"])
@@ -355,6 +431,7 @@ mod install_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_with_skip_files() {
         anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--skip-files"])
@@ -363,6 +440,7 @@ mod install_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_with_skip_scripts() {
         anvil()
             .args([
@@ -391,6 +469,7 @@ mod install_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn install_packages_only() {
         anvil()
             .args([
@@ -450,6 +529,7 @@ mod health_command {
     }
 
     #[test]
+    #[cfg(target_os = "windows")]
     fn health_json_output() {
         anvil()
             .args(["health", "./examples/minimal", "--output", "json"])

@@ -18,6 +18,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Inline `commands:` block for workload command execution with `pre_install` and `post_install` phases
 - Conditional command execution via `when:` field using the predicate engine
 - `continue_on_error` option for commands that should not block the install flow
+- Configurable workload search paths via `~/.anvil/config.yaml` (user paths prepended to defaults)
+- Search precedence with conflict resolution: explicit path > user-configured > defaults; first match wins
+- `anvil list --all-paths` to show all discovered paths including shadowed duplicates
+- Cross-platform release builds for Linux (x86_64, aarch64), macOS (x86_64, aarch64), and Windows (x86_64)
+
+### Changed
+- Crate renamed to `anvil-cli` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-cli`)
 
 ### Deprecated
 - `scripts.health_check` when used alongside `assertions` (migrate to declarative assertions; removal planned for v1.0)
