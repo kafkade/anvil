@@ -1,6 +1,6 @@
 # Anvil User Guide
 
-A comprehensive guide to using Anvil for Windows workstation configuration management.
+A comprehensive guide to using Anvil for workstation configuration management.
 
 ## Table of Contents
 
@@ -20,9 +20,9 @@ A comprehensive guide to using Anvil for Windows workstation configuration manag
 
 ### What is Anvil?
 
-Anvil is a declarative configuration management tool for Windows workstations. It allows you to define your development environment in YAML files and automatically:
+Anvil is a declarative configuration management tool for developer workstations. It allows you to define your development environment in YAML files and automatically:
 
-- Install software packages via Windows Package Manager (winget)
+- Install software packages via package managers (currently winget; Homebrew and APT planned)
 - Copy and manage configuration files
 - Execute setup and validation scripts
 - Verify system health against your defined configuration
@@ -37,10 +37,14 @@ Anvil is a declarative configuration management tool for Windows workstations. I
 
 ### System Requirements
 
+**Current platform: Windows**
+
 - Windows 10 (version 1809 or later) or Windows 11
 - [Windows Package Manager (winget)](https://github.com/microsoft/winget-cli) version 1.4 or later
 - PowerShell 5.1 or later (included with Windows)
 - Administrator access (for some operations)
+
+> Cross-platform support (macOS, Linux) is on the [roadmap](SPECIFICATION.md#8-roadmap).
 
 ---
 

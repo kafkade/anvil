@@ -1,13 +1,13 @@
-# Copilot Instructions for Anvil
+# Anvil — Copilot Instructions
 
-## Build, Test, and Lint
+## Build & Test
 
-```powershell
+```sh
 cargo build                  # Debug build
 cargo build --release        # Release build (LTO + stripped)
-cargo test                   # All tests
-cargo test --lib             # Unit tests only
-cargo test --test '*'        # Integration tests only
+cargo test                   # All tests (243: 168 unit + 75 integration)
+cargo test --bin anvil       # Unit tests only
+cargo test --test cli_tests  # Integration tests only
 cargo test test_name         # Single test by name
 cargo test -- --nocapture    # Tests with stdout visible
 cargo clippy --all-targets --all-features -- -D warnings  # Lint (CI enforces zero warnings)
@@ -17,9 +17,11 @@ cargo fmt                    # Auto-format
 
 ## Architecture
 
-Anvil is a declarative Windows workstation configuration tool. Users define environments in YAML workload files; Anvil installs packages (via winget), copies files, runs PowerShell scripts, and validates system health.
+Anvil is a declarative workstation configuration tool. Users define environments in YAML workload files; Anvil installs packages (currently via winget, with cross-platform package managers planned), copies files, runs scripts, and validates system health.
 
-### Module layout and data flow
+See `docs/ARCHITECTURE.md` for the full internal architecture reference.
+
+### Module layout
 
 ```
 main.rs → cli/ → operations/ → providers/
@@ -28,40 +30,39 @@ main.rs → cli/ → operations/ → providers/
 ```
 
 - **`cli/`** — Clap-derived CLI parsing, output formatting (table/JSON/YAML/HTML), progress bars
-- **`config/`** — Workload YAML parsing (`workload.rs`), schema validation (`schema.rs`), inheritance resolution (`inheritance.rs`), global config (`global.rs`). The central type is `ConfigManager` which discovers and loads workloads.
-- **`operations/`** — One file per CLI command (`install.rs`, `health.rs`, `list.rs`, etc.). Each exposes an `execute(args, cli)` function called from `main.rs`.
-- **`providers/`** — External system integrations: `winget.rs` (package manager), `filesystem.rs` (file copy with backup/hash verification), `script.rs` (PowerShell execution), `template.rs` (Handlebars templates), `backup.rs`
-- **`state/`** — Tracks installation state (`installation.rs`), file state with hashes (`files.rs`), and package cache (`cache.rs`). State persisted to `~/.anvil/state/`.
+- **`config/`** — Workload YAML parsing (`workload.rs`), schema validation (`schema.rs`), inheritance resolution (`inheritance.rs`), global config (`global.rs`). Central type: `ConfigManager`
+- **`operations/`** — One file per CLI command (`install.rs`, `health.rs`, `list.rs`, etc.). Each exposes `execute(args, cli) → Result<()>`
+- **`providers/`** — External system integrations: `winget.rs` (package manager), `filesystem.rs` (file copy with backup/hash), `script.rs` (script execution), `template.rs` (Handlebars), `backup.rs`
+- **`state/`** — Installation state, file hashes, and package cache. Persisted as JSON at `~/.anvil/`
 
 ### Workload structure
 
-A workload is a directory containing `workload.yaml` plus optional `files/` and `scripts/` subdirectories. Bundled workloads live in `workloads/`. The core data type is `config::workload::Workload` (deserialized from YAML via serde).
+A workload is a directory containing `workload.yaml` plus optional `files/` and `scripts/` subdirectories. Example workloads live in `examples/`. Core data type: `config::workload::Workload` (serde-deserialized from YAML).
 
 ### Workload inheritance
 
 Workloads can `extends: [parent]` to inherit from other workloads. Resolution in `config/inheritance.rs`:
-- Builds a dependency graph, detects cycles, enforces max depth of 10
+- Builds dependency graph, detects cycles, enforces max depth of 10
 - Topological sort determines merge order (parent first)
-- Merge strategy: packages are appended (child overrides same ID), files are appended (child overrides same destination), scripts are concatenated (parent first), env vars are overridden by child if same name
+- Merge: packages appended (child overrides same ID), files appended (child overrides same destination), scripts concatenated (parent first), env vars overridden by child
 
 ## Conventions
 
 ### Error handling
 
-Two-tier approach:
-- **`thiserror`** for domain-specific error enums (e.g., `WingetError`, `InheritanceError`, `FilesystemError`, `ScriptError`, `TemplateError`). Each provider/module defines its own error type with structured variants.
-- **`anyhow`** for error propagation in application/operation code. Use `.with_context(|| ...)` for adding context.
-- `InheritanceError` includes a `suggestion()` method for user-friendly hints.
+- **`thiserror`** for domain-specific error enums (`WingetError`, `InheritanceError`, `FilesystemError`, `ScriptError`, `TemplateError`). Each module defines its own error type.
+- **`anyhow`** for propagation in operations/CLI code. Use `.with_context(|| ...)` for adding context.
+- `InheritanceError` includes `suggestion()` for user-friendly hints.
 
 ### Serde patterns
 
-All workload structs derive `Serialize, Deserialize`. Optional fields use `#[serde(default, skip_serializing_if = "Option::is_none")]`. Custom defaults use helper functions like `default_true()`, `default_shell()`, `default_timeout()`.
+All workload structs derive `Serialize, Deserialize`. Optional fields use `#[serde(default, skip_serializing_if = "Option::is_none")]`. Custom defaults via helper functions (`default_true()`, `default_shell()`, `default_timeout()`).
 
 ### Testing
 
-- Unit tests are inline `#[cfg(test)] mod tests` in the same file
-- Integration tests in `tests/cli_tests.rs` use `assert_cmd` + `predicates` to test CLI end-to-end
-- Test fixtures created via helpers in `tests/common/mod.rs` (`create_test_workload`, `create_inherited_workload`, `create_invalid_workload`, `create_circular_workloads`, `create_full_workload`, `create_template_workload`)
+- Unit tests: inline `#[cfg(test)] mod tests` in the same file
+- Integration tests: `tests/cli_tests.rs` using `assert_cmd` + `predicates`
+- Fixtures: `tests/common/mod.rs` helpers (`create_test_workload`, `create_inherited_workload`, `create_full_workload`, etc.)
 - Use `tempfile::TempDir` for isolated filesystem tests
 - Use `pretty_assertions` for readable diff output
 
@@ -78,4 +79,17 @@ Title format: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 
 ### Adding a new workload
 
-Create `workloads/<name>/workload.yaml` (plus optional `files/` and `scripts/`). Validate with `anvil validate <name> --strict`. Use `extends: [essentials]` for common dev tools.
+Create `examples/<name>/workload.yaml` (plus optional `files/` and `scripts/`). Validate with `anvil validate <name> --strict`. Use `extends: [essentials]` for common dev tools.
+
+## Git Policy
+
+**Never execute Git commands that modify history or submit code.** This includes `git commit`, `git push`, `git rebase`, `git merge`, `git reset`, `git cherry-pick`, `git revert`, and `git tag`. Read-only commands like `git status`, `git diff`, `git log`, and `git branch` are fine. The maintainer must always review and commit changes themselves.
+
+## Key References
+
+- `docs/SPECIFICATION.md` — Project spec, workload schema, and roadmap (v0.4–v1.0)
+- `docs/ARCHITECTURE.md` — Internal code architecture for contributors
+- `docs/USER_GUIDE.md` — End-user CLI usage guide
+- `docs/WORKLOAD_AUTHORING.md` — Workload YAML authoring reference
+- `CONTRIBUTING.md` — Contribution workflow and coding standards
+- `CHANGELOG.md` — Release history

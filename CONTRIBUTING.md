@@ -96,9 +96,9 @@ What actually happened.
 ### Prerequisites
 
 - **Rust**: 1.75 or later ([rustup.rs](https://rustup.rs/))
-- **Visual Studio Build Tools**: For Windows linking
-- **Windows 10/11**: Required for testing
-- **Windows Package Manager (winget)**: For package operations
+- **Windows**: Visual Studio Build Tools (for linking)
+- **Windows Package Manager (winget)**: For package operations (integration tests)
+- **Linux/macOS**: Standard build toolchain (gcc/clang)
 
 ### Building
 
@@ -194,17 +194,17 @@ anvil/
 │       ├── installation.rs  # Installation state
 │       ├── cache.rs         # Cache management
 │       └── files.rs         # File state tracking
-├── workloads/               # Bundled workloads
-│   ├── essentials/
+├── examples/               # Example workloads
+│   ├── minimal/
 │   ├── rust-developer/
-│   ├── python-developer/
-│   └── ui/
+│   └── python-developer/
 ├── tests/                   # Integration tests
 │   ├── cli_tests.rs
 │   └── common/
 │       └── mod.rs
 └── docs/                    # Documentation
     ├── SPECIFICATION.md
+    ├── ARCHITECTURE.md
     ├── USER_GUIDE.md
     ├── WORKLOAD_AUTHORING.md
     └── TROUBLESHOOTING.md

@@ -5,9 +5,9 @@
 [![License: MIT OR Apache-2.0](https://img.shields.io/badge/License-MIT%20OR%20Apache--2.0-blue.svg)](LICENSE-MIT)
 [![Rust](https://img.shields.io/badge/rust-1.75%2B-orange.svg)](https://www.rust-lang.org/)
 
-**Windows Workstation Configuration Management System**
+**Declarative Workstation Configuration Management**
 
-Anvil is a declarative configuration management tool for Windows workstations. Define your development environment in YAML, and Anvil will install packages, copy configuration files, run setup scripts, and verify system health.
+Anvil is a declarative configuration management tool for developer workstations. Define your development environment in YAML, and Anvil will install packages, copy configuration files, run setup scripts, and verify system health. Currently supports Windows (winget), with cross-platform support planned.
 
 ## ✨ Features
 
@@ -143,15 +143,20 @@ Global Options:
 | [User Guide](docs/USER_GUIDE.md) | Complete usage instructions |
 | [Workload Authoring](docs/WORKLOAD_AUTHORING.md) | Creating custom workloads |
 | [Troubleshooting](docs/TROUBLESHOOTING.md) | Common issues and solutions |
-| [Specification](docs/SPECIFICATION.md) | Technical architecture |
+| [Specification](docs/SPECIFICATION.md) | Technical spec and roadmap |
+| [Architecture](docs/ARCHITECTURE.md) | Internal code architecture |
 | [Contributing](CONTRIBUTING.md) | Contribution guidelines |
 | [Changelog](CHANGELOG.md) | Version history |
 
 ## ⚙️ Requirements
 
+**Current platform support: Windows**
+
 - Windows 10 (version 1809+) or Windows 11
 - [Windows Package Manager (winget)](https://github.com/microsoft/winget-cli)
 - PowerShell 5.1 or later
+
+> Cross-platform support (macOS via Homebrew, Linux via APT) is on the [roadmap](docs/SPECIFICATION.md#8-roadmap).
 
 ## 🛠️ Building from Source
 
@@ -187,7 +192,7 @@ Contributions are welcome! Please read our [Contributing Guide](CONTRIBUTING.md)
 
 ## 📄 License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is dual-licensed under [MIT](LICENSE-MIT) and [Apache-2.0](LICENSE-APACHE).
 
 ## 🙏 Acknowledgments
 
@@ -199,5 +204,5 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ---
 
 <p align="center">
-  Made with ❤️ for Windows developers
+  Made with ❤️ for developers
 </p>
