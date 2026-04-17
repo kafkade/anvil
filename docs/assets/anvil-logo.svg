@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" width="200" height="200" role="img" aria-labelledby="icon-title icon-desc">
+  <title id="icon-title">Anvil</title>
+  <desc id="icon-desc">Anvil logo — a forged letter A in molten gradient</desc>
+  <defs>
+    <linearGradient id="forge" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="35%" stop-color="#f97316"/>
+      <stop offset="70%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="50%" cy="30%">
+      <stop offset="0%" stop-color="#fef3c7" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#fef3c7" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <circle cx="100" cy="90" r="75" fill="url(#glow)"/>
+  <g transform="translate(100, 105)">
+    <path d="M-56 65 L-10 -65 Q0 -82 10 -65 L56 65 L34 65 L18 16 L-18 16 L-34 65 Z" fill="url(#forge)"/>
+    <rect x="-24" y="0" width="48" height="16" rx="2" fill="#991b1b"/>
+    <path d="M-12 16 L0 -32 L12 16 Z" fill="#0f172a"/>
+  </g>
+</svg>
