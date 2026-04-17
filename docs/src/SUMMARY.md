@@ -13,6 +13,8 @@
 
 # Reference
 
+- [CLI Reference](cli-reference.md)
+- [Schema Reference](schema-reference.md)
 - [Specification](specification.md)
 - [Architecture](architecture.md)
 - [Changelog](changelog.md)
