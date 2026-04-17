@@ -397,12 +397,25 @@ mod init_command {
     }
 }
 
+/// Helper to check if winget is functional at runtime.
+/// Returns true only if winget executes successfully.
+fn winget_available() -> bool {
+    std::process::Command::new("winget")
+        .arg("--version")
+        .output()
+        .map(|o| o.status.success())
+        .unwrap_or(false)
+}
+
 mod install_command {
     use super::*;
 
     #[test]
-    #[cfg(target_os = "windows")]
     fn install_dry_run_shows_plan() {
+        if !winget_available() {
+            eprintln!("SKIP: winget not available");
+            return;
+        }
         anvil()
             .args(["install", "./examples/minimal", "--dry-run"])
             .assert()
@@ -431,8 +444,11 @@ mod install_command {
     }
 
     #[test]
-    #[cfg(target_os = "windows")]
     fn install_with_skip_files() {
+        if !winget_available() {
+            eprintln!("SKIP: winget not available");
+            return;
+        }
         anvil()
             .args(["install", "./examples/minimal", "--dry-run", "--skip-files"])
             .assert()
@@ -440,8 +456,11 @@ mod install_command {
     }
 
     #[test]
-    #[cfg(target_os = "windows")]
     fn install_with_skip_scripts() {
+        if !winget_available() {
+            eprintln!("SKIP: winget not available");
+            return;
+        }
         anvil()
             .args([
                 "install",
@@ -469,8 +488,11 @@ mod install_command {
     }
 
     #[test]
-    #[cfg(target_os = "windows")]
     fn install_packages_only() {
+        if !winget_available() {
+            eprintln!("SKIP: winget not available");
+            return;
+        }
         anvil()
             .args([
                 "install",
@@ -529,8 +551,11 @@ mod health_command {
     }
 
     #[test]
-    #[cfg(target_os = "windows")]
     fn health_json_output() {
+        if !winget_available() {
+            eprintln!("SKIP: winget not available");
+            return;
+        }
         anvil()
             .args(["health", "./examples/minimal", "--output", "json"])
             .assert()
