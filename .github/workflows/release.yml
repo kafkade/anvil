@@ -13,33 +13,70 @@ env:
 
 jobs:
   build:
-    name: Build
-    runs-on: windows-latest
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: x86_64-unknown-linux-gnu
+            os: ubuntu-latest
+          - target: aarch64-unknown-linux-gnu
+            os: ubuntu-latest
+            cross: true
+          - target: x86_64-apple-darwin
+            os: macos-latest
+          - target: aarch64-apple-darwin
+            os: macos-latest
+          - target: x86_64-pc-windows-msvc
+            os: windows-latest
+
     steps:
       - uses: actions/checkout@v6
 
       - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
 
       - uses: Swatinem/rust-cache@v2
+        with:
+          key: ${{ matrix.target }}
+
+      - name: Install cross (for cross-compilation)
+        if: matrix.cross
+        run: cargo install cross --locked
 
       - name: Build release binary
-        run: cargo build --release
+        run: |
+          if [ "${{ matrix.cross }}" = "true" ]; then
+            cross build --release --target ${{ matrix.target }}
+          else
+            cargo build --release --target ${{ matrix.target }}
+          fi
+        shell: bash
 
-      - name: Verify binary
-        run: ./target/release/anvil.exe --version
+      - name: Package binary (unix)
+        if: runner.os != 'Windows'
+        run: |
+          cd target/${{ matrix.target }}/release
+          tar czf ../../../anvil-${{ github.ref_name }}-${{ matrix.target }}.tar.gz anvil
+          cd ../../..
+          sha256sum anvil-${{ github.ref_name }}-${{ matrix.target }}.tar.gz > anvil-${{ github.ref_name }}-${{ matrix.target }}.tar.gz.sha256
 
-      - name: Package binary
+      - name: Package binary (windows)
+        if: runner.os == 'Windows'
         shell: pwsh
         run: |
-          Compress-Archive -Path "target/release/anvil.exe" -DestinationPath "anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip"
-          $hash = (Get-FileHash "anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip" -Algorithm SHA256).Hash.ToLower()
-          "$hash  anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip" | Out-File -Encoding ascii "anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip.sha256"
+          Compress-Archive -Path "target/${{ matrix.target }}/release/anvil.exe" -DestinationPath "anvil-${{ github.ref_name }}-${{ matrix.target }}.zip"
+          $hash = (Get-FileHash "anvil-${{ github.ref_name }}-${{ matrix.target }}.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  anvil-${{ github.ref_name }}-${{ matrix.target }}.zip" | Out-File -Encoding ascii "anvil-${{ github.ref_name }}-${{ matrix.target }}.zip.sha256"
 
       - name: Upload artifacts
         uses: actions/upload-artifact@v7
         with:
-          name: anvil-x86_64-pc-windows-msvc
+          name: anvil-${{ matrix.target }}
           path: |
+            anvil-*.tar.gz
             anvil-*.zip
             anvil-*.sha256
 

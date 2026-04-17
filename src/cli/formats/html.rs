@@ -857,6 +857,7 @@ mod tests {
             package_count: 5,
             file_count: 3,
             path: std::path::PathBuf::from("workloads/test"),
+            shadowed_paths: vec![],
         }];
 
         formatter.format_list(&workloads, &mut output).unwrap();

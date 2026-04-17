@@ -658,6 +658,7 @@ impl HtmlFormatter {
                 package_count: w.package_count,
                 file_count: w.file_count,
                 path: std::path::PathBuf::new(),
+                shadowed_paths: Vec::new(),
             })
             .collect();
         self.format_list(&config_workloads, writer)

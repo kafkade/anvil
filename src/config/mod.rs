@@ -54,10 +54,33 @@ pub struct ConfigManager {
 
 impl ConfigManager {
     /// Create a new configuration manager with default search paths
+    ///
+    /// User-configured paths from GlobalConfig are prepended before defaults,
+    /// giving them higher priority during workload discovery.
     pub fn new() -> Self {
+        let mut search_paths = Vec::new();
+
+        // 1. User-configured paths from GlobalConfig (highest priority)
+        if let Ok(config) = GlobalConfig::load() {
+            for path_str in &config.workloads.paths {
+                let expanded = expand_variables(path_str, None);
+                let path = PathBuf::from(expanded);
+                if !search_paths.contains(&path) {
+                    search_paths.push(path);
+                }
+            }
+        }
+
+        // 2. Default search paths (lower priority)
+        for path in default_workload_paths() {
+            if !search_paths.contains(&path) {
+                search_paths.push(path);
+            }
+        }
+
         Self {
-            search_paths: default_workload_paths(),
-            loaded_workloads: std::collections::HashMap::new(),
+            search_paths,
+            loaded_workloads: HashMap::new(),
         }
     }
 
@@ -66,8 +89,14 @@ impl ConfigManager {
     pub fn with_paths(paths: Vec<PathBuf>) -> Self {
         Self {
             search_paths: paths,
-            loaded_workloads: std::collections::HashMap::new(),
+            loaded_workloads: HashMap::new(),
         }
+    }
+
+    /// Get the current search paths (user-configured + defaults)
+    #[allow(dead_code)]
+    pub fn search_paths(&self) -> &[PathBuf] {
+        &self.search_paths
     }
 
     /// Add a search path
@@ -154,10 +183,14 @@ impl ConfigManager {
         inheritance::resolve_inheritance(self, workload)
     }
 
-    /// List all available workloads
+    /// List all available workloads with precedence-based conflict resolution
+    ///
+    /// When the same workload name exists in multiple search paths, the first
+    /// match (higher priority path) wins. Shadowed duplicates are tracked in
+    /// `WorkloadInfo::shadowed_paths` for reporting.
     pub fn list_workloads(&self) -> Result<Vec<WorkloadInfo>> {
-        let mut workloads = Vec::new();
-        let mut seen = std::collections::HashSet::new();
+        let mut workloads: Vec<WorkloadInfo> = Vec::new();
+        let mut seen: HashMap<String, usize> = HashMap::new();
 
         for search_path in &self.search_paths {
             if !search_path.exists() {
@@ -175,8 +208,17 @@ impl ConfigManager {
                     let workload_file = path.join("workload.yaml");
                     if workload_file.exists() {
                         if let Ok(info) = self.read_workload_info(&workload_file) {
-                            if !seen.contains(&info.name) {
-                                seen.insert(info.name.clone());
+                            if let Some(&idx) = seen.get(&info.name) {
+                                // Duplicate found — the existing entry has higher priority
+                                tracing::warn!(
+                                    "Workload '{}' in '{}' is shadowed by '{}'",
+                                    info.name,
+                                    info.path.display(),
+                                    workloads[idx].path.display()
+                                );
+                                workloads[idx].shadowed_paths.push(info.path);
+                            } else {
+                                seen.insert(info.name.clone(), workloads.len());
                                 workloads.push(info);
                             }
                         }
@@ -189,6 +231,58 @@ impl ConfigManager {
         workloads.sort_by(|a, b| a.name.cmp(&b.name));
 
         Ok(workloads)
+    }
+
+    /// List all workload instances including shadowed duplicates
+    ///
+    /// Unlike `list_workloads()`, this returns every occurrence of every workload
+    /// across all search paths, marking lower-priority duplicates as shadowed.
+    pub fn list_all_workloads(&self) -> Result<Vec<WorkloadInfo>> {
+        let mut all: Vec<WorkloadInfo> = Vec::new();
+        let mut primary_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+        for search_path in &self.search_paths {
+            if !search_path.exists() {
+                continue;
+            }
+
+            let entries = std::fs::read_dir(search_path)
+                .with_context(|| format!("Failed to read directory: {}", search_path.display()))?;
+
+            for entry in entries {
+                let entry = entry?;
+                let path = entry.path();
+
+                if path.is_dir() {
+                    let workload_file = path.join("workload.yaml");
+                    if workload_file.exists() {
+                        if let Ok(mut info) = self.read_workload_info(&workload_file) {
+                            if primary_names.contains(&info.name) {
+                                // Mark as shadowed — record the primary's path
+                                if let Some(primary) = all
+                                    .iter()
+                                    .find(|w| w.name == info.name && w.shadowed_paths.is_empty())
+                                {
+                                    info.shadowed_paths = vec![primary.path.clone()];
+                                }
+                            } else {
+                                primary_names.insert(info.name.clone());
+                            }
+                            all.push(info);
+                        }
+                    }
+                }
+            }
+        }
+
+        // Sort by name, then by whether it's shadowed (primary first)
+        all.sort_by(|a, b| {
+            a.name
+                .cmp(&b.name)
+                .then_with(|| a.shadowed_paths.len().cmp(&b.shadowed_paths.len()))
+        });
+
+        Ok(all)
     }
 
     /// Read basic workload info without full parsing
@@ -208,6 +302,7 @@ impl ConfigManager {
                 .unwrap_or(0),
             file_count: workload.files.as_ref().map(|f| f.len()).unwrap_or(0),
             path: path.to_path_buf(),
+            shadowed_paths: Vec::new(),
         })
     }
 }
@@ -237,6 +332,9 @@ pub struct WorkloadInfo {
     /// Path to the workload file
     #[serde(skip_serializing)]
     pub path: PathBuf,
+    /// Other paths where this workload was also found (shadowed)
+    #[serde(skip_serializing_if = "Vec::is_empty")]
+    pub shadowed_paths: Vec<PathBuf>,
 }
 
 /// Expand variables in a string
@@ -616,5 +714,201 @@ mod tests {
     fn test_config_manager_default_paths() {
         let manager = ConfigManager::new();
         assert!(!manager.search_paths.is_empty());
+        // Default paths should always be present
+        let defaults = default_workload_paths();
+        for dp in &defaults {
+            assert!(
+                manager.search_paths.contains(dp),
+                "Default path {:?} should be in search_paths",
+                dp
+            );
+        }
+    }
+
+    #[test]
+    fn test_config_manager_search_paths_accessor() {
+        let manager = ConfigManager::new();
+        let paths = manager.search_paths();
+        assert!(!paths.is_empty());
+        assert_eq!(paths.len(), manager.search_paths.len());
+    }
+
+    #[test]
+    fn test_config_manager_with_paths() {
+        let custom = vec![PathBuf::from("/custom/a"), PathBuf::from("/custom/b")];
+        let manager = ConfigManager::with_paths(custom.clone());
+        assert_eq!(manager.search_paths(), custom.as_slice());
+    }
+
+    #[test]
+    fn test_config_manager_add_search_path_dedup() {
+        let mut manager = ConfigManager::with_paths(vec![PathBuf::from("/first")]);
+        manager.add_search_path(PathBuf::from("/second"));
+        manager.add_search_path(PathBuf::from("/first")); // duplicate
+        assert_eq!(manager.search_paths().len(), 2);
+    }
+
+    #[test]
+    fn test_config_manager_global_config_integration() {
+        // When GlobalConfig can be loaded (or defaults), ConfigManager
+        // should still contain all default workload paths.
+        let manager = ConfigManager::new();
+        let defaults = default_workload_paths();
+        for dp in &defaults {
+            assert!(
+                manager.search_paths().contains(dp),
+                "Default path {:?} must be present",
+                dp
+            );
+        }
+    }
+
+    #[test]
+    fn test_precedence_first_path_wins() {
+        let dir1 = tempfile::TempDir::new().unwrap();
+        let dir2 = tempfile::TempDir::new().unwrap();
+
+        // Create same-named workload in both directories
+        let wl1 = dir1.path().join("my-wl");
+        std::fs::create_dir_all(&wl1).unwrap();
+        std::fs::write(
+            wl1.join("workload.yaml"),
+            "name: my-wl\nversion: \"1.0.0\"\ndescription: \"from dir1\"\n",
+        )
+        .unwrap();
+
+        let wl2 = dir2.path().join("my-wl");
+        std::fs::create_dir_all(&wl2).unwrap();
+        std::fs::write(
+            wl2.join("workload.yaml"),
+            "name: my-wl\nversion: \"2.0.0\"\ndescription: \"from dir2\"\n",
+        )
+        .unwrap();
+
+        // dir1 has higher priority (listed first)
+        let manager =
+            ConfigManager::with_paths(vec![dir1.path().to_path_buf(), dir2.path().to_path_buf()]);
+        let workloads = manager.list_workloads().unwrap();
+
+        assert_eq!(workloads.len(), 1);
+        assert_eq!(workloads[0].name, "my-wl");
+        assert_eq!(workloads[0].description, "from dir1");
+        assert_eq!(workloads[0].version, "1.0.0");
+    }
+
+    #[test]
+    fn test_shadowed_paths_populated() {
+        let dir1 = tempfile::TempDir::new().unwrap();
+        let dir2 = tempfile::TempDir::new().unwrap();
+
+        // Create same-named workload in both directories
+        let wl1 = dir1.path().join("dup-wl");
+        std::fs::create_dir_all(&wl1).unwrap();
+        std::fs::write(
+            wl1.join("workload.yaml"),
+            "name: dup-wl\nversion: \"1.0.0\"\ndescription: \"primary\"\n",
+        )
+        .unwrap();
+
+        let wl2 = dir2.path().join("dup-wl");
+        std::fs::create_dir_all(&wl2).unwrap();
+        std::fs::write(
+            wl2.join("workload.yaml"),
+            "name: dup-wl\nversion: \"2.0.0\"\ndescription: \"shadow\"\n",
+        )
+        .unwrap();
+
+        let manager =
+            ConfigManager::with_paths(vec![dir1.path().to_path_buf(), dir2.path().to_path_buf()]);
+        let workloads = manager.list_workloads().unwrap();
+
+        assert_eq!(workloads.len(), 1);
+        assert_eq!(workloads[0].shadowed_paths.len(), 1);
+        assert_eq!(workloads[0].shadowed_paths[0], wl2.join("workload.yaml"));
+    }
+
+    #[test]
+    fn test_list_all_workloads_includes_duplicates() {
+        let dir1 = tempfile::TempDir::new().unwrap();
+        let dir2 = tempfile::TempDir::new().unwrap();
+
+        // Create same-named workload in both directories
+        let wl1 = dir1.path().join("all-wl");
+        std::fs::create_dir_all(&wl1).unwrap();
+        std::fs::write(
+            wl1.join("workload.yaml"),
+            "name: all-wl\nversion: \"1.0.0\"\ndescription: \"primary\"\n",
+        )
+        .unwrap();
+
+        let wl2 = dir2.path().join("all-wl");
+        std::fs::create_dir_all(&wl2).unwrap();
+        std::fs::write(
+            wl2.join("workload.yaml"),
+            "name: all-wl\nversion: \"2.0.0\"\ndescription: \"shadow\"\n",
+        )
+        .unwrap();
+
+        // Also add a unique workload in dir2
+        let wl3 = dir2.path().join("unique-wl");
+        std::fs::create_dir_all(&wl3).unwrap();
+        std::fs::write(
+            wl3.join("workload.yaml"),
+            "name: unique-wl\nversion: \"1.0.0\"\ndescription: \"unique\"\n",
+        )
+        .unwrap();
+
+        let manager =
+            ConfigManager::with_paths(vec![dir1.path().to_path_buf(), dir2.path().to_path_buf()]);
+        let all = manager.list_all_workloads().unwrap();
+
+        // Should have 3 entries: primary all-wl, shadowed all-wl, unique-wl
+        assert_eq!(all.len(), 3);
+
+        // Primary entry has empty shadowed_paths
+        let primary = all
+            .iter()
+            .find(|w| w.name == "all-wl" && w.shadowed_paths.is_empty());
+        assert!(primary.is_some());
+
+        // Shadowed entry has non-empty shadowed_paths
+        let shadowed = all
+            .iter()
+            .find(|w| w.name == "all-wl" && !w.shadowed_paths.is_empty());
+        assert!(shadowed.is_some());
+
+        // unique-wl present
+        assert!(all.iter().any(|w| w.name == "unique-wl"));
+    }
+
+    #[test]
+    fn test_no_shadowing_for_unique_workloads() {
+        let dir1 = tempfile::TempDir::new().unwrap();
+        let dir2 = tempfile::TempDir::new().unwrap();
+
+        let wl1 = dir1.path().join("alpha");
+        std::fs::create_dir_all(&wl1).unwrap();
+        std::fs::write(
+            wl1.join("workload.yaml"),
+            "name: alpha\nversion: \"1.0.0\"\ndescription: \"a\"\n",
+        )
+        .unwrap();
+
+        let wl2 = dir2.path().join("beta");
+        std::fs::create_dir_all(&wl2).unwrap();
+        std::fs::write(
+            wl2.join("workload.yaml"),
+            "name: beta\nversion: \"1.0.0\"\ndescription: \"b\"\n",
+        )
+        .unwrap();
+
+        let manager =
+            ConfigManager::with_paths(vec![dir1.path().to_path_buf(), dir2.path().to_path_buf()]);
+        let workloads = manager.list_workloads().unwrap();
+
+        assert_eq!(workloads.len(), 2);
+        for w in &workloads {
+            assert!(w.shadowed_paths.is_empty());
+        }
     }
 }

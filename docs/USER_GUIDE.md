@@ -9,10 +9,11 @@ A comprehensive guide to using Anvil for workstation configuration management.
 3. [Quick Start](#3-quick-start)
 4. [Command Reference](#4-command-reference)
 5. [Configuration](#5-configuration)
-6. [Working with Workloads](#6-working-with-workloads)
-7. [Output Formats](#7-output-formats)
-8. [Environment Variables](#8-environment-variables)
-9. [Best Practices](#9-best-practices)
+6. [Configuring Workload Search Paths](#6-configuring-workload-search-paths)
+7. [Working with Workloads](#7-working-with-workloads)
+8. [Output Formats](#8-output-formats)
+9. [Environment Variables](#9-environment-variables)
+10. [Best Practices](#10-best-practices)
 
 ---
 
@@ -49,6 +50,13 @@ Anvil is a declarative configuration management tool for developer workstations.
 ---
 
 ## 2. Installation
+
+### Install from crates.io
+
+```powershell
+# Prerequisites: Rust 1.75+
+cargo install anvil-cli
+```
 
 ### Download Pre-built Binary
 
@@ -694,15 +702,61 @@ anvil config reset
 
 ---
 
-## 6. Working with Workloads
+## 6. Configuring Workload Search Paths
+
+Anvil searches for workloads in multiple directories. You can add custom paths to include your own workloads alongside the built-in ones.
+
+### Adding a Search Path
+
+```powershell
+anvil config set workloads.paths '["~/my-workloads", "/shared/team-workloads"]'
+```
+
+Or edit `~/.anvil/config.yaml` directly:
+
+```yaml
+workloads:
+  paths:
+    - "~/my-workloads"
+    - "/shared/team-workloads"
+```
+
+### Search Order
+
+Anvil resolves workloads in this priority order:
+
+1. **Explicit path** — passed via `--path` flag
+2. **User-configured** — paths from `~/.anvil/config.yaml`
+3. **Default locations** — bundled workloads, local data directory, current directory
+
+When the same workload name exists in multiple paths, the first match wins. Use `anvil list --all-paths` to see all discovered paths including shadowed duplicates.
+
+### Complete Config Example
+
+```yaml
+# Anvil global configuration
+# Location: ~/.anvil/config.yaml
+
+workloads:
+  paths:
+    - "~/my-workloads"           # Personal workloads
+    - "~/work/team-workloads"    # Team-shared workloads
+
+logging:
+  level: info
+```
+
+---
+
+## 7. Working with Workloads
 
 ### Discovering Workloads
 
-Anvil searches for workloads in these locations (in order):
+Anvil searches for workloads in these locations (in priority order):
 
-1. Bundled workloads (included with Anvil)
-2. Custom paths specified in configuration
-3. Path specified with `--path` option
+1. Path specified with `--path` option
+2. User-configured paths (from `~/.anvil/config.yaml`)
+3. Default locations (bundled workloads, local data directory, current directory)
 
 ```powershell
 # List all available workloads
@@ -768,7 +822,7 @@ anvil install my-workload --dry-run
 
 ---
 
-## 7. Output Formats
+## 8. Output Formats
 
 Anvil supports multiple output formats for different use cases.
 
@@ -844,7 +898,7 @@ Generates a styled HTML document with:
 
 ---
 
-## 8. Environment Variables
+## 9. Environment Variables
 
 | Variable | Description | Default |
 |----------|-------------|---------|
@@ -876,7 +930,7 @@ anvil list
 
 ---
 
-## 9. Best Practices
+## 10. Best Practices
 
 ### Always Dry-Run First
 

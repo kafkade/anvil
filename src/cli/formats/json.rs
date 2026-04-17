@@ -143,6 +143,7 @@ mod tests {
             package_count: 0,
             file_count: 0,
             path: std::path::PathBuf::from("workloads/test"),
+            shadowed_paths: vec![],
         }];
 
         formatter.format_list(&workloads, &mut output).unwrap();
@@ -165,6 +166,7 @@ mod tests {
             package_count: 0,
             file_count: 0,
             path: std::path::PathBuf::from("workloads/test"),
+            shadowed_paths: vec![],
         }];
 
         formatter.format_list(&workloads, &mut output).unwrap();

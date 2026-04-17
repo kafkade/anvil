@@ -222,6 +222,10 @@ pub struct ListArgs {
     #[arg(long, value_name = "PATH")]
     pub path: Option<PathBuf>,
 
+    /// Show all discovered paths including shadowed duplicates
+    #[arg(long)]
+    pub all_paths: bool,
+
     /// Output format
     #[arg(short, long, value_enum)]
     pub output: Option<OutputFormat>,
