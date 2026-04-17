@@ -13,6 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `--assertions-only` flag for `anvil health` to run only assertion checks
 - `assertion_check` toggle in workload health configuration
 - Assertion examples in `anvil init --template full` scaffold
+- Multi-manager workload schema: `packages.brew` (Homebrew) and `packages.apt` (APT) fields alongside existing `packages.winget`
+- Platform-aware validation warns when workload references an unavailable package manager
 
 ### Deprecated
 - `scripts.health_check` when used alongside `assertions` (migrate to declarative assertions; removal planned for v1.0)
