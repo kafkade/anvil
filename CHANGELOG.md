@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Declarative assertions for workload health validation (`assertions:` field in workload YAML)
+- Condition engine with 9 predicate types: `command_exists`, `file_exists`, `dir_exists`, `env_var`, `path_contains`, `registry_value`, `shell`, plus `all_of`/`any_of` composition
+- `--assertions-only` flag for `anvil health` to run only assertion checks
+- `assertion_check` toggle in workload health configuration
+
 ## [0.5.0] - 2026-04-17
 
 This is the first release from the new repository home at [kafkade/anvil](https://github.com/kafkade/anvil). It marks a fresh start with modernized CI/CD, updated documentation, and a clear cross-platform direction. Prior changelog entries (v0.1.0–v0.3.1) are preserved below for historical context.

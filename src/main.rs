@@ -3,7 +3,9 @@
 //! A declarative configuration management tool for developer workstations that automates
 //! the setup and validation of development environments through composable workload definitions.
 
+mod assertions;
 mod cli;
+mod conditions;
 mod config;
 mod operations;
 mod providers;

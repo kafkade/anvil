@@ -41,6 +41,10 @@ pub struct Workload {
     /// Health check configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub health: Option<HealthConfig>,
+
+    /// Declarative assertions for health validation
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub assertions: Option<Vec<Assertion>>,
 }
 
 #[allow(dead_code)]
@@ -61,6 +65,7 @@ impl Workload {
             scripts: None,
             environment: None,
             health: None,
+            assertions: None,
         }
     }
 
@@ -76,6 +81,7 @@ impl Workload {
             scripts: None,
             environment: None,
             health: None,
+            assertions: None,
         }
     }
 
@@ -121,6 +127,22 @@ impl Workload {
             })
             .unwrap_or(0)
     }
+
+    /// Get the total number of assertions
+    pub fn assertion_count(&self) -> usize {
+        self.assertions.as_ref().map(|a| a.len()).unwrap_or(0)
+    }
+}
+
+/// A declarative assertionusing the condition engine
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Assertion {
+    /// Display name for the assertion
+    pub name: String,
+
+    /// The condition to evaluate
+    pub check: crate::conditions::Condition,
 }
 
 /// Package manager definitions
@@ -384,6 +406,10 @@ pub struct HealthConfig {
     /// Whether to run health check scripts (default: true)
     #[serde(default = "default_true")]
     pub script_check: bool,
+
+    /// Whether to evaluate declarative assertions (default: true)
+    #[serde(default = "default_true")]
+    pub assertion_check: bool,
 }
 
 impl Default for HealthConfig {
@@ -392,6 +418,7 @@ impl Default for HealthConfig {
             package_check: true,
             file_check: true,
             script_check: true,
+            assertion_check: true,
         }
     }
 }
@@ -453,5 +480,144 @@ override:
         assert_eq!(package.id, "Git.Git");
         assert!(package.override_str.is_some());
         assert_eq!(package.override_str.unwrap().len(), 2);
+    }
+
+    #[test]
+    fn test_deserialize_workload_with_assertions() {
+        let yaml = r#"
+name: test-workload
+version: "1.0.0"
+description: "Workload with assertions"
+assertions:
+  - name: "Git is installed"
+    check:
+      type: command_exists
+      command: git
+  - name: "Config dir exists"
+    check:
+      type: dir_exists
+      path: "~/.config/app"
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(workload.assertion_count(), 2);
+        let assertions = workload.assertions.unwrap();
+        assert_eq!(assertions[0].name, "Git is installed");
+        assert_eq!(assertions[1].name, "Config dir exists");
+    }
+
+    #[test]
+    fn test_deserialize_assertion_condition_types() {
+        let yaml_command = r#"
+name: "command check"
+check:
+  type: command_exists
+  command: rustc
+"#;
+        let assertion: Assertion = serde_yaml::from_str(yaml_command).unwrap();
+        assert_eq!(assertion.name, "command check");
+        assert!(matches!(
+            assertion.check,
+            crate::conditions::Condition::CommandExists { .. }
+        ));
+
+        let yaml_file = r#"
+name: "file check"
+check:
+  type: file_exists
+  path: "~/.bashrc"
+"#;
+        let assertion: Assertion = serde_yaml::from_str(yaml_file).unwrap();
+        assert!(matches!(
+            assertion.check,
+            crate::conditions::Condition::FileExists { .. }
+        ));
+
+        let yaml_env = r#"
+name: "env check"
+check:
+  type: env_var
+  name: HOME
+"#;
+        let assertion: Assertion = serde_yaml::from_str(yaml_env).unwrap();
+        assert!(matches!(
+            assertion.check,
+            crate::conditions::Condition::EnvVar { .. }
+        ));
+
+        let yaml_shell = r#"
+name: "shell check"
+check:
+  type: shell
+  command: "echo hello"
+"#;
+        let assertion: Assertion = serde_yaml::from_str(yaml_shell).unwrap();
+        assert!(matches!(
+            assertion.check,
+            crate::conditions::Condition::Shell { .. }
+        ));
+
+        let yaml_path = r#"
+name: "path check"
+check:
+  type: path_contains
+  substring: ".cargo/bin"
+"#;
+        let assertion: Assertion = serde_yaml::from_str(yaml_path).unwrap();
+        assert!(matches!(
+            assertion.check,
+            crate::conditions::Condition::PathContains { .. }
+        ));
+
+        let yaml_registry = r#"
+name: "registry check"
+check:
+  type: registry_value
+  hive: HKCU
+  key: "SOFTWARE\\Test"
+  name: TestValue
+"#;
+        let assertion: Assertion = serde_yaml::from_str(yaml_registry).unwrap();
+        assert!(matches!(
+            assertion.check,
+            crate::conditions::Condition::RegistryValue { .. }
+        ));
+    }
+
+    #[test]
+    fn test_assertion_count() {
+        let mut workload = Workload::new("test", "1.0.0", "test");
+        assert_eq!(workload.assertion_count(), 0);
+
+        workload.assertions = Some(vec![
+            Assertion {
+                name: "check1".to_string(),
+                check: crate::conditions::Condition::CommandExists {
+                    command: "git".to_string(),
+                },
+            },
+            Assertion {
+                name: "check2".to_string(),
+                check: crate::conditions::Condition::FileExists {
+                    path: "~/.bashrc".to_string(),
+                },
+            },
+        ]);
+        assert_eq!(workload.assertion_count(), 2);
+    }
+
+    #[test]
+    fn test_workload_without_assertions_backward_compat() {
+        let yaml = r#"
+name: legacy-workload
+version: "1.0.0"
+description: "No assertions"
+packages:
+  winget:
+    - id: Git.Git
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        assert!(workload.assertions.is_none());
+        assert_eq!(workload.assertion_count(), 0);
+        assert_eq!(workload.package_count(), 1);
     }
 }

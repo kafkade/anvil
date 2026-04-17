@@ -483,6 +483,104 @@ mod health_command {
 
         assert!(output_file.exists());
     }
+
+    #[test]
+    fn health_assertions_only() {
+        let temp = TempDir::new().unwrap();
+        common::create_workload_with_assertions(temp.path(), "assert-test").unwrap();
+        let workload_path = temp.path().join("assert-test");
+
+        anvil()
+            .args([
+                "health",
+                workload_path.to_str().unwrap(),
+                "--assertions-only",
+            ])
+            .assert()
+            .code(predicate::in_iter([0, 1]));
+    }
+
+    #[test]
+    fn health_assertions_evaluated() {
+        let temp = TempDir::new().unwrap();
+        common::create_workload_with_assertions(temp.path(), "assert-eval").unwrap();
+        let workload_path = temp.path().join("assert-eval");
+
+        // JSON output should contain Assertions category
+        anvil()
+            .args([
+                "health",
+                workload_path.to_str().unwrap(),
+                "--output",
+                "json",
+            ])
+            .assert()
+            .code(predicate::in_iter([0, 1]))
+            .stdout(predicate::str::contains("Assertions"));
+    }
+
+    #[test]
+    fn health_assertions_disabled() {
+        let temp = TempDir::new().unwrap();
+        common::create_workload_assertions_disabled(temp.path(), "assert-off").unwrap();
+        let workload_path = temp.path().join("assert-off");
+
+        // When assertion_check is false, no assertion results should appear
+        let output = anvil()
+            .args([
+                "health",
+                workload_path.to_str().unwrap(),
+                "--output",
+                "json",
+                "--assertions-only",
+            ])
+            .assert()
+            .code(predicate::in_iter([0, 1]))
+            .get_output()
+            .stdout
+            .clone();
+
+        let stdout = String::from_utf8_lossy(&output);
+        assert!(
+            !stdout.contains("should be skipped"),
+            "Assertions should be skipped when assertion_check is false"
+        );
+    }
+
+    #[test]
+    fn health_assertions_fail_fast() {
+        let temp = TempDir::new().unwrap();
+        common::create_workload_with_assertions(temp.path(), "assert-ff").unwrap();
+        let workload_path = temp.path().join("assert-ff");
+
+        // With fail_fast and a failing assertion, command should still exit
+        anvil()
+            .args([
+                "health",
+                workload_path.to_str().unwrap(),
+                "--fail-fast",
+                "--assertions-only",
+            ])
+            .assert()
+            .code(predicate::in_iter([0, 1]));
+    }
+
+    #[test]
+    fn health_passing_assertions() {
+        let temp = TempDir::new().unwrap();
+        common::create_workload_passing_assertions(temp.path(), "assert-pass").unwrap();
+        let workload_path = temp.path().join("assert-pass");
+
+        // All passing assertions should exit 0
+        anvil()
+            .args([
+                "health",
+                workload_path.to_str().unwrap(),
+                "--assertions-only",
+            ])
+            .assert()
+            .success();
+    }
 }
 
 mod completions_command {

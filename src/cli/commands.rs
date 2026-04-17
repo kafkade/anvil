@@ -178,6 +178,10 @@ pub struct HealthArgs {
     #[arg(long)]
     pub scripts_only: bool,
 
+    /// Only evaluate declarative assertions
+    #[arg(long)]
+    pub assertions_only: bool,
+
     /// Treat warnings as errors
     #[arg(short, long)]
     pub strict: bool,

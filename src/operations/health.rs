@@ -61,7 +61,7 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
     let mut _packages_to_update: Vec<String> = Vec::new();
 
     // Package checks
-    if !args.files_only && !args.scripts_only {
+    if !args.files_only && !args.scripts_only && !args.assertions_only {
         let (package_checks, fix_list, update_list) = check_packages(&workload, verbosity, quiet)?;
         checks.extend(package_checks);
         _packages_to_fix = fix_list;
@@ -76,7 +76,7 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
     }
 
     // File checks
-    if !args.packages_only && !args.scripts_only {
+    if !args.packages_only && !args.scripts_only && !args.assertions_only {
         let file_checks = check_files(&workload, &workload_path, verbosity, args.show_diff)?;
         checks.extend(file_checks);
 
@@ -88,8 +88,36 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
         }
     }
 
+    // Assertion checks
+    if !args.packages_only && !args.files_only && !args.scripts_only {
+        let health_config = workload.health.as_ref().cloned().unwrap_or_default();
+        if health_config.assertion_check {
+            if let Some(assertions) = &workload.assertions {
+                if let Some(s) = &spinner {
+                    s.set_message("Evaluating assertions...");
+                }
+
+                let assertion_pairs: Vec<(String, crate::conditions::Condition)> = assertions
+                    .iter()
+                    .map(|a| (a.name.clone(), a.check.clone()))
+                    .collect();
+
+                let assertion_results = crate::assertions::evaluate_assertions(&assertion_pairs);
+                let assertion_checks = crate::assertions::to_check_results(&assertion_results);
+                checks.extend(assertion_checks);
+
+                if args.fail_fast && checks.iter().any(|c| c.status == CheckStatus::Fail) {
+                    if let Some(s) = spinner {
+                        s.finish_and_clear();
+                    }
+                    return report_and_exit(args, cli, &workload.name, checks);
+                }
+            }
+        }
+    }
+
     // Script checks
-    if !args.packages_only && !args.files_only {
+    if !args.packages_only && !args.files_only && !args.assertions_only {
         if let Some(s) = &spinner {
             s.set_message("Running health check scripts...");
         }
