@@ -101,12 +101,16 @@ impl Workload {
             .unwrap_or_default()
     }
 
-    /// Get the total number of packages
+    /// Get the total number of packages across all managers
     pub fn package_count(&self) -> usize {
         self.packages
             .as_ref()
-            .and_then(|p| p.winget.as_ref())
-            .map(|w| w.len())
+            .map(|p| {
+                let winget = p.winget.as_ref().map(|w| w.len()).unwrap_or(0);
+                let brew = p.brew.as_ref().map(|b| b.len()).unwrap_or(0);
+                let apt = p.apt.as_ref().map(|a| a.len()).unwrap_or(0);
+                winget + brew + apt
+            })
             .unwrap_or(0)
     }
 
@@ -149,9 +153,17 @@ pub struct Assertion {
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Packages {
-    /// Winget package definitions
+    /// Winget package definitions (Windows)
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub winget: Option<Vec<WingetPackage>>,
+
+    /// Homebrew package definitions (macOS/Linux)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub brew: Option<Vec<BrewPackage>>,
+
+    /// APT package definitions (Debian/Ubuntu)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub apt: Option<Vec<AptPackage>>,
 }
 
 /// A single winget package definition
@@ -201,6 +213,31 @@ impl WingetPackage {
             override_str: None,
         }
     }
+}
+
+/// A Homebrew package definition (schema-only, not yet implemented)
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct BrewPackage {
+    /// Package name (e.g., "git", "node")
+    pub name: String,
+    /// Whether this is a cask (GUI app) vs formula (CLI tool)
+    #[serde(default)]
+    pub cask: bool,
+    /// Tap source (e.g., "homebrew/cask-fonts")
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub tap: Option<String>,
+}
+
+/// An APT package definition (schema-only, not yet implemented)
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AptPackage {
+    /// Package name (e.g., "git", "build-essential")
+    pub name: String,
+    /// Specific version constraint
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub version: Option<String>,
 }
 
 /// A file to be copied to the target system
@@ -619,5 +656,116 @@ packages:
         assert!(workload.assertions.is_none());
         assert_eq!(workload.assertion_count(), 0);
         assert_eq!(workload.package_count(), 1);
+    }
+
+    #[test]
+    fn test_deserialize_brew_packages() {
+        let yaml = r#"
+name: brew-workload
+version: "1.0.0"
+description: "Workload with brew packages"
+packages:
+  brew:
+    - name: git
+    - name: visual-studio-code
+      cask: true
+    - name: font-cascadia-code
+      cask: true
+      tap: "homebrew/cask-fonts"
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        let brew = workload.packages.as_ref().unwrap().brew.as_ref().unwrap();
+        assert_eq!(brew.len(), 3);
+        assert_eq!(brew[0].name, "git");
+        assert!(!brew[0].cask);
+        assert!(brew[1].cask);
+        assert_eq!(brew[2].tap.as_deref(), Some("homebrew/cask-fonts"));
+        assert_eq!(workload.package_count(), 3);
+    }
+
+    #[test]
+    fn test_deserialize_apt_packages() {
+        let yaml = r#"
+name: apt-workload
+version: "1.0.0"
+description: "Workload with apt packages"
+packages:
+  apt:
+    - name: git
+    - name: build-essential
+      version: "12.9"
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        let apt = workload.packages.as_ref().unwrap().apt.as_ref().unwrap();
+        assert_eq!(apt.len(), 2);
+        assert_eq!(apt[0].name, "git");
+        assert!(apt[0].version.is_none());
+        assert_eq!(apt[1].name, "build-essential");
+        assert_eq!(apt[1].version.as_deref(), Some("12.9"));
+        assert_eq!(workload.package_count(), 2);
+    }
+
+    #[test]
+    fn test_deserialize_all_three_managers() {
+        let yaml = r#"
+name: multi-manager
+version: "1.0.0"
+description: "Workload with all managers"
+packages:
+  winget:
+    - id: Git.Git
+  brew:
+    - name: git
+  apt:
+    - name: git
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        let pkgs = workload.packages.as_ref().unwrap();
+        assert_eq!(pkgs.winget.as_ref().unwrap().len(), 1);
+        assert_eq!(pkgs.brew.as_ref().unwrap().len(), 1);
+        assert_eq!(pkgs.apt.as_ref().unwrap().len(), 1);
+        assert_eq!(workload.package_count(), 3);
+    }
+
+    #[test]
+    fn test_package_count_all_managers() {
+        let yaml = r#"
+name: count-test
+version: "1.0.0"
+description: "Count test"
+packages:
+  winget:
+    - id: Git.Git
+    - id: Microsoft.VisualStudioCode
+  brew:
+    - name: git
+    - name: node
+    - name: visual-studio-code
+      cask: true
+  apt:
+    - name: git
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(workload.package_count(), 6); // 2 + 3 + 1
+    }
+
+    #[test]
+    fn test_backward_compat_winget_only() {
+        let yaml = r#"
+name: winget-only
+version: "1.0.0"
+description: "Only winget"
+packages:
+  winget:
+    - id: Git.Git
+    - id: Microsoft.VisualStudioCode
+      version: "1.85.0"
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(workload.package_count(), 2);
+        let pkgs = workload.packages.as_ref().unwrap();
+        assert!(pkgs.brew.is_none());
+        assert!(pkgs.apt.is_none());
+        assert!(pkgs.winget.is_some());
     }
 }

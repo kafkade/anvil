@@ -480,6 +480,7 @@ mod tests {
                 WingetPackage::new("Package.One"),
                 WingetPackage::new("Package.Two"),
             ]),
+            ..Default::default()
         });
         assert_eq!(workload.package_count(), 2);
     }

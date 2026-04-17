@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use tracing::{debug, trace};
 
 use super::workload::{
-    Environment, FileEntry, HealthCheckScript, Packages, ScriptEntry, Scripts, WingetPackage,
-    Workload,
+    AptPackage, BrewPackage, Environment, FileEntry, HealthCheckScript, Packages, ScriptEntry,
+    Scripts, WingetPackage, Workload,
 };
 use super::ConfigManager;
 
@@ -538,7 +538,11 @@ fn merge_packages(parent: Option<Packages>, child: Option<Packages>) -> Option<P
         (Some(p), None) => Some(p),
         (None, Some(c)) => Some(c),
         (Some(parent), Some(child)) => {
-            let mut result = Packages { winget: None };
+            let mut result = Packages {
+                winget: None,
+                brew: None,
+                apt: None,
+            };
 
             // Merge winget packages
             let parent_winget = parent.winget.unwrap_or_default();
@@ -560,6 +564,42 @@ fn merge_packages(parent: Option<Packages>, child: Option<Packages>) -> Option<P
                 }
 
                 result.winget = Some(merged);
+            }
+
+            // Merge brew packages
+            let parent_brew = parent.brew.unwrap_or_default();
+            let child_brew = child.brew.unwrap_or_default();
+
+            if !parent_brew.is_empty() || !child_brew.is_empty() {
+                let mut merged: Vec<BrewPackage> = parent_brew;
+
+                for child_pkg in child_brew {
+                    if let Some(existing) = merged.iter_mut().find(|p| p.name == child_pkg.name) {
+                        *existing = child_pkg;
+                    } else {
+                        merged.push(child_pkg);
+                    }
+                }
+
+                result.brew = Some(merged);
+            }
+
+            // Merge apt packages
+            let parent_apt = parent.apt.unwrap_or_default();
+            let child_apt = child.apt.unwrap_or_default();
+
+            if !parent_apt.is_empty() || !child_apt.is_empty() {
+                let mut merged: Vec<AptPackage> = parent_apt;
+
+                for child_pkg in child_apt {
+                    if let Some(existing) = merged.iter_mut().find(|p| p.name == child_pkg.name) {
+                        *existing = child_pkg;
+                    } else {
+                        merged.push(child_pkg);
+                    }
+                }
+
+                result.apt = Some(merged);
             }
 
             Some(result)
@@ -834,12 +874,14 @@ mod tests {
                 WingetPackage::new("Parent.Package1"),
                 WingetPackage::new("Parent.Package2"),
             ]),
+            ..Default::default()
         });
         let child = Some(Packages {
             winget: Some(vec![
                 WingetPackage::new("Child.Package1"),
                 WingetPackage::with_version("Parent.Package2", "2.0.0"), // Override
             ]),
+            ..Default::default()
         });
 
         let merged = merge_packages(parent, child).unwrap();
@@ -850,6 +892,105 @@ mod tests {
         assert_eq!(winget[1].id, "Parent.Package2");
         assert_eq!(winget[1].version, Some("2.0.0".to_string())); // Overwritten by child
         assert_eq!(winget[2].id, "Child.Package1");
+    }
+
+    #[test]
+    fn test_merge_brew_packages() {
+        let parent = Some(Packages {
+            brew: Some(vec![
+                BrewPackage {
+                    name: "git".to_string(),
+                    cask: false,
+                    tap: None,
+                },
+                BrewPackage {
+                    name: "node".to_string(),
+                    cask: false,
+                    tap: None,
+                },
+            ]),
+            ..Default::default()
+        });
+        let child = Some(Packages {
+            brew: Some(vec![
+                BrewPackage {
+                    name: "wget".to_string(),
+                    cask: false,
+                    tap: None,
+                },
+                BrewPackage {
+                    name: "node".to_string(),
+                    cask: false,
+                    tap: Some("custom/tap".to_string()),
+                },
+            ]),
+            ..Default::default()
+        });
+
+        let merged = merge_packages(parent, child).unwrap();
+        let brew = merged.brew.unwrap();
+        assert_eq!(brew.len(), 3);
+        assert_eq!(brew[0].name, "git");
+        assert_eq!(brew[1].name, "node");
+        assert_eq!(brew[1].tap.as_deref(), Some("custom/tap")); // Overwritten by child
+        assert_eq!(brew[2].name, "wget");
+    }
+
+    #[test]
+    fn test_merge_apt_packages() {
+        let parent = Some(Packages {
+            apt: Some(vec![AptPackage {
+                name: "git".to_string(),
+                version: None,
+            }]),
+            ..Default::default()
+        });
+        let child = Some(Packages {
+            apt: Some(vec![
+                AptPackage {
+                    name: "git".to_string(),
+                    version: Some("2.40".to_string()),
+                },
+                AptPackage {
+                    name: "curl".to_string(),
+                    version: None,
+                },
+            ]),
+            ..Default::default()
+        });
+
+        let merged = merge_packages(parent, child).unwrap();
+        let apt = merged.apt.unwrap();
+        assert_eq!(apt.len(), 2);
+        assert_eq!(apt[0].name, "git");
+        assert_eq!(apt[0].version.as_deref(), Some("2.40")); // Overwritten by child
+        assert_eq!(apt[1].name, "curl");
+    }
+
+    #[test]
+    fn test_merge_mixed_managers() {
+        let parent = Some(Packages {
+            winget: Some(vec![WingetPackage::new("Git.Git")]),
+            brew: Some(vec![BrewPackage {
+                name: "git".to_string(),
+                cask: false,
+                tap: None,
+            }]),
+            apt: None,
+        });
+        let child = Some(Packages {
+            winget: None,
+            brew: None,
+            apt: Some(vec![AptPackage {
+                name: "git".to_string(),
+                version: None,
+            }]),
+        });
+
+        let merged = merge_packages(parent, child).unwrap();
+        assert!(merged.winget.is_some());
+        assert!(merged.brew.is_some());
+        assert!(merged.apt.is_some());
     }
 
     #[test]
