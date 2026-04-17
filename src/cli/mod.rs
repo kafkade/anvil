@@ -8,6 +8,7 @@ pub mod completions;
 pub mod formats;
 pub mod output;
 pub mod progress;
+pub mod banner;
 
 use clap::{Parser, Subcommand};
 

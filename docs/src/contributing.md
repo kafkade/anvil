@@ -121,10 +121,10 @@ cargo run -- -vvv list
 cargo test
 
 # Run unit tests only
-cargo test --lib
+cargo test --bin anvil
 
 # Run integration tests only
-cargo test --test '*'
+cargo test --test cli_tests
 
 # Run a specific test
 cargo test test_name
@@ -159,6 +159,12 @@ anvil/
 │   │   ├── workload.rs      # Workload parsing
 │   │   ├── inheritance.rs   # Inheritance resolution
 │   │   └── global.rs        # Global configuration
+│   ├── assertions/          # Assertion evaluation engine
+│   │   └── mod.rs
+│   ├── commands/            # Inline command execution
+│   │   └── mod.rs
+│   ├── conditions/          # Condition/predicate engine
+│   │   └── mod.rs
 │   ├── operations/          # Command implementations
 │   │   ├── mod.rs
 │   │   ├── install.rs       # Install command
@@ -207,6 +213,9 @@ anvil/
 
 - **cli**: Handles command-line parsing with clap and output formatting
 - **config**: Parses workload YAML files and handles inheritance
+- **assertions**: Evaluates named assertions for health reporting
+- **commands**: Executes inline commands with timeout and elevation support
+- **conditions**: Composable predicate engine for system state checks
 - **operations**: Implements each CLI command's business logic
 - **providers**: Interfaces with external systems (winget, filesystem, PowerShell)
 - **state**: Tracks installation state and manages caching

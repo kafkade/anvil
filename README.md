@@ -23,9 +23,11 @@ Anvil is a declarative configuration management tool for developer workstations.
 - 🔧 **Script Execution** - Run PowerShell setup and validation scripts
 - 🧬 **Workload Inheritance** - Compose configurations using DRY principles
 - ✅ **Health Checks** - Validate system state matches workload definition
+- 🔍 **Assertions & Conditions** - Declarative system state predicates for health validation
 - 📊 **Multiple Formats** - Output as table, JSON, YAML, or HTML reports
 - 🔄 **Backup & Restore** - Save and restore system state
 - 🐚 **Shell Completions** - Tab completion for PowerShell, Bash, Zsh, Fish
+- 🌐 **Multi-Platform Design** - Windows support now; macOS and Linux on the roadmap
 
 ## 🚀 Quick Start
 
@@ -138,14 +140,15 @@ Commands:
   validate     Validate workload syntax
   init         Create new workload template
   status       Show installation status
-  backup       Manage system backups
+  backup       Manage file backups
   config       Manage global configuration
   completions  Generate shell completions
 
 Global Options:
   -v, --verbose    Increase verbosity (-v, -vv, -vvv)
   -q, --quiet      Suppress output
-  --no-color       Disable colored output
+  -c, --config     Use custom configuration file
+      --no-color   Disable colored output
   -h, --help       Show help
   -V, --version    Show version
 ```

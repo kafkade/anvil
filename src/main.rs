@@ -19,6 +19,13 @@ use tracing_subscriber::{fmt, prelude::*, EnvFilter};
 use crate::cli::{Cli, Commands};
 
 fn main() -> Result<()> {
+    // Show animated banner for --version/-V before clap processes it
+    let args: Vec<String> = std::env::args().collect();
+    if args.iter().any(|a| a == "--version" || a == "-V") {
+        cli::banner::show_version();
+        return Ok(());
+    }
+
     // Initialize logging
     init_logging();
 

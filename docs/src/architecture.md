@@ -10,6 +10,10 @@ Anvil is a single-binary Rust CLI. The binary parses commands, loads YAML worklo
 main.rs → cli/ → operations/ → providers/
                       ↓              ↓
                    config/        state/
+                      ↓
+              conditions/ → assertions/
+                      ↓
+                  commands/
 ```
 
 | Layer | Role |
@@ -19,6 +23,9 @@ main.rs → cli/ → operations/ → providers/
 | **operations/** | One module per CLI command — each exposes `execute(args, cli) → Result<()>` |
 | **providers/** | External system integrations: winget, filesystem, scripts, templates, backups |
 | **state/** | Tracks installation records, file hashes, and package cache at `~/.anvil/` |
+| **conditions/** | Composable predicate engine: command existence, file/dir checks, env vars, registry, shell commands |
+| **assertions/** | Evaluates named assertions (backed by conditions) for health reporting |
+| **commands/** | Inline command execution with conditional execution, timeouts, and structured results |
 
 ## Data Flow: `anvil install <workload>`
 
@@ -48,12 +55,14 @@ pub struct Workload {
     pub packages: Option<Packages>,
     pub files: Option<Vec<FileEntry>>,
     pub scripts: Option<Scripts>,
+    pub commands: Option<CommandBlock>,
     pub environment: Option<Environment>,
     pub health: Option<HealthConfig>,
+    pub assertions: Option<Vec<Assertion>>,
 }
 ```
 
-The `Workload` struct is the central data type — deserialized from YAML via serde. All fields except `name`, `version`, and `description` are optional.
+The `Workload` struct is the central data type — deserialized from YAML via serde. All fields except `name`, `version`, and `description` are optional. The `commands` and `assertions` fields were added in v0.5–v0.6 alongside the `conditions/`, `assertions/`, and `commands/` modules.
 
 ### CLI (`cli/mod.rs`, `cli/commands.rs`)
 
@@ -143,6 +152,7 @@ Two-tier approach:
   - `InheritanceError` (includes `suggestion()` for user-friendly hints)
   - `FileStateError`
   - `ProviderError` (wraps all provider errors)
+  - `CommandError`, `ConditionError`
 - **`anyhow`** for error propagation in operations and CLI code
 
 Pattern: domain errors are created with `thiserror` and converted to `anyhow::Error` at operation boundaries using `.with_context(|| ...)`.
@@ -151,11 +161,11 @@ Pattern: domain errors are created with `thiserror` and converted to `anyhow::Er
 
 ### Unit Tests
 
-Inline `#[cfg(test)] mod tests` in the same file as the code under test. 168 unit tests covering providers, config parsing, inheritance, state management, and formatting.
+Inline `#[cfg(test)] mod tests` in the same file as the code under test. 270 unit tests covering providers, config parsing, inheritance, state management, conditions, commands, and formatting.
 
 ### Integration Tests
 
-`tests/cli_tests.rs` uses `assert_cmd` + `predicates` for end-to-end CLI testing. 75 integration tests covering all commands with fixture workloads.
+`tests/cli_tests.rs` uses `assert_cmd` + `predicates` for end-to-end CLI testing. 85 integration tests covering all commands with fixture workloads.
 
 `tests/common/mod.rs` provides test fixture helpers:
 - `create_test_workload()` — minimal valid workload
@@ -168,9 +178,9 @@ Inline `#[cfg(test)] mod tests` in the same file as the code under test. 168 uni
 ### Running Tests
 
 ```sh
-cargo test                   # All tests (243 total)
-cargo test --bin anvil       # Unit tests only (168)
-cargo test --test cli_tests  # Integration tests only (75)
+cargo test                   # All tests (355 total)
+cargo test --bin anvil       # Unit tests only (270)
+cargo test --test cli_tests  # Integration tests only (85)
 cargo test test_name         # Single test by name
 ```
 
@@ -187,12 +197,10 @@ All commands that produce output support `--format`:
 
 ## CI Pipeline
 
-`.github/workflows/ci.yml` runs on every push/PR:
+`.github/workflows/ci.yml` runs on every push/PR across **Windows, Linux, and macOS** (matrix build):
 
 1. `cargo fmt --all -- --check`
 2. `cargo clippy --all-targets --all-features -- -D warnings`
-3. `cargo check`
-4. `cargo test --bin anvil` (unit tests)
-5. `cargo test --test cli_tests` (integration tests)
-6. `cargo build --release`
-7. Verify binary runs (`./anvil --version`)
+3. `cargo test --bin anvil` (unit tests)
+4. `cargo test --test cli_tests` (integration tests)
+5. `cargo build --release` (Windows only)

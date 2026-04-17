@@ -8,6 +8,7 @@
 
 - [Getting Started](user-guide.md)
 - [Workload Authoring](workload-authoring.md)
+- [Cookbook](cookbook.md)
 - [Troubleshooting](troubleshooting.md)
 
 # Reference
