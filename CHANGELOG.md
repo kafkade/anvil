@@ -7,14 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-04-17
+
+This is the first release from the new repository home at [kafkade/anvil](https://github.com/kafkade/anvil). It marks a fresh start with modernized CI/CD, updated documentation, and a clear cross-platform direction. Prior changelog entries (v0.1.0–v0.3.1) are preserved below for historical context.
+
 ### Added
 - Architecture reference document for contributors (`docs/ARCHITECTURE.md`)
+- Automated releases from CHANGELOG.md with SHA256 checksums
+- Consolidated CI pipeline with formatting, linting, and testing in a single gate
 
 ### Changed
-- Project description updated to "Declarative Workstation Configuration Management" to reflect cross-platform direction
-
-### Fixed
-- Nothing yet
+- Project rebranded to "Declarative Workstation Configuration Management" to reflect cross-platform direction
+- Streamlined CI from 3 separate jobs to a single `Validate` gate plus release build
+- Release workflow aligned with org-wide pattern (changelog-driven notes, semver pre-release detection)
+- Resolved all clippy warnings and formatting issues across the codebase
 
 ## [0.3.1] - 2026-01-10
 
@@ -104,7 +110,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ---
 
-[Unreleased]: https://github.com/kafkade/anvil/compare/v0.3.1...HEAD
+[Unreleased]: https://github.com/kafkade/anvil/compare/v0.5.0...HEAD
+[0.5.0]: https://github.com/kafkade/anvil/compare/v0.3.1...v0.5.0
 [0.3.1]: https://github.com/kafkade/anvil/compare/v0.3.0...v0.3.1
 [0.3.0]: https://github.com/kafkade/anvil/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/kafkade/anvil/compare/v0.1.0...v0.2.0
