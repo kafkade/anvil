@@ -1064,27 +1064,27 @@ Phases 1–6 of the original implementation are complete. This section describes
 ### 8.1 Overview
 
 ```
-v0.4 — Declarative Assertions
+v0.4 — Declarative Assertions               ✅ Implemented
     │
     ├── Reusable condition/predicate engine
     ├── assertions: YAML schema
     ├── Integration with health command
     └── Backward compatibility with scripts.health_check
 
-v0.5 — Package Manager Abstraction
+v0.5 — Package Manager Abstraction          ✅ Schema implemented
     │
-    ├── PackageManager trait
-    ├── WingetProvider adapter
-    └── Schema design for multi-manager support
+    ├── PackageManager trait                 ⬚ Pending
+    ├── WingetProvider adapter               ⬚ Pending
+    └── Schema design for multi-manager      ✅ Implemented (winget/brew/apt)
 
-v0.6 — Commands Block
+v0.6 — Commands Block                       ✅ Implemented
     │
     ├── commands: YAML schema
     ├── Conditional execution (when:)
     ├── Failure semantics
     └── Backward compatibility with scripts.post_install
 
-v0.7 — Workload Discovery & Separation
+v0.7 — Workload Discovery & Separation      ✅ Implemented
     │
     ├── Wire search_paths through ConfigManager
     ├── Search precedence and conflict resolution
@@ -1092,13 +1092,16 @@ v0.7 — Workload Discovery & Separation
 
 v1.0 — Polish & Distribution
     │
-    ├── crates.io publishing
-    ├── Cross-platform CI
+    ├── crates.io publishing                 ⬚ Pending
+    ├── Cross-platform CI                    ✅ Implemented (Windows/Linux/macOS matrix)
+    ├── Shell completions                    ✅ Implemented (bash/zsh/fish/powershell/elvish)
     ├── Remove scripts.health_check (use assertions exclusively)
     └── Documentation review
 ```
 
-### 8.2 v0.4 — Declarative Assertions
+### 8.2 v0.4 — Declarative Assertions ✅
+
+> **Status:** Implemented. Modules: `src/conditions/`, `src/assertions/`. Workload struct includes `assertions: Option<Vec<Assertion>>`. Health command evaluates assertions alongside legacy `scripts.health_check`.
 
 **Goal:** Replace ~70% of PowerShell health-check scripts with declarative YAML assertions, evaluated natively in Rust.
 
@@ -1152,7 +1155,9 @@ assertions:
 - Update `src/operations/health.rs` — evaluate assertions alongside legacy `scripts.health_check`
 - **Backward compatible** — existing `scripts.health_check` continues to work
 
-### 8.3 v0.5 — Package Manager Abstraction
+### 8.3 v0.5 — Package Manager Abstraction (Partial)
+
+> **Status:** Multi-manager schema implemented (`Packages` struct with `winget`, `brew`, `apt` fields; `BrewPackage` and `AptPackage` types defined). The `PackageManager` trait and non-winget provider implementations are still pending.
 
 **Goal:** Introduce a `PackageManager` trait so the install flow is decoupled from winget, enabling future cross-platform support.
 
@@ -1180,7 +1185,9 @@ packages:
 
 Anvil selects the available manager for the current platform. The v0.5 milestone implements the trait and refactors `WingetProvider` — other manager implementations are deferred.
 
-### 8.4 v0.6 — Commands Block
+### 8.4 v0.6 — Commands Block ✅
+
+> **Status:** Implemented. Module: `src/commands/`. Workload struct includes `commands: Option<CommandBlock>` with `pre_install` and `post_install` phases. `CommandEntry` supports `run`, `description`, `timeout`, `elevated`, `when` (condition), and `continue_on_error`. Execution engine in `commands::execute_commands()`.
 
 **Goal:** Replace post-install PowerShell scripts with inline commands that support conditional execution.
 
@@ -1205,11 +1212,11 @@ commands:
 
 The `when:` condition reuses the predicate engine from v0.4.
 
-### 8.5 v0.7 — Workload Discovery & Separation
+### 8.5 v0.7 — Workload Discovery & Separation ✅
+
+> **Status:** Implemented. `ConfigManager` loads user-configured search paths from `GlobalConfig.workloads.paths` and merges them with default paths. `add_search_path()` deduplicates entries. Search precedence matches the design below.
 
 **Goal:** Support multiple workload directories so private workloads live outside the main repo.
-
-**Current state:** `GlobalConfig` already has a `workloads.paths` field, but `ConfigManager` uses only `default_workload_paths()`. This milestone wires configured paths through all commands and defines precedence.
 
 **Search precedence:**
 1. Explicit path argument (highest priority)
@@ -1223,7 +1230,8 @@ Duplicate workload names produce a warning with the resolved path shown.
 **Goal:** Stable release with cross-platform CI and crates.io publishing.
 
 - Decide crate name (`anvil` is taken on crates.io — candidates: `anvil-cli`, `devsmith`, `forgekit`)
-- Cross-compilation CI for Windows, Linux, macOS
+- ~~Cross-compilation CI for Windows, Linux, macOS~~ ✅ Implemented (matrix build in `ci.yml`)
+- ~~Shell completions~~ ✅ Implemented (bash, zsh, fish, powershell, elvish via `cli/completions.rs`)
 - Comprehensive documentation review
 - First stable release
 

@@ -394,7 +394,145 @@ A guide to diagnosing and resolving common Anvil issues.
 
 ---
 
-## 7. Error Reference
+## 7. Workload Inheritance Issues
+
+### Circular dependency detected
+
+**Symptoms:**
+- Error: "Circular dependency detected: A → B → A"
+
+**Solutions:**
+
+1. **Inspect the `extends` chain** in each workload
+   ```yaml
+   # workload-a/workload.yaml
+   extends:
+     - workload-b     # workload-b also extends workload-a → cycle!
+   ```
+
+2. **Break the cycle** by removing one of the `extends` references
+3. **Run `anvil validate`** to see the detected chain
+
+---
+
+### Maximum inheritance depth exceeded
+
+**Symptoms:**
+- Error: "Maximum inheritance depth (10) exceeded for workload 'X'"
+
+**Solutions:**
+
+1. **Flatten the hierarchy** — the maximum allowed depth is 10
+2. **Merge intermediate workloads** to reduce nesting
+3. **Check for unintended long chains**
+   ```powershell
+   anvil show my-workload    # Review resolved inheritance
+   ```
+
+---
+
+### Parent workload not found
+
+**Symptoms:**
+- Error: "Parent workload 'X' not found"
+
+**Solutions:**
+
+1. **Verify the parent name** matches an available workload
+   ```powershell
+   anvil list    # See all available workloads
+   ```
+
+2. **Check search paths** — ensure the parent workload directory is discoverable
+   ```powershell
+   anvil config list    # Review configured workload search paths
+   ```
+
+3. **Use `--path`** if the parent is in a custom location
+   ```powershell
+   anvil install my-workload --path /path/to/workloads
+   ```
+
+---
+
+## 8. Platform-Specific Warnings
+
+### Workload references unavailable package manager
+
+**Symptoms:**
+- Warning: "Homebrew packages defined but Homebrew is not available on Windows"
+- Warning: "APT packages defined but APT is not available on Windows"
+- Warning: "Winget packages defined but winget is only available on Windows"
+
+**Solutions:**
+
+1. **Run `anvil validate --strict`** to surface these warnings
+2. **Use platform-appropriate package managers** in your workload
+   ```yaml
+   packages:
+     winget:           # Windows only
+       - id: Package.Name
+     brew:             # macOS only (planned)
+       - name: package
+     apt:              # Linux only (planned)
+       - name: package
+   ```
+
+3. **Split into platform-specific workloads** if targeting multiple OSes
+
+---
+
+## 9. Assertion and Command Failures
+
+### Assertion failure
+
+**Symptoms:**
+- Health check assertion fails with `[FAIL]`
+- Error: condition evaluation returned false
+
+**Solutions:**
+
+1. **Run the health check with verbose output** to see which assertion failed
+   ```powershell
+   anvil health my-workload -vvv
+   ```
+
+2. **Review the condition** — assertions check system state (command existence, file presence, environment variables, registry values)
+
+3. **Common assertion types and fixes:**
+   - **Command not found** — install the missing tool or add it to PATH
+   - **File missing** — re-run `anvil install` to deploy files
+   - **Environment variable not set** — check your shell profile or restart the terminal
+
+---
+
+### Command execution failure
+
+**Symptoms:**
+- Error: "Command not found: X"
+- Error: "Command timed out after N seconds"
+- Error: "Command requires elevated privileges"
+
+**Solutions:**
+
+1. **Command not found** — ensure the executable is installed and on PATH
+   ```powershell
+   Get-Command <command-name>
+   ```
+
+2. **Timeout** — increase the timeout in your workload definition
+   ```yaml
+   scripts:
+     post_install:
+       - path: slow-script.ps1
+         timeout: 1800    # 30 minutes
+   ```
+
+3. **Elevation required** — run anvil as administrator, or set `elevated: true`
+
+---
+
+## 10. Error Reference
 
 ### Common Error Codes
 
@@ -413,7 +551,7 @@ A guide to diagnosing and resolving common Anvil issues.
 
 ---
 
-## 8. Getting Help
+## 11. Getting Help
 
 ### Verbose Output
 
@@ -464,9 +602,9 @@ When [reporting issues](https://github.com/kafkade/anvil/issues), include:
 ### Resources
 
 - [GitHub Issues](https://github.com/kafkade/anvil/issues)
-- [User Guide](USER_GUIDE.md)
-- [Workload Authoring Guide](WORKLOAD_AUTHORING.md)
-- [Architecture](ARCHITECTURE.md)
+- [User Guide](user-guide.md)
+- [Workload Authoring Guide](workload-authoring.md)
+- [Architecture](architecture.md)
 
 ---
 

@@ -55,6 +55,7 @@ extends: string[]               # Parent workloads to inherit from
 packages: object                # Package definitions
 files: array                    # File deployment definitions
 scripts: object                 # Script execution definitions
+commands: object                # Inline command definitions
 environment: object             # Environment variable configuration
 assertions: array               # Declarative health assertions
 health: object                  # Health check configuration
@@ -108,14 +109,17 @@ File deployment definitions (see [File Definitions](#4-file-definitions)).
 #### `scripts`
 Script execution definitions (see [Script Definitions](#5-script-definitions)).
 
+#### `commands`
+Inline command definitions (see [Commands (Inline)](#6-commands-inline)).
+
 #### `environment`
-Environment variable configuration (see [Environment Configuration](#6-environment-configuration)).
+Environment variable configuration (see [Environment Configuration](#7-environment-configuration)).
 
 ---
 
 ## 3. Package Definitions
 
-Define software packages to install via Windows Package Manager (winget).
+Define software packages to install. Anvil supports multiple package managers: **winget** (Windows), **brew** (macOS/Linux), and **apt** (Debian/Ubuntu).
 
 ### Basic Structure
 
@@ -211,6 +215,60 @@ packages:
         - "/SILENT"
 ```
 
+### Multi-Manager Packages
+
+Define packages for multiple package managers in a single workload. Anvil selects the appropriate manager for the current platform.
+
+```yaml
+packages:
+  winget:
+    - id: Git.Git
+    - id: Microsoft.VisualStudioCode
+  brew:
+    - name: git
+    - name: visual-studio-code
+      cask: true
+  apt:
+    - name: git
+    - name: build-essential
+```
+
+### Homebrew Packages (macOS/Linux)
+
+```yaml
+packages:
+  brew:
+    - name: git                        # CLI formula
+    - name: visual-studio-code         # GUI cask
+      cask: true
+    - name: font-cascadia-code         # Cask from a tap
+      cask: true
+      tap: "homebrew/cask-fonts"
+```
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `name` | Yes | - | Homebrew formula or cask name |
+| `cask` | No | `false` | Whether this is a cask (GUI app) vs formula (CLI tool) |
+| `tap` | No | - | Tap source (e.g., `"homebrew/cask-fonts"`) |
+
+### APT Packages (Debian/Ubuntu)
+
+```yaml
+packages:
+  apt:
+    - name: git
+    - name: build-essential
+      version: "12.9"
+```
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `name` | Yes | - | APT package name |
+| `version` | No | - | Specific version constraint |
+
+> **Note:** Homebrew and APT support is schema-complete but not yet fully implemented. Winget is the primary supported manager today.
+
 ---
 
 ## 4. File Definitions
@@ -232,9 +290,8 @@ files:
   - source: relative/path/in/workload/file.conf
     destination: "~/target/path/file.conf"
     backup: true                  # Backup existing file
-    mode: "0644"                  # Optional: file permissions
+    permissions: "0644"           # Optional: file permissions
     template: false               # Process as Handlebars template
-    create_dirs: true             # Create parent directories
 ```
 
 ### File Fields
@@ -244,9 +301,8 @@ files:
 | `source` | Yes | - | Path relative to workload directory |
 | `destination` | Yes | - | Target path on system |
 | `backup` | No | `true` | Backup existing files before overwriting |
-| `mode` | No | - | File permissions (Unix-style, informational on Windows) |
+| `permissions` | No | - | File permissions (Unix-style, informational on Windows) |
 | `template` | No | `false` | Process file as Handlebars template |
-| `create_dirs` | No | `true` | Create parent directories if missing |
 
 ### Path Variables
 
@@ -355,9 +411,6 @@ scripts:
       description: "Configure application settings"
       elevated: false             # Run as administrator
       timeout: 300                # Timeout in seconds
-      continue_on_error: false    # Continue if script fails
-      env:                        # Additional environment variables
-        MY_VAR: "value"
 ```
 
 ### Script Fields
@@ -369,9 +422,8 @@ scripts:
 | `description` | No | - | Human-readable description |
 | `elevated` | No | `false` | Run with administrator privileges |
 | `timeout` | No | `300` | Timeout in seconds |
-| `continue_on_error` | No | `false` | Continue installation if script fails |
-| `env` | No | - | Additional environment variables |
-| `name` | No | - | Display name (for health checks) |
+
+> **Note:** Health check scripts use a separate schema with `name` (required) and `shell` fields, but do not support `timeout` or `elevated`.
 
 ### Health Check Scripts
 
@@ -551,7 +603,93 @@ exit 0
 
 ---
 
-## 6. Environment Configuration
+## 6. Commands (Inline)
+
+Commands let you run arbitrary shell commands directly from `workload.yaml` without creating separate script files. They support conditional execution via the same predicate engine used by [Assertions](#8-assertions).
+
+Use commands for simple one-liners (e.g., `cargo install`, `npm install -g`). Use scripts for complex multi-step logic that benefits from a dedicated file.
+
+### Basic Structure
+
+```yaml
+commands:
+  pre_install:
+    - run: "echo Preparing environment"
+  post_install:
+    - run: "cargo install ripgrep"
+      description: "Install ripgrep via cargo"
+```
+
+### Full Command Options
+
+```yaml
+commands:
+  post_install:
+    - run: "cargo install cargo-watch"
+      description: "Install cargo-watch"
+      timeout: 600                    # Timeout in seconds (default: 300)
+      elevated: false                 # Require admin privileges (default: false)
+      continue_on_error: false        # Continue if this command fails (default: false)
+      when:                           # Condition — skip if not met
+        type: command_exists
+        command: cargo
+```
+
+### Command Fields
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `run` | Yes | - | Shell command string to execute |
+| `description` | No | - | Human-readable description |
+| `timeout` | No | `300` | Timeout in seconds |
+| `elevated` | No | `false` | Require administrator privileges |
+| `continue_on_error` | No | `false` | Continue to next command if this one fails |
+| `when` | No | - | Condition predicate; command is skipped when not met |
+
+### Conditional Execution
+
+The `when` field accepts any condition type from the [Assertions](#8-assertions) predicate engine:
+
+```yaml
+commands:
+  post_install:
+    # Only runs if cargo is on PATH
+    - run: "cargo install sccache"
+      description: "Install sccache"
+      when:
+        type: command_exists
+        command: cargo
+
+    # Only runs if the config file doesn't already exist
+    - run: "echo '{}' > ~/.config/app/config.json"
+      description: "Create default config"
+      when:
+        type: file_exists
+        path: "~/.config/app/config.json"
+```
+
+### Command Phases
+
+| Phase | When it runs |
+|-------|-------------|
+| `pre_install` | Before package installation |
+| `post_install` | After package installation |
+
+### Error Handling
+
+By default, if a command fails (non-zero exit code), execution stops and subsequent commands are skipped. Set `continue_on_error: true` to keep going:
+
+```yaml
+commands:
+  post_install:
+    - run: "cargo install cargo-watch"
+      continue_on_error: true        # Failure won't stop the next command
+    - run: "cargo install cargo-edit"
+```
+
+---
+
+## 7. Environment Configuration
 
 Configure environment variables and PATH additions.
 
@@ -612,7 +750,7 @@ PATH additions are appended to the existing PATH for the specified scope.
 
 ---
 
-## 7. Assertions
+## 8. Assertions
 
 Assertions are declarative health checks defined directly in `workload.yaml`. They let you validate system state — such as installed commands, existing files, environment variables, and PATH entries — without writing PowerShell scripts.
 
@@ -806,7 +944,7 @@ health:
 
 ---
 
-## 8. Inheritance
+## 9. Inheritance
 
 Workloads can extend other workloads to inherit their configuration.
 
@@ -909,7 +1047,7 @@ anvil show my-workload --resolved
 
 ---
 
-## 9. Variable Expansion
+## 10. Variable Expansion
 
 Use variables in paths and values for dynamic configuration.
 
@@ -959,7 +1097,7 @@ environment:
 
 ---
 
-## 10. Best Practices
+## 11. Best Practices
 
 ### Workload Design
 
@@ -1077,7 +1215,7 @@ environment:
 
 ---
 
-## 11. Example Workloads
+## 12. Example Workloads
 
 ### Minimal Workload
 
@@ -1156,6 +1294,24 @@ scripts:
       name: "Rust Environment"
       description: "Verify Rust development environment"
 
+commands:
+  post_install:
+    - run: "rustup component add rustfmt clippy"
+      description: "Add Rust components"
+      when:
+        type: command_exists
+        command: rustup
+
+assertions:
+  - name: cargo is available
+    check:
+      type: command_exists
+      command: cargo
+  - name: Cargo bin on PATH
+    check:
+      type: path_contains
+      substring: ".cargo/bin"
+
 environment:
   variables:
     - name: RUST_BACKTRACE
@@ -1223,7 +1379,7 @@ catch {
 
 ---
 
-## 12. Private Workload Repositories
+## 13. Private Workload Repositories
 
 You can maintain your own workloads in a separate Git repository and configure Anvil to discover them.
 

@@ -192,12 +192,21 @@ anvil install <WORKLOAD> [OPTIONS]
 | Option | Description |
 |--------|-------------|
 | `--dry-run` | Preview actions without making changes |
-| `--force` | Force reinstallation of packages |
+| `--force` | Skip confirmation prompts |
+| `-p, --packages-only` | Only install packages, skip files and scripts |
+| `--files-only` | Only process files, skip packages and scripts |
 | `--skip-packages` | Skip package installation |
 | `--skip-files` | Skip file operations |
-| `--skip-scripts` | Skip script execution |
-| `--output <FORMAT>` | Output format: table, json, yaml |
-| `--path <DIR>` | Custom workload search path |
+| `--skip-scripts` | Skip all script execution |
+| `--skip-pre-scripts` | Skip pre-installation scripts only |
+| `--skip-post-scripts` | Skip post-installation scripts only |
+| `--no-backup` | Don't backup existing files before overwriting |
+| `--upgrade` | Upgrade existing packages to specified versions |
+| `--retry-failed` | Retry only failed packages from previous run |
+| `--parallel` | Run installations in parallel where safe |
+| `-j, --jobs <N>` | Number of parallel installations (default: 4) |
+| `--timeout <SECONDS>` | Global timeout for operations (default: 3600) |
+| `--force-files` | Force overwrite files without checking hash |
 
 **Examples:**
 ```powershell
@@ -210,11 +219,17 @@ anvil install rust-developer --dry-run
 # Skip packages (only copy files and run scripts)
 anvil install rust-developer --skip-packages
 
-# Use JSON output for scripting
-anvil install rust-developer --dry-run --output json
+# Only deploy files
+anvil install rust-developer --files-only
 
-# Install from custom directory
-anvil install my-workload --path C:\Workloads
+# Upgrade existing packages
+anvil install rust-developer --upgrade
+
+# Retry previously failed packages
+anvil install rust-developer --retry-failed
+
+# Parallel installation with 8 workers
+anvil install rust-developer --parallel -j 8
 ```
 
 **Exit Codes:**
@@ -242,10 +257,19 @@ anvil health <WORKLOAD> [OPTIONS]
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--output <FORMAT>` | Output format: table, json, yaml, html |
-| `--file <PATH>` | Write output to file |
-| `--verbose` | Show detailed check results |
-| `--path <DIR>` | Custom workload search path |
+| `-o, --output <FORMAT>` | Output format: table, json, yaml, html |
+| `-f, --file <PATH>` | Write output to file |
+| `--fail-fast` | Stop on first failure |
+| `--packages-only` | Only check packages |
+| `--files-only` | Only check files |
+| `--scripts-only` | Only run health check scripts |
+| `--assertions-only` | Only evaluate declarative assertions |
+| `-s, --strict` | Treat warnings as errors |
+| `--fix` | Attempt to install missing packages |
+| `--update` | Update packages with available updates |
+| `--no-cache` | Skip cache and query winget directly |
+| `--show-diff` | Show file differences for modified files |
+| `--script <NAME>` | Run only a specific health check script by name |
 
 **Examples:**
 ```powershell
@@ -253,13 +277,28 @@ anvil health <WORKLOAD> [OPTIONS]
 anvil health rust-developer
 
 # Detailed output
-anvil health rust-developer --verbose
+anvil -v health rust-developer
 
 # Generate JSON report
 anvil health rust-developer --output json --file health-report.json
 
 # Generate HTML report
 anvil health rust-developer --output html --file report.html
+
+# Only check packages
+anvil health rust-developer --packages-only
+
+# Only run assertions
+anvil health rust-developer --assertions-only
+
+# Auto-fix missing packages
+anvil health rust-developer --fix
+
+# Run a specific health check script
+anvil health rust-developer --script "Git Health"
+
+# Show file diffs for modified config files
+anvil health rust-developer --show-diff
 ```
 
 **Understanding Health Reports:**
@@ -268,6 +307,7 @@ Health checks verify:
 - **Packages**: Are required packages installed? Correct versions?
 - **Files**: Do configuration files exist with expected content?
 - **Scripts**: Do health check scripts pass?
+- **Assertions**: Do declarative condition checks pass? (see [Assertion-Based Health Checks](#assertion-based-health-checks))
 
 Status indicators:
 - ✓ (Green) - Check passed
@@ -288,10 +328,11 @@ anvil list [OPTIONS]
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--all` | Include hidden/system workloads |
-| `--long` | Show detailed information |
-| `--path <DIR>` | Custom workload search path |
-| `--output <FORMAT>` | Output format: table, json, yaml |
+| `-a, --all` | Include built-in and custom workloads |
+| `-l, --long` | Show detailed information |
+| `--path <DIR>` | Search for workloads in additional path |
+| `--all-paths` | Show all discovered paths including shadowed duplicates |
+| `-o, --output <FORMAT>` | Output format: table, json, yaml, html |
 
 **Examples:**
 ```powershell
@@ -306,6 +347,9 @@ anvil list --output json
 
 # List from custom directory
 anvil list --path C:\MyWorkloads
+
+# Show all paths including shadowed duplicates
+anvil list --all-paths
 ```
 
 ---
@@ -325,10 +369,9 @@ anvil show <WORKLOAD> [OPTIONS]
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--inheritance-tree` | Show inheritance hierarchy |
-| `--resolved` | Show fully resolved workload (after inheritance) |
-| `--output <FORMAT>` | Output format: table, json, yaml |
-| `--path <DIR>` | Custom workload search path |
+| `--show-inheritance` | Show inheritance hierarchy |
+| `-r, --resolved` | Show fully resolved workload (after inheritance) |
+| `-o, --output <FORMAT>` | Output format: yaml (default), json |
 
 **Examples:**
 ```powershell
@@ -336,10 +379,10 @@ anvil show <WORKLOAD> [OPTIONS]
 anvil show rust-developer
 
 # Show inheritance tree
-anvil show rust-developer --inheritance-tree
+anvil show rust-developer --show-inheritance
 
-# Export as YAML
-anvil show rust-developer --output yaml
+# Export as JSON
+anvil show rust-developer --output json
 
 # Show resolved (merged) workload
 anvil show rust-developer --resolved
@@ -353,18 +396,19 @@ Validate workload syntax and structure.
 
 **Synopsis:**
 ```
-anvil validate <WORKLOAD> [OPTIONS]
+anvil validate <PATH> [OPTIONS]
 ```
 
 **Arguments:**
-- `<WORKLOAD>` - Name of the workload to validate
+- `<PATH>` - Path to workload.yaml file or workload directory
 
 **Options:**
 | Option | Description |
 |--------|-------------|
 | `--strict` | Enable strict validation mode |
-| `--output <FORMAT>` | Output format: table, json, yaml |
-| `--path <DIR>` | Custom workload search path |
+| `--schema` | Output JSON schema for workload definitions |
+| `--check-scripts` | Validate script syntax using PowerShell parser |
+| `--scripts-only` | Only validate scripts (skip other validation) |
 
 **Examples:**
 ```powershell
@@ -394,36 +438,38 @@ Create a new workload from a template.
 
 **Synopsis:**
 ```
-anvil init <PATH> [OPTIONS]
+anvil init <NAME> [OPTIONS]
 ```
 
 **Arguments:**
-- `<PATH>` - Directory path for the new workload
+- `<NAME>` - Name for the new workload
 
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--template <NAME>` | Template to use: minimal, full, rust, python |
-| `--force` | Overwrite existing files |
-| `--name <NAME>` | Workload name (defaults to directory name) |
+| `-t, --template <NAME>` | Template to use: minimal, standard (default), full |
+| `-e, --extends <PARENT>` | Parent workload to extend |
+| `-o, --output <PATH>` | Output directory |
 
 **Examples:**
 ```powershell
+# Create a standard workload
+anvil init my-workload
+
 # Create minimal workload
-anvil init C:\Workloads\my-workload
+anvil init my-workload --template minimal
 
-# Create from template
-anvil init C:\Workloads\my-rust-env --template rust
+# Create workload that extends essentials
+anvil init my-rust-env --extends essentials
 
-# Overwrite existing
-anvil init C:\Workloads\existing --force
+# Create in custom directory
+anvil init my-workload --output C:\Workloads
 ```
 
 **Available Templates:**
 - `minimal` - Basic structure with required fields only
+- `standard` - Common sections with sensible defaults (default)
 - `full` - Complete example with all features
-- `rust` - Rust development environment template
-- `python` - Python development environment template
 
 ---
 
@@ -442,7 +488,9 @@ anvil status [WORKLOAD] [OPTIONS]
 **Options:**
 | Option | Description |
 |--------|-------------|
-| `--output <FORMAT>` | Output format: table, json, yaml |
+| `-o, --output <FORMAT>` | Output format: table, json, yaml, html |
+| `-l, --long` | Show detailed status including timestamps |
+| `--clear` | Clear stored state for the specified workload |
 
 **Examples:**
 ```powershell
@@ -504,14 +552,37 @@ anvil backup restore <BACKUP_ID>
 
 # Preview restore
 anvil backup restore <BACKUP_ID> --dry-run
+
+# Restore all backups for a workload
+anvil backup restore --workload rust-developer
 ```
 
-#### `backup delete`
-Delete a backup.
+#### `backup clean`
+Remove old backups.
 
 ```powershell
-anvil backup delete <BACKUP_ID>
-anvil backup delete <BACKUP_ID> --force
+# Remove backups older than 30 days (default)
+anvil backup clean
+
+# Remove backups older than 7 days
+anvil backup clean --older-than 7
+
+# Preview what would be removed
+anvil backup clean --dry-run
+```
+
+#### `backup verify`
+Verify backup integrity.
+
+```powershell
+# Verify all backups
+anvil backup verify
+
+# Verify backups for a specific workload
+anvil backup verify --workload rust-developer
+
+# Fix issues by removing corrupted entries
+anvil backup verify --fix
 ```
 
 ---
@@ -527,21 +598,29 @@ anvil config <SUBCOMMAND>
 
 **Subcommands:**
 
-#### `config show`
-Display current configuration.
+#### `config get`
+Get a specific configuration value.
 
 ```powershell
-anvil config show
-anvil config show --output json
+anvil config get defaults.shell
+anvil config get workloads.paths
 ```
 
 #### `config set`
 Set a configuration value.
 
 ```powershell
-anvil config set workload_paths "C:\Workloads;D:\MoreWorkloads"
-anvil config set default_output json
-anvil config set backup.enabled true
+anvil config set defaults.shell powershell
+anvil config set defaults.output_format json
+anvil config set backup.auto_backup true
+```
+
+#### `config list`
+Display all configuration values.
+
+```powershell
+anvil config list
+anvil config list --output json
 ```
 
 #### `config reset`
@@ -549,14 +628,21 @@ Reset configuration to defaults.
 
 ```powershell
 anvil config reset
-anvil config reset --key workload_paths
+anvil config reset --force  # Skip confirmation prompt
 ```
 
 #### `config edit`
-Open configuration file in editor.
+Open configuration file in default editor.
 
 ```powershell
 anvil config edit
+```
+
+#### `config path`
+Show the configuration file path.
+
+```powershell
+anvil config path
 ```
 
 ---
@@ -571,7 +657,7 @@ anvil completions <SHELL>
 ```
 
 **Arguments:**
-- `<SHELL>` - Target shell: powershell, bash, zsh, fish
+- `<SHELL>` - Target shell: powershell, bash, zsh, fish, elvish
 
 **Examples:**
 ```powershell
@@ -592,6 +678,7 @@ These options work with all commands:
 |--------|-------|-------------|
 | `--verbose` | `-v` | Increase verbosity (use multiple times: -v, -vv, -vvv) |
 | `--quiet` | `-q` | Suppress non-essential output |
+| `--config <PATH>` | `-c` | Use custom configuration file |
 | `--no-color` | | Disable colored output |
 | `--help` | `-h` | Show help information |
 | `--version` | `-V` | Show version information |
@@ -619,67 +706,58 @@ anvil --no-color list > workloads.txt
 
 Anvil stores its configuration at:
 ```
-%APPDATA%\anvil\config.toml
+~/.anvil/config.yaml
 ```
 
-Or if `ANVIL_CONFIG` is set:
-```
-$env:ANVIL_CONFIG
+On Windows this is typically `%USERPROFILE%\.anvil\config.yaml`.
+
+You can also specify a custom config file with the `-c`/`--config` global flag:
+```powershell
+anvil -c C:\config\anvil.yaml list
 ```
 
 ### Configuration Options
 
-```toml
-# Global Anvil Configuration
+```yaml
+# Global Anvil Configuration (~/.anvil/config.yaml)
 
-# Default output format (table, json, yaml)
-default_output = "table"
+defaults:
+  shell: powershell           # Default script shell
+  script_timeout: 300         # Default script timeout in seconds
+  output_format: table        # Default output format (table, json, yaml)
+  color: auto                 # Color mode (auto, always, never)
 
-# Workload search paths (semicolon-separated)
-workload_paths = "C:\\Workloads;D:\\MyWorkloads"
+backup:
+  auto_backup: true           # Enable automatic backups before changes
+  retention_days: 30          # Days to keep backups
 
-# Enable colored output
-color = true
+install:
+  parallel: false             # Run installations in parallel by default
+  max_parallel: 4             # Max concurrent package installations
 
-# Default verbosity level (0-3)
-verbosity = 0
+workloads:
+  paths:                      # Additional workload search paths
+    - "~/my-workloads"
+    - "~/work/team-workloads"
 
-[backup]
-# Enable automatic backups before changes
-enabled = true
-
-# Backup directory
-path = "%APPDATA%\\anvil\\backups"
-
-# Maximum number of backups to keep
-max_count = 10
-
-[packages]
-# Default package source
-default_source = "winget"
-
-# Allow prerelease versions
-allow_prerelease = false
-
-[scripts]
-# Default script timeout (seconds)
-default_timeout = 300
-
-# Shell for script execution
-default_shell = "powershell"
+logging:
+  level: info                 # Log level: error, warn, info, debug, trace
 ```
 
 ### View Current Configuration
 
 ```powershell
-anvil config show
+anvil config list
 ```
 
 ### Modify Configuration
 
 ```powershell
 # Set a value
-anvil config set default_output json
+anvil config set defaults.output_format json
+
+# Get a value
+anvil config get defaults.shell
 
 # Reset to default
 anvil config reset
@@ -768,7 +846,7 @@ extends:
 
 View the inheritance tree:
 ```powershell
-anvil show my-rust-env --inheritance-tree
+anvil show my-rust-env --show-inheritance
 ```
 
 Output:
@@ -787,7 +865,7 @@ anvil list --path C:\MyWorkloads
 anvil install my-workload --path C:\MyWorkloads
 
 # Configure permanently
-anvil config set workload_paths "C:\MyWorkloads"
+anvil config set workloads.paths '["C:\\MyWorkloads"]'
 ```
 
 ### Validating Before Install
@@ -887,17 +965,17 @@ Generates a styled HTML document with:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `ANVIL_CONFIG` | Configuration file path | `%APPDATA%\anvil\config.toml` |
+| `ANVIL_CONFIG` | Configuration file path | `~/.anvil/config.yaml` |
 | `ANVIL_WORKLOADS` | Additional workload search paths | (none) |
 | `ANVIL_LOG` | Log level: error, warn, info, debug, trace | `warn` |
 | `NO_COLOR` | Disable colored output (any value) | (unset) |
-| `ANVIL_BACKUP_DIR` | Backup storage directory | `%APPDATA%\anvil\backups` |
+| `ANVIL_BACKUP_DIR` | Backup storage directory | `~/.anvil/backups` |
 
 **Examples:**
 
 ```powershell
 # Use custom config file
-$env:ANVIL_CONFIG = "C:\config\anvil.toml"
+$env:ANVIL_CONFIG = "C:\config\anvil.yaml"
 anvil list
 
 # Add workload search paths
@@ -936,7 +1014,7 @@ Verify your system state periodically:
 anvil health rust-developer
 
 # Detailed report
-anvil health rust-developer --verbose --output html --file health.html
+anvil -v health rust-developer --output html --file health.html
 ```
 
 ### Keep Backups
@@ -944,7 +1022,7 @@ anvil health rust-developer --verbose --output html --file health.html
 Enable automatic backups in configuration:
 
 ```powershell
-anvil config set backup.enabled true
+anvil config set backup.auto_backup true
 ```
 
 Or create manual backups before major changes:
@@ -1037,6 +1115,94 @@ catch {
     Write-Error "Health check failed: $_"
     exit 1
 }
+```
+
+---
+
+## 11. Assertion-Based Health Checks
+
+In addition to package, file, and script checks, workloads can define **declarative assertions** using a built-in condition engine. Assertions let you express health checks directly in YAML without writing PowerShell scripts.
+
+### Defining Assertions
+
+Add an `assertions` section to your `workload.yaml`:
+
+```yaml
+name: my-workload
+version: "1.0.0"
+assertions:
+  - name: "Git is installed"
+    check:
+      type: command_exists
+      command: git
+
+  - name: "Config directory exists"
+    check:
+      type: dir_exists
+      path: "~/.config/my-app"
+
+  - name: "GOPATH is set"
+    check:
+      type: env_var
+      name: GOPATH
+
+  - name: "Cargo in PATH"
+    check:
+      type: path_contains
+      substring: ".cargo\\bin"
+```
+
+### Available Condition Types
+
+| Type | Fields | Description |
+|------|--------|-------------|
+| `command_exists` | `command` | Check if a command is available on PATH |
+| `file_exists` | `path` | Check if a file exists (`~` expanded) |
+| `dir_exists` | `path` | Check if a directory exists (`~` expanded) |
+| `env_var` | `name`, `value` (optional) | Check if env var is set, optionally matching a value |
+| `path_contains` | `substring` | Check if PATH contains a substring |
+| `registry_value` | `hive`, `key`, `name`, `expected` (optional) | Query a Windows registry value |
+| `shell` | `command`, `description` (optional) | Run a shell command; passes if exit code is 0 |
+| `all_of` | `conditions` | All child conditions must pass (logical AND) |
+| `any_of` | `conditions` | At least one child must pass (logical OR) |
+
+### Composing Conditions
+
+Use `all_of` and `any_of` to build complex checks:
+
+```yaml
+assertions:
+  - name: "Rust toolchain ready"
+    check:
+      type: all_of
+      conditions:
+        - type: command_exists
+          command: rustc
+        - type: command_exists
+          command: cargo
+        - type: path_contains
+          substring: ".cargo\\bin"
+```
+
+### Running Assertions
+
+Assertions are evaluated as part of `anvil health`:
+
+```powershell
+# Run all health checks including assertions
+anvil health my-workload
+
+# Run only assertions
+anvil health my-workload --assertions-only
+```
+
+### Controlling Assertions in Health Config
+
+You can disable assertion evaluation per-workload:
+
+```yaml
+health:
+  assertion_check: false   # Skip assertions during health checks
 ```
 
 ---
