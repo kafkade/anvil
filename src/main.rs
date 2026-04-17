@@ -5,6 +5,7 @@
 
 mod assertions;
 mod cli;
+mod commands;
 mod conditions;
 mod config;
 mod operations;

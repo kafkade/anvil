@@ -34,6 +34,10 @@ pub struct Workload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub scripts: Option<Scripts>,
 
+    /// Inline command definitions
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub commands: Option<CommandBlock>,
+
     /// Environment configuration
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub environment: Option<Environment>,
@@ -63,6 +67,7 @@ impl Workload {
             packages: None,
             files: None,
             scripts: None,
+            commands: None,
             environment: None,
             health: None,
             assertions: None,
@@ -79,6 +84,7 @@ impl Workload {
             packages: None,
             files: None,
             scripts: None,
+            commands: None,
             environment: None,
             health: None,
             assertions: None,
@@ -128,6 +134,18 @@ impl Workload {
                 let post = s.post_install.as_ref().map(|p| p.len()).unwrap_or(0);
                 let health = s.health_check.as_ref().map(|h| h.len()).unwrap_or(0);
                 pre + post + health
+            })
+            .unwrap_or(0)
+    }
+
+    /// Get the total number of commands (pre_install + post_install)
+    pub fn command_count(&self) -> usize {
+        self.commands
+            .as_ref()
+            .map(|c| {
+                let pre = c.pre_install.as_ref().map(|p| p.len()).unwrap_or(0);
+                let post = c.post_install.as_ref().map(|p| p.len()).unwrap_or(0);
+                pre + post
             })
             .unwrap_or(0)
     }
@@ -374,6 +392,47 @@ impl HealthCheckScript {
             shell: default_shell(),
         }
     }
+}
+
+/// Commands block for inline command execution
+#[allow(dead_code)]
+#[derive(Debug, Clone, Default, Serialize, Deserialize)]
+pub struct CommandBlock {
+    /// Commands to run before package installation
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pre_install: Option<Vec<CommandEntry>>,
+
+    /// Commands to run after package installation
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub post_install: Option<Vec<CommandEntry>>,
+}
+
+/// A single command to execute
+#[allow(dead_code)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CommandEntry {
+    /// Shell command string to execute (required)
+    pub run: String,
+
+    /// Human-readable description (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Timeout in seconds (default: 300)
+    #[serde(default = "default_timeout")]
+    pub timeout: u64,
+
+    /// Whether the command requires admin privileges (default: false)
+    #[serde(default)]
+    pub elevated: bool,
+
+    /// Condition that must be true for this command to run (optional)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub when: Option<crate::conditions::Condition>,
+
+    /// Whether to continue if this command fails (default: false)
+    #[serde(default)]
+    pub continue_on_error: bool,
 }
 
 /// Environment configuration
@@ -767,5 +826,130 @@ packages:
         assert!(pkgs.brew.is_none());
         assert!(pkgs.apt.is_none());
         assert!(pkgs.winget.is_some());
+    }
+
+    #[test]
+    fn test_deserialize_workload_with_commands() {
+        let yaml = r#"
+name: cmd-workload
+version: "1.0.0"
+description: "Workload with commands"
+commands:
+  pre_install:
+    - run: "echo pre-step"
+      description: "Pre-install echo"
+  post_install:
+    - run: "echo post-step"
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        assert!(workload.commands.is_some());
+        let cmds = workload.commands.as_ref().unwrap();
+        assert_eq!(cmds.pre_install.as_ref().unwrap().len(), 1);
+        assert_eq!(cmds.post_install.as_ref().unwrap().len(), 1);
+        assert_eq!(cmds.pre_install.as_ref().unwrap()[0].run, "echo pre-step");
+        assert_eq!(
+            cmds.pre_install.as_ref().unwrap()[0].description.as_deref(),
+            Some("Pre-install echo")
+        );
+    }
+
+    #[test]
+    fn test_deserialize_command_with_when_condition() {
+        let yaml = r#"
+name: cond-cmd
+version: "1.0.0"
+description: "Command with when"
+commands:
+  post_install:
+    - run: "cargo install sccache"
+      when:
+        type: command_exists
+        command: cargo
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        let cmds = workload.commands.as_ref().unwrap();
+        let post = cmds.post_install.as_ref().unwrap();
+        assert_eq!(post.len(), 1);
+        assert!(post[0].when.is_some());
+        assert!(matches!(
+            post[0].when.as_ref().unwrap(),
+            crate::conditions::Condition::CommandExists { .. }
+        ));
+    }
+
+    #[test]
+    fn test_command_count() {
+        let mut workload = Workload::new("test", "1.0.0", "test");
+        assert_eq!(workload.command_count(), 0);
+
+        workload.commands = Some(CommandBlock {
+            pre_install: Some(vec![CommandEntry {
+                run: "echo a".to_string(),
+                description: None,
+                timeout: 300,
+                elevated: false,
+                when: None,
+                continue_on_error: false,
+            }]),
+            post_install: Some(vec![
+                CommandEntry {
+                    run: "echo b".to_string(),
+                    description: None,
+                    timeout: 300,
+                    elevated: false,
+                    when: None,
+                    continue_on_error: false,
+                },
+                CommandEntry {
+                    run: "echo c".to_string(),
+                    description: None,
+                    timeout: 300,
+                    elevated: false,
+                    when: None,
+                    continue_on_error: false,
+                },
+            ]),
+        });
+        assert_eq!(workload.command_count(), 3);
+    }
+
+    #[test]
+    fn test_workload_without_commands_backward_compat() {
+        let yaml = r#"
+name: legacy
+version: "1.0.0"
+description: "No commands"
+packages:
+  winget:
+    - id: Git.Git
+"#;
+        let workload: Workload = serde_yaml::from_str(yaml).unwrap();
+        assert!(workload.commands.is_none());
+        assert_eq!(workload.command_count(), 0);
+        assert_eq!(workload.package_count(), 1);
+    }
+
+    #[test]
+    fn test_command_entry_all_fields() {
+        let yaml = r#"
+run: "npm install -g typescript"
+description: "Install TypeScript globally"
+timeout: 120
+elevated: true
+continue_on_error: true
+when:
+  type: command_exists
+  command: npm
+"#;
+        let cmd: CommandEntry = serde_yaml::from_str(yaml).unwrap();
+        assert_eq!(cmd.run, "npm install -g typescript");
+        assert_eq!(
+            cmd.description.as_deref(),
+            Some("Install TypeScript globally")
+        );
+        assert_eq!(cmd.timeout, 120);
+        assert!(cmd.elevated);
+        assert!(cmd.continue_on_error);
+        assert!(cmd.when.is_some());
     }
 }

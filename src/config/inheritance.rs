@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use tracing::{debug, trace};
 
 use super::workload::{
-    AptPackage, BrewPackage, Environment, FileEntry, HealthCheckScript, Packages, ScriptEntry,
-    Scripts, WingetPackage, Workload,
+    AptPackage, BrewPackage, CommandBlock, CommandEntry, Environment, FileEntry, HealthCheckScript,
+    Packages, ScriptEntry, Scripts, WingetPackage, Workload,
 };
 use super::ConfigManager;
 
@@ -509,6 +509,9 @@ fn merge_workloads(parent: Workload, child: Workload) -> Workload {
         // Merge scripts
         scripts: merge_scripts(parent.scripts, child.scripts),
 
+        // Merge commands
+        commands: merge_commands(parent.commands, child.commands),
+
         // Merge environment
         environment: merge_environment(parent.environment, child.environment),
 
@@ -699,6 +702,57 @@ fn merge_health_check_list(
     parent: Option<Vec<HealthCheckScript>>,
     child: Option<Vec<HealthCheckScript>>,
 ) -> Option<Vec<HealthCheckScript>> {
+    match (parent, child) {
+        (None, None) => None,
+        (Some(p), None) => Some(p),
+        (None, Some(c)) => Some(c),
+        (Some(mut parent), Some(child)) => {
+            parent.extend(child);
+            Some(parent)
+        }
+    }
+}
+
+/// Merge command block definitions
+///
+/// Strategy:
+/// - pre_install: Parent commands first, then child commands appended
+/// - post_install: Parent commands first, then child commands appended
+fn merge_commands(
+    parent: Option<CommandBlock>,
+    child: Option<CommandBlock>,
+) -> Option<CommandBlock> {
+    match (parent, child) {
+        (None, None) => None,
+        (Some(p), None) => Some(p),
+        (None, Some(c)) => Some(c),
+        (Some(parent), Some(child)) => {
+            let mut result = CommandBlock {
+                pre_install: None,
+                post_install: None,
+            };
+
+            // Pre-install: parent first, then child
+            result.pre_install = merge_command_list(parent.pre_install, child.pre_install);
+
+            // Post-install: parent first, then child
+            result.post_install = merge_command_list(parent.post_install, child.post_install);
+
+            // Only return Some if at least one command list is present
+            if result.pre_install.is_some() || result.post_install.is_some() {
+                Some(result)
+            } else {
+                None
+            }
+        }
+    }
+}
+
+/// Merge two command entry lists (parent first, then child)
+fn merge_command_list(
+    parent: Option<Vec<CommandEntry>>,
+    child: Option<Vec<CommandEntry>>,
+) -> Option<Vec<CommandEntry>> {
     match (parent, child) {
         (None, None) => None,
         (Some(p), None) => Some(p),

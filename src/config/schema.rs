@@ -190,6 +190,9 @@ impl SchemaValidator {
         // Validate scripts
         self.validate_scripts(workload, &mut result);
 
+        // Validate commands
+        self.validate_commands(workload, &mut result);
+
         // Validate environment
         self.validate_environment(workload, &mut result);
 
@@ -580,6 +583,70 @@ impl SchemaValidator {
                 format!("{}.elevated", path),
                 "Script requires elevated privileges. Ensure this is necessary.",
             );
+        }
+    }
+
+    /// Validate command definitions
+    fn validate_commands(&self, workload: &Workload, result: &mut ValidationResult) {
+        if let Some(commands) = &workload.commands {
+            // Validate pre-install commands
+            if let Some(pre_cmds) = &commands.pre_install {
+                for (i, cmd) in pre_cmds.iter().enumerate() {
+                    let path = format!("commands.pre_install[{}]", i);
+                    self.validate_command_entry(&path, cmd, result);
+                }
+            }
+
+            // Validate post-install commands
+            if let Some(post_cmds) = &commands.post_install {
+                for (i, cmd) in post_cmds.iter().enumerate() {
+                    let path = format!("commands.post_install[{}]", i);
+                    self.validate_command_entry(&path, cmd, result);
+                }
+            }
+        }
+    }
+
+    /// Validate a single command entry
+    fn validate_command_entry(
+        &self,
+        path: &str,
+        cmd: &super::workload::CommandEntry,
+        result: &mut ValidationResult,
+    ) {
+        // run is required and must be non-empty
+        if cmd.run.is_empty() {
+            result.add_error(format!("{}.run", path), "Command string is required");
+        }
+
+        // timeout must be > 0
+        if cmd.timeout == 0 {
+            result.add_error(
+                format!("{}.timeout", path),
+                "Timeout must be greater than 0",
+            );
+        } else if cmd.timeout > 3600 {
+            result.add_warning(
+                format!("{}.timeout", path),
+                format!(
+                    "Timeout of {} seconds ({:.1} hours) is very long. Consider if this is intentional.",
+                    cmd.timeout,
+                    cmd.timeout as f64 / 3600.0
+                ),
+            );
+        }
+
+        // Warn about elevated commands in strict mode
+        if cmd.elevated && self.strict {
+            result.add_info(
+                format!("{}.elevated", path),
+                "Command requires elevated privileges. Ensure this is necessary.",
+            );
+        }
+
+        // Validate the when condition if present
+        if let Some(condition) = &cmd.when {
+            self.validate_condition(&format!("{}.when", path), condition, result);
         }
     }
 

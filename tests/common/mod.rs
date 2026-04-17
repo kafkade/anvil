@@ -458,6 +458,56 @@ exit 0
     Ok(())
 }
 
+/// Create a workload with both commands and scripts for testing
+/// the deprecation warning when both coexist
+#[allow(dead_code)]
+pub fn create_workload_with_commands_and_scripts(dir: &Path, name: &str) -> std::io::Result<()> {
+    let workload_dir = dir.join(name);
+    let scripts_dir = workload_dir.join("scripts");
+    fs::create_dir_all(&scripts_dir)?;
+
+    let yaml = format!(
+        r#"name: {name}
+version: "1.0.0"
+description: "Workload with both commands and scripts"
+
+commands:
+  pre_install:
+    - run: echo pre-install command
+      description: "Pre-install command"
+  post_install:
+    - run: echo post-install command
+      description: "Post-install command"
+
+scripts:
+  pre_install:
+    - path: pre-install.ps1
+      description: "Legacy pre-install script"
+  post_install:
+    - path: post-install.ps1
+      description: "Legacy post-install script"
+"#
+    );
+
+    fs::write(workload_dir.join("workload.yaml"), yaml)?;
+    fs::write(
+        scripts_dir.join("pre-install.ps1"),
+        r#"# Pre-install script
+Write-Host "Pre-install running..."
+exit 0
+"#,
+    )?;
+    fs::write(
+        scripts_dir.join("post-install.ps1"),
+        r#"# Post-install script
+Write-Host "Post-install running..."
+exit 0
+"#,
+    )?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
