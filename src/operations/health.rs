@@ -63,7 +63,7 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
     if has_assertions && has_health_check_scripts {
         print_warning(
             "Deprecation notice: `scripts.health_check` is deprecated when used alongside `assertions`. \
-             Migrate health check scripts to declarative assertions. See docs/SPECIFICATION.md for details.",
+             Migrate health check scripts to declarative assertions. See docs/src/specification.md for details.",
         );
     }
 

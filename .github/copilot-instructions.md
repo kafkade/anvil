@@ -19,7 +19,7 @@ cargo fmt                    # Auto-format
 
 Anvil is a declarative workstation configuration tool. Users define environments in YAML workload files; Anvil installs packages (currently via winget, with cross-platform package managers planned), copies files, runs scripts, and validates system health.
 
-See `docs/ARCHITECTURE.md` for the full internal architecture reference.
+See `docs/src/architecture.md` for the full internal architecture reference.
 
 ### Module layout
 
@@ -91,9 +91,9 @@ Create `examples/<name>/workload.yaml` (plus optional `files/` and `scripts/`). 
 
 ## Key References
 
-- `docs/SPECIFICATION.md` — Project spec, workload schema, and roadmap (v0.4–v1.0)
-- `docs/ARCHITECTURE.md` — Internal code architecture for contributors
-- `docs/USER_GUIDE.md` — End-user CLI usage guide
-- `docs/WORKLOAD_AUTHORING.md` — Workload YAML authoring reference
+- `docs/src/specification.md` — Project spec, workload schema, and roadmap (v0.4–v1.0)
+- `docs/src/architecture.md` — Internal code architecture for contributors
+- `docs/src/user-guide.md` — End-user CLI usage guide
+- `docs/src/workload-authoring.md` — Workload YAML authoring reference
 - `CONTRIBUTING.md` — Contribution workflow and coding standards
 - `CHANGELOG.md` — Release history

@@ -1,26 +1,8 @@
-# Anvil - Declarative Workstation Configuration Management
-
-## Specification Document
+# Specification
 
 **Version:** 2.0.0  
 **Status:** Active  
 **Last Updated:** 2026-04-16
-
----
-
-## Table of Contents
-
-1. [Executive Summary](#1-executive-summary)
-2. [Technology Analysis](#2-technology-analysis)
-3. [Technology Recommendation](#3-technology-recommendation)
-4. [Project Structure](#4-project-structure)
-5. [Workload Definition Schema](#5-workload-definition-schema)
-6. [CLI Interface Design](#6-cli-interface-design)
-7. [Core Components](#7-core-components)
-8. [Implementation Roadmap](#8-implementation-roadmap)
-9. [Appendices](#9-appendices)
-
----
 
 ## 1. Executive Summary
 

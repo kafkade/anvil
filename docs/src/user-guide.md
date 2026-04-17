@@ -1,21 +1,6 @@
-# Anvil User Guide
+# User Guide
 
 A comprehensive guide to using Anvil for workstation configuration management.
-
-## Table of Contents
-
-1. [Introduction](#1-introduction)
-2. [Installation](#2-installation)
-3. [Quick Start](#3-quick-start)
-4. [Command Reference](#4-command-reference)
-5. [Configuration](#5-configuration)
-6. [Configuring Workload Search Paths](#6-configuring-workload-search-paths)
-7. [Working with Workloads](#7-working-with-workloads)
-8. [Output Formats](#8-output-formats)
-9. [Environment Variables](#9-environment-variables)
-10. [Best Practices](#10-best-practices)
-
----
 
 ## 1. Introduction
 

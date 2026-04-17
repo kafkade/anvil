@@ -1,19 +1,6 @@
-# Troubleshooting Guide
+# Troubleshooting
 
 A guide to diagnosing and resolving common Anvil issues.
-
-## Table of Contents
-
-1. [Installation Issues](#1-installation-issues)
-2. [Package Installation Issues](#2-package-installation-issues)
-3. [File Operation Issues](#3-file-operation-issues)
-4. [Script Execution Issues](#4-script-execution-issues)
-5. [Health Check Issues](#5-health-check-issues)
-6. [Configuration Issues](#6-configuration-issues)
-7. [Error Reference](#7-error-reference)
-8. [Getting Help](#8-getting-help)
-
----
 
 ## 1. Installation Issues
 

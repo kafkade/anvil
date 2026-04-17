@@ -1,24 +1,12 @@
-# Contributing to Anvil
+# Contributing
 
 Thank you for your interest in contributing to Anvil! This document provides guidelines and instructions for contributing to the project.
-
-## Table of Contents
-
-- [Code of Conduct](#code-of-conduct)
-- [How to Contribute](#how-to-contribute)
-- [Development Setup](#development-setup)
-- [Project Structure](#project-structure)
-- [Coding Standards](#coding-standards)
-- [Testing](#testing)
-- [Submitting Changes](#submitting-changes)
-- [Creating Workloads](#creating-workloads)
-- [License](#license)
 
 ---
 
 ## Code of Conduct
 
-This project follows the [Contributor Covenant Code of Conduct](CODE_OF_CONDUCT.md). Please be respectful and constructive in all interactions.
+This project follows the [Contributor Covenant Code of Conduct](https://github.com/kafkade/anvil/blob/main/CODE_OF_CONDUCT.md). Please be respectful and constructive in all interactions.
 
 ---
 
@@ -203,11 +191,16 @@ anvil/
 │   └── common/
 │       └── mod.rs
 └── docs/                    # Documentation
-    ├── SPECIFICATION.md
-    ├── ARCHITECTURE.md
-    ├── USER_GUIDE.md
-    ├── WORKLOAD_AUTHORING.md
-    └── TROUBLESHOOTING.md
+    └── src/
+        ├── SUMMARY.md
+        ├── introduction.md
+        ├── user-guide.md
+        ├── workload-authoring.md
+        ├── troubleshooting.md
+        ├── specification.md
+        ├── architecture.md
+        ├── changelog.md
+        └── contributing.md
 ```
 
 ### Key Modules
@@ -387,7 +380,7 @@ fn new_command_works() {
 
 ## Creating Workloads
 
-Contributions of new bundled workloads are welcome! See the [Workload Authoring Guide](docs/src/workload-authoring.md) for details.
+Contributions of new bundled workloads are welcome! See the [Workload Authoring](workload-authoring.md) guide for details.
 
 ### Workload Guidelines
 
@@ -432,14 +425,14 @@ scripts:
 
 ## License
 
-By contributing to Anvil, you agree that your contributions will be licensed under the [MIT](LICENSE-MIT) or [Apache-2.0](LICENSE-APACHE) license, at the user's choice.
+By contributing to Anvil, you agree that your contributions will be licensed under the [MIT](https://github.com/kafkade/anvil/blob/main/LICENSE-MIT) or [Apache-2.0](https://github.com/kafkade/anvil/blob/main/LICENSE-APACHE) license, at the user's choice.
 
 ---
 
 ## Questions?
 
 - Open a [Discussion](https://github.com/kafkade/anvil/discussions)
-- Check the [Documentation](docs/)
+- Check the [Documentation](https://anvil.kafkade.com/)
 - Review existing [Issues](https://github.com/kafkade/anvil/issues)
 
-Thank you for contributing to Anvil! 🎉
+Thank you for contributing to Anvil!

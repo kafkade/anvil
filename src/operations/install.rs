@@ -177,7 +177,7 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
             print_warning(
                 "Deprecation notice: `scripts.pre_install` is deprecated when used alongside \
                  `commands.pre_install`. Migrate scripts to inline commands. \
-                 See docs/SPECIFICATION.md for details.",
+                 See docs/src/specification.md for details.",
             );
         }
 
@@ -195,7 +195,7 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
             print_warning(
                 "Deprecation notice: `scripts.post_install` is deprecated when used alongside \
                  `commands.post_install`. Migrate scripts to inline commands. \
-                 See docs/SPECIFICATION.md for details.",
+                 See docs/src/specification.md for details.",
             );
         }
     }

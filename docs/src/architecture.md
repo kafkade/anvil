@@ -1,6 +1,6 @@
 # Architecture
 
-This document describes Anvil's internal architecture for contributors. For user-facing documentation, see the [User Guide](USER_GUIDE.md). For the project vision and roadmap, see the [Specification](SPECIFICATION.md).
+This document describes Anvil's internal architecture for contributors. For user-facing documentation, see the [User Guide](user-guide.md). For the project vision and roadmap, see the [Specification](specification.md).
 
 ## Overview
 
