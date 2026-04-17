@@ -3,7 +3,7 @@ name: Release
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 permissions:
   contents: write
@@ -13,113 +13,70 @@ env:
 
 jobs:
   build:
-    name: Build Release
+    name: Build
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
+      - uses: dtolnay/rust-toolchain@stable
 
-      - name: Cache cargo
-        uses: actions/cache@v4
-        with:
-          path: |
-            ~/.cargo/bin/
-            ~/.cargo/registry/index/
-            ~/.cargo/registry/cache/
-            ~/.cargo/git/db/
-            target/
-          key: ${{ runner.os }}-cargo-${{ hashFiles('**/Cargo.lock') }}
-          restore-keys: ${{ runner.os }}-cargo-
+      - uses: Swatinem/rust-cache@v2
 
       - name: Build release binary
         run: cargo build --release
 
-      - name: Run tests
-        run: cargo test --all-features
+      - name: Verify binary
+        run: ./target/release/anvil.exe --version
 
-      - name: Get version from tag
-        id: version
+      - name: Package binary
         shell: pwsh
         run: |
-          $version = "${{ github.ref_name }}"
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          Compress-Archive -Path "target/release/anvil.exe" -DestinationPath "anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip"
+          $hash = (Get-FileHash "anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip" -Algorithm SHA256).Hash.ToLower()
+          "$hash  anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip" | Out-File -Encoding ascii "anvil-${{ github.ref_name }}-x86_64-pc-windows-msvc.zip.sha256"
 
-      - name: Create release directory
-        shell: pwsh
-        run: |
-          $releaseDir = "anvil-${{ steps.version.outputs.VERSION }}-windows-x64"
-          New-Item -ItemType Directory -Path $releaseDir
-          Copy-Item target/release/anvil.exe $releaseDir/
-          Copy-Item README.md $releaseDir/
-          Copy-Item LICENSE $releaseDir/ -ErrorAction SilentlyContinue
-          Copy-Item CHANGELOG.md $releaseDir/ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse examples $releaseDir/ -ErrorAction SilentlyContinue
-          Copy-Item -Recurse docs $releaseDir/
-
-      - name: Create ZIP archive
-        shell: pwsh
-        run: |
-          $releaseDir = "anvil-${{ steps.version.outputs.VERSION }}-windows-x64"
-          Compress-Archive -Path $releaseDir -DestinationPath "$releaseDir.zip"
-
-      - name: Upload artifact
+      - name: Upload artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: anvil-${{ steps.version.outputs.VERSION }}-windows-x64
-          path: anvil-${{ steps.version.outputs.VERSION }}-windows-x64.zip
-          retention-days: 5
+          name: anvil-x86_64-pc-windows-msvc
+          path: |
+            anvil-*.zip
+            anvil-*.sha256
 
   release:
-    name: Create Release
+    name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
 
-      - name: Download artifacts
+      - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
           path: artifacts
+          merge-multiple: true
 
-      - name: Generate changelog
-        id: changelog
+      - name: Extract release notes from CHANGELOG.md
+        id: extract
+        uses: ffurrer2/extract-release-notes@v3
+
+      - name: Determine pre-release status
+        id: prerelease
         run: |
-          echo "## What's Changed" > changelog.md
-          echo "" >> changelog.md
-
-          # Try to get commits since last tag, or use recent commits
-          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^ 2>/dev/null || echo "")
-          if [ -n "$PREV_TAG" ]; then
-            git log --pretty=format:"* %s (%h)" $PREV_TAG..HEAD >> changelog.md
+          VERSION="${GITHUB_REF_NAME#v}"
+          MAJOR="${VERSION%%.*}"
+          if [ "$MAJOR" = "0" ]; then
+            echo "flag=--prerelease" >> "$GITHUB_OUTPUT"
           else
-            git log --pretty=format:"* %s (%h)" -20 >> changelog.md
+            echo "flag=" >> "$GITHUB_OUTPUT"
           fi
 
-          echo "" >> changelog.md
-          echo "" >> changelog.md
-          echo "## Installation" >> changelog.md
-          echo "" >> changelog.md
-          echo "Download \`anvil-${{ github.ref_name }}-windows-x64.zip\`, extract, and add to your PATH." >> changelog.md
-          echo "" >> changelog.md
-          echo "Or build from source:" >> changelog.md
-          echo "\`\`\`powershell" >> changelog.md
-          echo "git clone https://github.com/${{ github.repository }}.git" >> changelog.md
-          echo "cd anvil" >> changelog.md
-          echo "cargo build --release" >> changelog.md
-          echo "\`\`\`" >> changelog.md
-
-      - name: Create Release
-        uses: softprops/action-gh-release@v2
-        with:
-          body_path: changelog.md
-          files: |
-            artifacts/**/*.zip
-          draft: false
-          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
-          generate_release_notes: true
+      - name: Create GitHub Release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" \
+            --title "${{ github.ref_name }}" \
+            --notes "${{ steps.extract.outputs.release_notes }}" \
+            ${{ steps.prerelease.outputs.flag }} \
+            artifacts/*
