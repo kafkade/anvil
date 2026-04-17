@@ -416,6 +416,48 @@ assertions:
     Ok(())
 }
 
+/// Create a workload with both assertions and health_check scripts
+/// for testing the deprecation warning
+#[allow(dead_code)]
+pub fn create_workload_with_both_assertions_and_scripts(
+    dir: &Path,
+    name: &str,
+) -> std::io::Result<()> {
+    let workload_dir = dir.join(name);
+    let scripts_dir = workload_dir.join("scripts");
+    fs::create_dir_all(&scripts_dir)?;
+
+    let yaml = format!(
+        r#"name: {name}
+version: "1.0.0"
+description: "Workload with both assertions and health_check scripts"
+
+assertions:
+  - name: "PATH is set"
+    check:
+      type: env_var
+      name: PATH
+
+scripts:
+  health_check:
+    - path: scripts/health.ps1
+      name: "Legacy Check"
+      description: "Legacy health check script"
+"#
+    );
+
+    fs::write(workload_dir.join("workload.yaml"), yaml)?;
+    fs::write(
+        scripts_dir.join("health.ps1"),
+        r#"# Legacy health check script
+Write-Host "Legacy health check running..."
+exit 0
+"#,
+    )?;
+
+    Ok(())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

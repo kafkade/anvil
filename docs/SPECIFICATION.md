@@ -413,6 +413,39 @@ health:
   package_check: boolean        # Verify packages installed (default: true)
   file_check: boolean           # Verify files match (default: true)
   script_check: boolean         # Run health check scripts (default: true)
+  assertion_check: boolean      # Evaluate declarative assertions (default: true)
+```
+
+### 5.1.1 Assertions and Legacy Health Check Coexistence
+
+Anvil supports two mechanisms for health validation:
+
+| Mechanism | Field | Introduced | Status |
+|-----------|-------|-----------|--------|
+| Declarative assertions | `assertions:` | v0.5 | **Recommended** |
+| Health check scripts | `scripts.health_check` | v0.1 | Deprecated when used with assertions |
+
+**Execution order**: When both exist, assertions run first, then legacy scripts. Results are merged into a single health report.
+
+**Deprecation timeline**:
+- **v0.5**: Warning emitted when `scripts.health_check` is used alongside `assertions`
+- **v0.6**: Warning emitted for any use of `scripts.health_check` (even without assertions)
+- **v1.0**: `scripts.health_check` removed; use assertions exclusively
+
+**Migration**: Convert health check scripts to declarative assertions:
+```yaml
+# Before (legacy script)
+scripts:
+  health_check:
+    - path: check-git.ps1
+      name: "Git installed"
+
+# After (declarative assertion)
+assertions:
+  - name: Git installed
+    check:
+      type: command_exists
+      command: git
 ```
 
 ### 5.2 Example Workloads
@@ -1012,6 +1045,7 @@ v1.0 — Polish & Distribution
     │
     ├── crates.io publishing
     ├── Cross-platform CI
+    ├── Remove scripts.health_check (use assertions exclusively)
     └── Documentation review
 ```
 

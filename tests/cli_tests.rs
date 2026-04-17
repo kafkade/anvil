@@ -581,6 +581,22 @@ mod health_command {
             .assert()
             .success();
     }
+
+    #[test]
+    fn health_deprecation_warning_when_both_assertions_and_scripts() {
+        let temp = TempDir::new().unwrap();
+        common::create_workload_with_both_assertions_and_scripts(temp.path(), "both-test").unwrap();
+        let workload_path = temp.path().join("both-test");
+
+        // When both assertions and scripts.health_check exist, stderr should contain deprecation warning
+        anvil()
+            .args(["health", workload_path.to_str().unwrap()])
+            .assert()
+            .code(predicate::in_iter([0, 1]))
+            .stderr(predicate::str::contains(
+                "scripts.health_check` is deprecated when used alongside `assertions`",
+            ));
+    }
 }
 
 mod completions_command {

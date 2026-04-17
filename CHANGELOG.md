@@ -12,6 +12,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Condition engine with 9 predicate types: `command_exists`, `file_exists`, `dir_exists`, `env_var`, `path_contains`, `registry_value`, `shell`, plus `all_of`/`any_of` composition
 - `--assertions-only` flag for `anvil health` to run only assertion checks
 - `assertion_check` toggle in workload health configuration
+- Assertion examples in `anvil init --template full` scaffold
+
+### Deprecated
+- `scripts.health_check` when used alongside `assertions` (migrate to declarative assertions; removal planned for v1.0)
 
 ## [0.5.0] - 2026-04-17
 

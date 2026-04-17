@@ -10,10 +10,11 @@ A comprehensive guide to creating custom workloads for Anvil.
 4. [File Definitions](#4-file-definitions)
 5. [Script Definitions](#5-script-definitions)
 6. [Environment Configuration](#6-environment-configuration)
-7. [Inheritance](#7-inheritance)
-8. [Variable Expansion](#8-variable-expansion)
-9. [Best Practices](#9-best-practices)
-10. [Example Workloads](#10-example-workloads)
+7. [Assertions](#7-assertions)
+8. [Inheritance](#8-inheritance)
+9. [Variable Expansion](#9-variable-expansion)
+10. [Best Practices](#10-best-practices)
+11. [Example Workloads](#11-example-workloads)
 
 ---
 
@@ -71,6 +72,7 @@ packages: object                # Package definitions
 files: array                    # File deployment definitions
 scripts: object                 # Script execution definitions
 environment: object             # Environment variable configuration
+assertions: array               # Declarative health assertions
 health: object                  # Health check configuration
 ```
 
@@ -626,7 +628,201 @@ PATH additions are appended to the existing PATH for the specified scope.
 
 ---
 
-## 7. Inheritance
+## 7. Assertions
+
+Assertions are declarative health checks defined directly in `workload.yaml`. They let you validate system state — such as installed commands, existing files, environment variables, and PATH entries — without writing PowerShell scripts.
+
+Use assertions when your checks are simple conditions (command exists, file exists, env var set). Use health check scripts for complex validation that requires multi-step logic or custom output.
+
+### Assertion Structure
+
+Each assertion has a `name` and a `check` that specifies a condition:
+
+```yaml
+assertions:
+  - name: Git is installed
+    check:
+      type: command_exists
+      command: git
+```
+
+### Condition Types
+
+#### `command_exists`
+
+Checks whether a command is available on `PATH`.
+
+```yaml
+- name: cargo is available
+  check:
+    type: command_exists
+    command: cargo
+```
+
+#### `file_exists`
+
+Checks whether a file exists at the given path. Supports `~` expansion.
+
+```yaml
+- name: Git config exists
+  check:
+    type: file_exists
+    path: "~/.gitconfig"
+```
+
+#### `dir_exists`
+
+Checks whether a directory exists at the given path. Supports `~` expansion.
+
+```yaml
+- name: Cargo directory exists
+  check:
+    type: dir_exists
+    path: "~/.cargo"
+```
+
+#### `env_var`
+
+Checks whether an environment variable is set, optionally matching a specific value.
+
+```yaml
+# Check existence only
+- name: RUST_BACKTRACE is set
+  check:
+    type: env_var
+    name: RUST_BACKTRACE
+
+# Check existence and value
+- name: RUST_BACKTRACE is 1
+  check:
+    type: env_var
+    name: RUST_BACKTRACE
+    value: "1"
+```
+
+#### `path_contains`
+
+Checks whether the system `PATH` contains a given substring.
+
+```yaml
+- name: Cargo bin on PATH
+  check:
+    type: path_contains
+    substring: ".cargo/bin"
+```
+
+#### `registry_value`
+
+Queries a Windows registry value under `HKCU` or `HKLM`. If `expected` is omitted, the check only asserts the value exists.
+
+```yaml
+- name: Developer mode enabled
+  check:
+    type: registry_value
+    hive: HKLM
+    key: "SOFTWARE\\Microsoft\\Windows\\CurrentVersion\\AppModelUnlock"
+    name: AllowDevelopmentWithoutDevLicense
+    expected: "1"
+```
+
+#### `shell`
+
+Runs an arbitrary shell command; the condition passes when the exit code is 0.
+
+```yaml
+- name: Rust compiler responds
+  check:
+    type: shell
+    command: "rustc --version"
+    description: "Rust compiler version check"
+```
+
+### Composition with `all_of` and `any_of`
+
+Combine conditions with logical operators for complex checks.
+
+#### `all_of` — all conditions must pass (AND)
+
+```yaml
+- name: Full Rust toolchain
+  check:
+    type: all_of
+    conditions:
+      - type: command_exists
+        command: rustc
+      - type: command_exists
+        command: cargo
+      - type: dir_exists
+        path: "~/.cargo"
+```
+
+#### `any_of` — at least one must pass (OR)
+
+```yaml
+- name: Python is available
+  check:
+    type: any_of
+    conditions:
+      - type: command_exists
+        command: python
+      - type: command_exists
+        command: python3
+```
+
+### Enabling Assertion Checks
+
+Assertions are evaluated during `anvil health` when `assertion_check` is enabled in the health config (it defaults to `true`):
+
+```yaml
+health:
+  package_check: true
+  file_check: true
+  script_check: true
+  assertion_check: true   # Evaluate declarative assertions
+```
+
+### Complete Example
+
+```yaml
+name: rust-developer
+version: "1.0.0"
+description: "Rust development environment"
+
+packages:
+  winget:
+    - id: Rustlang.Rustup
+
+assertions:
+  - name: cargo command exists
+    check:
+      type: command_exists
+      command: cargo
+  - name: rustc command exists
+    check:
+      type: command_exists
+      command: rustc
+  - name: Cargo directory exists
+    check:
+      type: dir_exists
+      path: "~/.cargo"
+  - name: Cargo bin on PATH
+    check:
+      type: path_contains
+      substring: ".cargo/bin"
+  - name: RUST_BACKTRACE is set
+    check:
+      type: env_var
+      name: RUST_BACKTRACE
+      value: "1"
+
+health:
+  package_check: true
+  assertion_check: true
+```
+
+---
+
+## 8. Inheritance
 
 Workloads can extend other workloads to inherit their configuration.
 
@@ -729,7 +925,7 @@ anvil show my-workload --resolved
 
 ---
 
-## 8. Variable Expansion
+## 9. Variable Expansion
 
 Use variables in paths and values for dynamic configuration.
 
@@ -779,7 +975,7 @@ environment:
 
 ---
 
-## 9. Best Practices
+## 10. Best Practices
 
 ### Workload Design
 
@@ -897,7 +1093,7 @@ environment:
 
 ---
 
-## 10. Example Workloads
+## 11. Example Workloads
 
 ### Minimal Workload
 

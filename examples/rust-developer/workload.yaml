@@ -43,7 +43,35 @@ environment:
   path_additions:
     - "~/.cargo/bin"
 
+assertions:
+  - name: cargo command exists
+    check:
+      type: command_exists
+      command: cargo
+  - name: rustc command exists
+    check:
+      type: command_exists
+      command: rustc
+  - name: rustup command exists
+    check:
+      type: command_exists
+      command: rustup
+  - name: Cargo directory exists
+    check:
+      type: dir_exists
+      path: "~/.cargo"
+  - name: Cargo bin on PATH
+    check:
+      type: path_contains
+      substring: ".cargo/bin"
+  - name: RUST_BACKTRACE is set
+    check:
+      type: env_var
+      name: RUST_BACKTRACE
+      value: "1"
+
 health:
   package_check: true
   file_check: true
   script_check: true
+  assertion_check: true
