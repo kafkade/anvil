@@ -87,8 +87,12 @@ fn create_backup(
     let backup_folder = backup_dir.join(format!("{}_{}", timestamp, backup_name));
 
     // Create backup directory
-    std::fs::create_dir_all(&backup_folder)
-        .with_context(|| format!("Failed to create backup directory: {}", backup_folder.display()))?;
+    std::fs::create_dir_all(&backup_folder).with_context(|| {
+        format!(
+            "Failed to create backup directory: {}",
+            backup_folder.display()
+        )
+    })?;
 
     // Create manifest
     let manifest = BackupManifest {
@@ -111,8 +115,8 @@ fn create_backup(
 
     // Save manifest
     let manifest_path = backup_folder.join("manifest.json");
-    let manifest_json = serde_json::to_string_pretty(&manifest)
-        .context("Failed to serialize backup manifest")?;
+    let manifest_json =
+        serde_json::to_string_pretty(&manifest).context("Failed to serialize backup manifest")?;
     std::fs::write(&manifest_path, manifest_json)
         .with_context(|| format!("Failed to write manifest: {}", manifest_path.display()))?;
 
@@ -123,7 +127,11 @@ fn create_backup(
             backup_folder.display()
         ));
     } else {
-        println!("Backup created: {} ({})", backup_name, backup_folder.display());
+        println!(
+            "Backup created: {} ({})",
+            backup_name,
+            backup_folder.display()
+        );
     }
 
     if include_packages {
@@ -195,7 +203,12 @@ fn export_packages(backup_folder: &std::path::Path) -> Result<PackageSnapshot> {
 
     // Try to run winget export
     let output = std::process::Command::new("winget")
-        .args(["export", "-o", &export_file.to_string_lossy(), "--accept-source-agreements"])
+        .args([
+            "export",
+            "-o",
+            &export_file.to_string_lossy(),
+            "--accept-source-agreements",
+        ])
         .output();
 
     match output {
@@ -237,7 +250,13 @@ fn snapshot_environment() -> EnvironmentSnapshot {
             // Only include common user-modifiable variables
             matches!(
                 k.to_uppercase().as_str(),
-                "PATH" | "HOME" | "USERPROFILE" | "CARGO_HOME" | "RUSTUP_HOME" | "GOPATH" | "JAVA_HOME"
+                "PATH"
+                    | "HOME"
+                    | "USERPROFILE"
+                    | "CARGO_HOME"
+                    | "RUSTUP_HOME"
+                    | "GOPATH"
+                    | "JAVA_HOME"
             )
         })
         .collect();

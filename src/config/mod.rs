@@ -587,8 +587,7 @@ mod tests {
     #[test]
     fn test_expand_nested_variables() {
         let home = dirs::home_dir().unwrap();
-        let expanded =
-            expand_variables("${HOME}/.config/${ANVIL_WORKLOAD}", Some("my-workload"));
+        let expanded = expand_variables("${HOME}/.config/${ANVIL_WORKLOAD}", Some("my-workload"));
         assert!(expanded.starts_with(home.to_string_lossy().as_ref()));
         assert!(expanded.ends_with("/.config/my-workload"));
     }

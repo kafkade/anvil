@@ -83,8 +83,7 @@ fn print_installation_instructions(shell: ShellType) -> Result<()> {
 /// Get installation instructions for a specific shell
 fn get_installation_instructions(shell: ShellType) -> String {
     match shell {
-        ShellType::Powershell => {
-            r#"Anvil PowerShell Completions
+        ShellType::Powershell => r#"Anvil PowerShell Completions
 
 Installation:
   1. Save this output to a file:
@@ -96,10 +95,9 @@ Installation:
   3. Restart PowerShell or run: . $PROFILE
 
 Alternative (add directly to profile):
-  anvil completions powershell >> $PROFILE"#.to_string()
-        }
-        ShellType::Bash => {
-            r#"Anvil Bash Completions
+  anvil completions powershell >> $PROFILE"#
+            .to_string(),
+        ShellType::Bash => r#"Anvil Bash Completions
 
 Installation (system-wide, requires root):
   anvil completions bash | sudo tee /etc/bash_completion.d/anvil > /dev/null
@@ -112,10 +110,9 @@ Installation (user-only):
      anvil completions bash > ~/.local/share/bash-completion/completions/anvil
 
   3. Restart your shell or run:
-     source ~/.local/share/bash-completion/completions/anvil"#.to_string()
-        }
-        ShellType::Zsh => {
-            r#"Anvil Zsh Completions
+     source ~/.local/share/bash-completion/completions/anvil"#
+            .to_string(),
+        ShellType::Zsh => r#"Anvil Zsh Completions
 
 Installation:
   1. Create a completions directory if it doesn't exist:
@@ -130,18 +127,16 @@ Installation:
   4. Regenerate completions cache:
      rm -f ~/.zcompdump; compinit
 
-  5. Restart your shell"#.to_string()
-        }
-        ShellType::Fish => {
-            r#"Anvil Fish Completions
+  5. Restart your shell"#
+            .to_string(),
+        ShellType::Fish => r#"Anvil Fish Completions
 
 Installation:
   anvil completions fish > ~/.config/fish/completions/anvil.fish
 
-The completions will be automatically loaded on next shell start."#.to_string()
-        }
-        ShellType::Elvish => {
-            r#"Anvil Elvish Completions
+The completions will be automatically loaded on next shell start."#
+            .to_string(),
+        ShellType::Elvish => r#"Anvil Elvish Completions
 
 Installation:
   1. Create lib directory:
@@ -151,8 +146,8 @@ Installation:
      anvil completions elvish > ~/.config/elvish/lib/anvil.elv
 
   3. Add to your rc.elv:
-     use anvil"#.to_string()
-        }
+     use anvil"#
+            .to_string(),
     }
 }
 
@@ -217,7 +212,11 @@ pub fn install_completions(shell: ShellType) -> Result<PathBuf> {
 /// Print a success message for completion installation
 #[allow(dead_code)]
 pub fn print_install_success(shell: ShellType, path: &PathBuf) {
-    println!("{} Completions installed to: {}", "✓".green(), path.display());
+    println!(
+        "{} Completions installed to: {}",
+        "✓".green(),
+        path.display()
+    );
     println!();
 
     match shell {

@@ -59,9 +59,9 @@ fn set_config(key: &str, value: &str) -> Result<()> {
     let mut config = GlobalConfig::load().context("Failed to load configuration")?;
 
     // Validate and set the value
-    config.set(key, value).with_context(|| {
-        format!("Failed to set configuration key '{}' to '{}'", key, value)
-    })?;
+    config
+        .set(key, value)
+        .with_context(|| format!("Failed to set configuration key '{}' to '{}'", key, value))?;
 
     // Save the updated configuration
     config.save().context("Failed to save configuration")?;
@@ -127,10 +127,7 @@ fn print_config_table(items: &[(String, String)], use_color: bool) {
                     Cell::new(""),
                 ]);
             } else {
-                table.add_row(vec![
-                    Cell::new(format!("[{}]", section)),
-                    Cell::new(""),
-                ]);
+                table.add_row(vec![Cell::new(format!("[{}]", section)), Cell::new("")]);
             }
         }
 
@@ -178,7 +175,9 @@ fn reset_config(force: bool) -> Result<()> {
     }
 
     let config = GlobalConfig::default();
-    config.save().context("Failed to save default configuration")?;
+    config
+        .save()
+        .context("Failed to save default configuration")?;
 
     print_success("Configuration reset to defaults.");
 
@@ -192,8 +191,13 @@ fn edit_config() -> Result<()> {
     // Ensure config file exists
     if !config_path.exists() {
         let config = GlobalConfig::default();
-        config.save().context("Failed to create default configuration")?;
-        print_info(&format!("Created default config at: {}", config_path.display()));
+        config
+            .save()
+            .context("Failed to create default configuration")?;
+        print_info(&format!(
+            "Created default config at: {}",
+            config_path.display()
+        ));
     }
 
     // Try to open with default editor
@@ -206,9 +210,7 @@ fn edit_config() -> Result<()> {
         let mut opened = false;
 
         for editor in editors {
-            let result = Command::new(editor)
-                .arg(&config_path)
-                .spawn();
+            let result = Command::new(editor).arg(&config_path).spawn();
 
             if result.is_ok() {
                 print_success(&format!("Opened config file with {}", editor));
@@ -241,9 +243,7 @@ fn edit_config() -> Result<()> {
             .or_else(|_| std::env::var("VISUAL"))
             .unwrap_or_else(|_| "vi".to_string());
 
-        let result = Command::new(&editor)
-            .arg(&config_path)
-            .status();
+        let result = Command::new(&editor).arg(&config_path).status();
 
         match result {
             Ok(status) if status.success() => {

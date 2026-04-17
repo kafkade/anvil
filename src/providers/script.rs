@@ -690,10 +690,9 @@ impl ScriptProvider {
     /// Inject environment variables into script config
     pub fn inject_environment_variables(&self, config: &mut ScriptConfig, context: &ScriptContext) {
         // Anvil-specific variables
-        config.environment.insert(
-            "ANVIL_WORKLOAD".to_string(),
-            context.workload_name.clone(),
-        );
+        config
+            .environment
+            .insert("ANVIL_WORKLOAD".to_string(), context.workload_name.clone());
         config.environment.insert(
             "ANVIL_WORKLOAD_PATH".to_string(),
             context.workload_path.display().to_string(),

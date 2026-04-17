@@ -8,10 +8,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [Unreleased]
 
 ### Added
-- Nothing yet
+- Architecture reference document for contributors (`docs/ARCHITECTURE.md`)
 
 ### Changed
-- Nothing yet
+- Project description updated to "Declarative Workstation Configuration Management" to reflect cross-platform direction
 
 ### Fixed
 - Nothing yet
