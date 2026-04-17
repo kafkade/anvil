@@ -53,3 +53,7 @@ anvil health rust-developer
 - Review the **[Specification](specification.md)** for the technical design and roadmap.
 - Explore the **[Architecture](architecture.md)** docs to understand the codebase.
 - Want to help? Read the **[Contributing](contributing.md)** guide.
+
+---
+
+*If Anvil saves you time, consider [sponsoring the project](https://github.com/sponsors/kafkade).*

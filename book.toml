@@ -2,15 +2,16 @@
 authors = ["Kafkade"]
 language = "en"
 src = "docs/src"
-title = "Anvil Documentation"
+title = "Anvil Docs"
 description = "Declarative Workstation Configuration Management"
 
 [build]
 build-dir = "docs/book"
 
 [output.html]
-default-theme = "navy"
-preferred-dark-theme = "navy"
+default-theme = "ayu"
+preferred-dark-theme = "ayu"
+theme = "docs/theme"
 git-repository-url = "https://github.com/kafkade/anvil"
 edit-url-template = "https://github.com/kafkade/anvil/edit/main/{path}"
 site-url = "https://anvil.kafkade.com/"
