@@ -81,6 +81,10 @@ Title format: `feat:`, `fix:`, `docs:`, `test:`, `refactor:`, `chore:`
 
 Create `examples/<name>/workload.yaml` (plus optional `files/` and `scripts/`). Validate with `anvil validate <name> --strict`. Use `extends: [essentials]` for common dev tools.
 
+## CI / Infrastructure Dependency
+
+**Branch protection for this repo is managed via Terraform in `kafkade/github-infra` (`repo_anvil.tf`).** The `required_status_checks` list must match the job names in `.github/workflows/ci.yml`. If you rename, add, or remove CI jobs that are used as merge gates (currently `CI Pass`), the corresponding IaC config must be updated or PRs will be permanently blocked. Always flag this when proposing workflow changes.
+
 ## Git Policy
 
 **Never execute Git commands that modify history or submit code.** This includes `git commit`, `git push`, `git rebase`, `git merge`, `git reset`, `git cherry-pick`, `git revert`, and `git tag`. Read-only commands like `git status`, `git diff`, `git log`, and `git branch` are fine. The maintainer must always review and commit changes themselves.
