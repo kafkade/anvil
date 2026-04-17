@@ -640,8 +640,8 @@ fn is_valid_version(version: &str) -> bool {
 /// - Microsoft.VisualStudioCode
 /// - Git.Git
 /// - Python.Python.3.12
-/// Check if a Microsoft Store package ID is valid
-/// Microsoft Store IDs are alphanumeric, typically 12 characters (e.g., 9NBLGGH4NNS1)
+///   Check if a Microsoft Store package ID is valid
+///   Microsoft Store IDs are alphanumeric, typically 12 characters (e.g., 9NBLGGH4NNS1)
 fn is_valid_msstore_id(id: &str) -> bool {
     if id.is_empty() {
         return false;

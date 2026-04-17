@@ -1188,9 +1188,10 @@ fn is_progress_segment(s: &str) -> bool {
     }
     // If it looks like a size indicator (e.g., "2.51 MB", "1024 KB")
     if (trimmed.contains(" KB") || trimmed.contains(" MB") || trimmed.contains(" GB"))
-        && trimmed.split_whitespace().count() <= 3 {
-            return true;
-        }
+        && trimmed.split_whitespace().count() <= 3
+    {
+        return true;
+    }
     false
 }
 

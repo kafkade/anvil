@@ -882,9 +882,7 @@ fn report_and_exit(
     let has_failures = report.summary.failed > 0;
     let has_warnings = report.summary.warnings > 0;
 
-    if has_failures {
-        std::process::exit(1);
-    } else if args.strict && has_warnings {
+    if has_failures || (args.strict && has_warnings) {
         std::process::exit(1);
     }
 

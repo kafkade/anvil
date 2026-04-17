@@ -161,11 +161,10 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         }
     }
 
-    if !args.force && !args.dry_run
-        && !confirm_installation(&workload)? {
-            print_info("Installation cancelled by user");
-            return Ok(());
-        }
+    if !args.force && !args.dry_run && !confirm_installation(&workload)? {
+        print_info("Installation cancelled by user");
+        return Ok(());
+    }
 
     // Initialize installation state
     let mut state = InstallationState::new(&workload.name, &workload.version);
@@ -1351,6 +1350,7 @@ fn count_total_files(
 
 /// Copy a directory recursively with file state tracking
 /// Returns (copied, skipped, backed_up, failed) counts
+#[allow(clippy::too_many_arguments)]
 fn copy_directory_recursive(
     context: &OperationContext,
     fs_provider: &mut FilesystemProvider,

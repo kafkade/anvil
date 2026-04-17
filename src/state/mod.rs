@@ -66,9 +66,10 @@ pub fn cleanup_old_data(max_age_days: u32) -> Result<CleanupResult> {
                     if let Ok(modified) = metadata.modified() {
                         let modified: chrono::DateTime<chrono::Utc> = modified.into();
                         if now.signed_duration_since(modified) > max_age
-                            && std::fs::remove_file(entry.path()).is_ok() {
-                                result.state_files_removed += 1;
-                            }
+                            && std::fs::remove_file(entry.path()).is_ok()
+                        {
+                            result.state_files_removed += 1;
+                        }
                     }
                 }
             }
@@ -83,9 +84,10 @@ pub fn cleanup_old_data(max_age_days: u32) -> Result<CleanupResult> {
                     if let Ok(modified) = metadata.modified() {
                         let modified: chrono::DateTime<chrono::Utc> = modified.into();
                         if now.signed_duration_since(modified) > max_age
-                            && std::fs::remove_file(entry.path()).is_ok() {
-                                result.cache_files_removed += 1;
-                            }
+                            && std::fs::remove_file(entry.path()).is_ok()
+                        {
+                            result.cache_files_removed += 1;
+                        }
                     }
                 }
             }

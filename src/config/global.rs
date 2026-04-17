@@ -29,7 +29,6 @@ pub struct GlobalConfig {
     pub logging: LoggingConfig,
 }
 
-
 impl GlobalConfig {
     /// Load global configuration from file
     ///
@@ -251,11 +250,13 @@ impl GlobalConfig {
     }
 
     /// Reset configuration to defaults
+    #[allow(dead_code)]
     pub fn reset(&mut self) {
         *self = Self::default();
     }
 
     /// Add a workload search path
+    #[allow(dead_code)]
     pub fn add_workload_path(&mut self, path: impl Into<String>) {
         let path_str = path.into();
         if !self.workloads.paths.contains(&path_str) {
@@ -264,6 +265,7 @@ impl GlobalConfig {
     }
 
     /// Remove a workload search path
+    #[allow(dead_code)]
     pub fn remove_workload_path(&mut self, path: &str) -> bool {
         if let Some(pos) = self.workloads.paths.iter().position(|p| p == path) {
             self.workloads.paths.remove(pos);
@@ -362,7 +364,6 @@ pub struct WorkloadsConfig {
     /// Additional workload search paths
     pub paths: Vec<String>,
 }
-
 
 /// Logging configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

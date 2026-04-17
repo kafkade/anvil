@@ -4,7 +4,7 @@
 //! for various shells including Bash, Zsh, Fish, PowerShell, and Elvish.
 
 use std::io::{self, Write};
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use anyhow::{Context, Result};
 use clap::CommandFactory;
@@ -211,7 +211,7 @@ pub fn install_completions(shell: ShellType) -> Result<PathBuf> {
 
 /// Print a success message for completion installation
 #[allow(dead_code)]
-pub fn print_install_success(shell: ShellType, path: &PathBuf) {
+pub fn print_install_success(shell: ShellType, path: &Path) {
     println!(
         "{} Completions installed to: {}",
         "✓".green(),

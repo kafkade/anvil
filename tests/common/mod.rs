@@ -111,6 +111,7 @@ description: "This workload is missing the required name field"
 ///
 /// # Returns
 /// Result indicating success or IO error
+#[allow(dead_code)]
 pub fn create_circular_workloads(dir: &Path) -> std::io::Result<()> {
     // Create workload A that extends B
     let workload_a_dir = dir.join("circular-a");
@@ -292,6 +293,7 @@ files:
 ///
 /// # Returns
 /// Result indicating success or IO error
+#[allow(dead_code)]
 pub fn create_template_workload(dir: &Path, name: &str) -> std::io::Result<()> {
     let workload_dir = dir.join(name);
     let files_dir = workload_dir.join("files");

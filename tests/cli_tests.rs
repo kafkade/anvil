@@ -11,6 +11,7 @@ use tempfile::TempDir;
 
 /// Helper to get anvil command
 fn anvil() -> Command {
+    #[allow(deprecated)]
     Command::cargo_bin("anvil").unwrap()
 }
 

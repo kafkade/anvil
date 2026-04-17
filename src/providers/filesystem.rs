@@ -759,18 +759,17 @@ impl FilesystemProvider {
                 }
                 FileOperationType::DirectoryCreated => {
                     // Try to remove the directory if empty
-                    if op.path.exists() && op.path.is_dir()
-                        && fs::read_dir(&op.path)?.next().is_none() {
-                            if self.config.dry_run {
-                                tracing::info!(
-                                    "Would remove empty directory: {}",
-                                    op.path.display()
-                                );
-                            } else {
-                                fs::remove_dir(&op.path)?;
-                                result.directories_removed += 1;
-                            }
+                    if op.path.exists()
+                        && op.path.is_dir()
+                        && fs::read_dir(&op.path)?.next().is_none()
+                    {
+                        if self.config.dry_run {
+                            tracing::info!("Would remove empty directory: {}", op.path.display());
+                        } else {
+                            fs::remove_dir(&op.path)?;
+                            result.directories_removed += 1;
                         }
+                    }
                 }
             }
         }

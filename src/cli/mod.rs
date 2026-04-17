@@ -4,6 +4,7 @@
 
 pub mod commands;
 pub mod completions;
+#[allow(dead_code)]
 pub mod formats;
 pub mod output;
 pub mod progress;

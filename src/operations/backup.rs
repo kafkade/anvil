@@ -708,8 +708,8 @@ fn verify_backups(workload: Option<&str>, fix: bool, _use_color: bool) -> Result
         )
     };
 
-    let total = if workload.is_some() {
-        manager.list_for_workload(workload.unwrap())?.len()
+    let total = if let Some(w) = workload {
+        manager.list_for_workload(w)?.len()
     } else {
         result.total
     };

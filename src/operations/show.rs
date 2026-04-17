@@ -122,18 +122,9 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
 
     if use_color {
         println!("{}", "Summary:".bold());
-        println!(
-            "  📦 {} package(s)",
-            package_count.to_string().cyan()
-        );
-        println!(
-            "  📄 {} file(s)",
-            file_count.to_string().cyan()
-        );
-        println!(
-            "  📜 {} script(s)",
-            script_count.to_string().cyan()
-        );
+        println!("  📦 {} package(s)", package_count.to_string().cyan());
+        println!("  📄 {} file(s)", file_count.to_string().cyan());
+        println!("  📜 {} script(s)", script_count.to_string().cyan());
     } else {
         println!("Summary:");
         println!("  Packages: {}", package_count);

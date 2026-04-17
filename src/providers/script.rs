@@ -8,6 +8,7 @@
 //! Features:
 //! - Proper timeout handling with process termination
 //! - Elevation detection and requirements
+#![allow(dead_code)]
 //! - Output streaming for real-time feedback
 //! - Environment variable injection
 //! - PowerShell Core (pwsh) support
@@ -75,6 +76,7 @@ pub enum ScriptError {
 
 /// Supported shell types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[allow(clippy::enum_variant_names)]
 #[derive(Default)]
 pub enum Shell {
     /// Windows PowerShell (powershell.exe)
@@ -134,7 +136,6 @@ impl Shell {
             .unwrap_or(false)
     }
 }
-
 
 /// Output mode for script execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
