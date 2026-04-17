@@ -27,19 +27,55 @@ const LOGO: &[&str] = &[
 /// Gradient from white-hot (top) to deep red (bottom)
 fn gradient_color(line_index: usize) -> Color {
     match line_index {
-        0 => Color::Rgb { r: 254, g: 243, b: 199 },
-        1 => Color::Rgb { r: 253, g: 224, b: 71 },
-        2 => Color::Rgb { r: 251, g: 191, b: 36 },
-        3 => Color::Rgb { r: 245, g: 158, b: 11 },
-        4 => Color::Rgb { r: 249, g: 115, b: 22 },
-        5 => Color::Rgb { r: 239, g: 68, b: 68 },
-        6 => Color::Rgb { r: 220, g: 38, b: 38 },
-        7 => Color::Rgb { r: 185, g: 28, b: 28 },
+        0 => Color::Rgb {
+            r: 254,
+            g: 243,
+            b: 199,
+        },
+        1 => Color::Rgb {
+            r: 253,
+            g: 224,
+            b: 71,
+        },
+        2 => Color::Rgb {
+            r: 251,
+            g: 191,
+            b: 36,
+        },
+        3 => Color::Rgb {
+            r: 245,
+            g: 158,
+            b: 11,
+        },
+        4 => Color::Rgb {
+            r: 249,
+            g: 115,
+            b: 22,
+        },
+        5 => Color::Rgb {
+            r: 239,
+            g: 68,
+            b: 68,
+        },
+        6 => Color::Rgb {
+            r: 220,
+            g: 38,
+            b: 38,
+        },
+        7 => Color::Rgb {
+            r: 185,
+            g: 28,
+            b: 28,
+        },
         _ => Color::White,
     }
 }
 
-const CROSSBAR_COLOR: Color = Color::Rgb { r: 127, g: 29, b: 29 };
+const CROSSBAR_COLOR: Color = Color::Rgb {
+    r: 127,
+    g: 29,
+    b: 29,
+};
 
 /// Print a single logo line with gradient color and crossbar highlighting
 fn print_logo_line(stdout: &mut io::Stdout, index: usize) -> io::Result<()> {
@@ -111,11 +147,19 @@ fn animate_version() -> io::Result<()> {
     thread::sleep(Duration::from_millis(80));
 
     println!();
-    stdout.execute(SetForegroundColor(Color::Rgb { r: 251, g: 191, b: 36 }))?;
+    stdout.execute(SetForegroundColor(Color::Rgb {
+        r: 251,
+        g: 191,
+        b: 36,
+    }))?;
     stdout.execute(SetAttribute(Attribute::Bold))?;
     print!("   anvil ");
     stdout.execute(SetAttribute(Attribute::Reset))?;
-    stdout.execute(SetForegroundColor(Color::Rgb { r: 148, g: 163, b: 184 }))?;
+    stdout.execute(SetForegroundColor(Color::Rgb {
+        r: 148,
+        g: 163,
+        b: 184,
+    }))?;
     println!("v{VERSION}");
 
     // Reset colors and show cursor

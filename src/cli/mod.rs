@@ -2,13 +2,13 @@
 //!
 //! This module defines the CLI structure for Anvil using clap's derive macros.
 
+pub mod banner;
 pub mod commands;
 pub mod completions;
 #[allow(dead_code)]
 pub mod formats;
 pub mod output;
 pub mod progress;
-pub mod banner;
 
 use clap::{Parser, Subcommand};
 

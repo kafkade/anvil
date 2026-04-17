@@ -23,6 +23,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `anvil list --all-paths` to show all discovered paths including shadowed duplicates
 - Cross-platform release builds for Linux (x86_64, aarch64), macOS (x86_64, aarch64), and Windows (x86_64)
 - Documentation website powered by mdBook, served at [anvil.kafkade.com](https://anvil.kafkade.com)
+- Animated forge lettermark banner on `anvil --version` with molten gradient
 
 ### Changed
 - Crate renamed to `anvil-cli` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-cli`)
