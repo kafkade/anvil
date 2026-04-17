@@ -11,6 +11,7 @@ use serde::{Deserialize, Serialize};
 /// Global configuration structure
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct GlobalConfig {
     /// Default settings for commands
     pub defaults: DefaultsConfig,
@@ -28,17 +29,6 @@ pub struct GlobalConfig {
     pub logging: LoggingConfig,
 }
 
-impl Default for GlobalConfig {
-    fn default() -> Self {
-        Self {
-            defaults: DefaultsConfig::default(),
-            backup: BackupConfig::default(),
-            install: InstallConfig::default(),
-            workloads: WorkloadsConfig::default(),
-            logging: LoggingConfig::default(),
-        }
-    }
-}
 
 impl GlobalConfig {
     /// Load global configuration from file
@@ -367,16 +357,12 @@ impl Default for InstallConfig {
 /// Workload search paths configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(default)]
+#[derive(Default)]
 pub struct WorkloadsConfig {
     /// Additional workload search paths
     pub paths: Vec<String>,
 }
 
-impl Default for WorkloadsConfig {
-    fn default() -> Self {
-        Self { paths: Vec::new() }
-    }
-}
 
 /// Logging configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]

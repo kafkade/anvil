@@ -13,7 +13,6 @@ pub mod winget;
 
 // Re-export commonly used types
 pub use filesystem::FilesystemProvider;
-pub use script::ScriptProvider;
 pub use winget::WingetProvider;
 
 use thiserror::Error;

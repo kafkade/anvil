@@ -123,8 +123,7 @@ impl FileState {
         }
 
         let current_hash = compute_file_hash(&self.path).map_err(|e| {
-            FileStateError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            FileStateError::Io(std::io::Error::other(
                 e.to_string(),
             ))
         })?;
@@ -138,8 +137,7 @@ impl FileState {
         }
 
         let hash = compute_file_hash(&self.path).map_err(|e| {
-            FileStateError::Io(std::io::Error::new(
-                std::io::ErrorKind::Other,
+            FileStateError::Io(std::io::Error::other(
                 e.to_string(),
             ))
         })?;

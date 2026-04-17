@@ -366,14 +366,13 @@ fn check_script_file(path: &Path, field_path: &str, result: &mut ValidationResul
         }
 
         // Check for UTF-16 BOM
-        if bytes.len() >= 2 {
-            if (bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF) {
+        if bytes.len() >= 2
+            && ((bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF)) {
                 result.add_warning(
                     field_path.to_string(),
                     "Script appears to be UTF-16 encoded (may cause issues)".to_string(),
                 );
             }
-        }
 
         // Try to parse as UTF-8
         if let Ok(content) = String::from_utf8(bytes.clone()) {

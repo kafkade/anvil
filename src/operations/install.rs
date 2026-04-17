@@ -161,12 +161,11 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         }
     }
 
-    if !args.force && !args.dry_run {
-        if !confirm_installation(&workload)? {
+    if !args.force && !args.dry_run
+        && !confirm_installation(&workload)? {
             print_info("Installation cancelled by user");
             return Ok(());
         }
-    }
 
     // Initialize installation state
     let mut state = InstallationState::new(&workload.name, &workload.version);
@@ -274,7 +273,7 @@ fn generate_installation_plan(
     args: &InstallArgs,
 ) -> Result<Vec<PackagePlanEntry>> {
     let packages = match &workload.packages {
-        Some(p) => p.winget.as_ref().map(|w| w.as_slice()).unwrap_or(&[]),
+        Some(p) => p.winget.as_deref().unwrap_or(&[]),
         None => return Ok(Vec::new()),
     };
 
@@ -409,11 +408,10 @@ fn print_installation_plan(plan: &[PackagePlanEntry], context: &OperationContext
             PackageAction::Skip => {
                 if context.use_color {
                     println!(
-                        "  {} {:<40} {}{}",
+                        "  {} {:<40} {}",
                         "✓".green(),
                         entry.package.id,
-                        format!("(already installed{})", version_info).dimmed(),
-                        ""
+                        format!("(already installed{})", version_info).dimmed()
                     );
                 } else {
                     println!(

@@ -75,8 +75,10 @@ pub enum ScriptError {
 
 /// Supported shell types
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
+#[derive(Default)]
 pub enum Shell {
     /// Windows PowerShell (powershell.exe)
+    #[default]
     PowerShell,
     /// PowerShell Core (pwsh.exe)
     Pwsh,
@@ -133,11 +135,6 @@ impl Shell {
     }
 }
 
-impl Default for Shell {
-    fn default() -> Self {
-        Shell::PowerShell
-    }
-}
 
 /// Output mode for script execution
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
@@ -993,7 +990,7 @@ impl ScriptProvider {
         timeout: Duration,
         script_path: &Path,
     ) -> Result<Output, ScriptError> {
-        let mut child = cmd
+        let child = cmd
             .spawn()
             .map_err(|e| ScriptError::SpawnFailed(format!("Failed to spawn process: {}", e)))?;
 
@@ -1034,7 +1031,7 @@ impl ScriptProvider {
 
         let start = Instant::now();
 
-        let mut child = cmd
+        let child = cmd
             .spawn()
             .map_err(|e| ScriptError::SpawnFailed(format!("Failed to spawn process: {}", e)))?;
 

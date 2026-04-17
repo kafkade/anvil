@@ -1187,11 +1187,10 @@ fn is_progress_segment(s: &str) -> bool {
         return true;
     }
     // If it looks like a size indicator (e.g., "2.51 MB", "1024 KB")
-    if trimmed.contains(" KB") || trimmed.contains(" MB") || trimmed.contains(" GB") {
-        if trimmed.split_whitespace().count() <= 3 {
+    if (trimmed.contains(" KB") || trimmed.contains(" MB") || trimmed.contains(" GB"))
+        && trimmed.split_whitespace().count() <= 3 {
             return true;
         }
-    }
     false
 }
 
@@ -1397,7 +1396,7 @@ pub mod version {
     /// Parse a version string into comparable parts
     fn parse_version(version: &str) -> Vec<u64> {
         version
-            .split(|c: char| c == '.' || c == '-' || c == '_')
+            .split(['.', '-', '_'])
             .filter_map(|part| {
                 // Extract leading digits
                 let digits: String = part.chars().take_while(|c| c.is_ascii_digit()).collect();

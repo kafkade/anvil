@@ -9,7 +9,7 @@ pub mod schema;
 pub mod workload;
 
 pub use global::GlobalConfig;
-pub use inheritance::{InheritanceGraph, InheritanceStats};
+pub use inheritance::InheritanceGraph;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};

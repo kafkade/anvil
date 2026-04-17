@@ -123,18 +123,15 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
     if use_color {
         println!("{}", "Summary:".bold());
         println!(
-            "  {} {} package(s)",
-            "📦".to_string(),
+            "  📦 {} package(s)",
             package_count.to_string().cyan()
         );
         println!(
-            "  {} {} file(s)",
-            "📄".to_string(),
+            "  📄 {} file(s)",
             file_count.to_string().cyan()
         );
         println!(
-            "  {} {} script(s)",
-            "📜".to_string(),
+            "  📜 {} script(s)",
             script_count.to_string().cyan()
         );
     } else {
