@@ -19,8 +19,10 @@ fi
 # Install mdbook if not available
 if ! command -v mdbook >/dev/null 2>&1; then
   echo "==> Installing mdbook v${MDBOOK_VERSION}"
+  mkdir -p "$ROOT_DIR/.bin"
   curl -sSL "https://github.com/rust-lang/mdBook/releases/download/v${MDBOOK_VERSION}/mdbook-v${MDBOOK_VERSION}-x86_64-unknown-linux-gnu.tar.gz" \
-    | tar xz -C /usr/local/bin
+    | tar xz -C "$ROOT_DIR/.bin"
+  export PATH="$ROOT_DIR/.bin:$PATH"
 fi
 echo "    mdbook $(mdbook --version)"
 
