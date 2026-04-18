@@ -1035,12 +1035,44 @@ impl PackageManager for WingetProvider {
         <Self as ProviderStatus>::is_available(self)
     }
 
+    fn check_availability(&self) -> Result<super::ProviderInfo, ProviderError> {
+        // We need &mut self for the inherent method but the trait takes &self.
+        // Perform the version check directly (same logic as inherent check_availability).
+        let output = Command::new("winget")
+            .arg("--version")
+            .stdout(Stdio::piped())
+            .stderr(Stdio::piped())
+            .output()
+            .map_err(|e| {
+                ProviderError::Winget(WingetError::NotAvailable(format!(
+                    "Failed to execute winget: {}. {}",
+                    e,
+                    Self::get_installation_instructions()
+                )))
+            })?;
+
+        if !output.status.success() {
+            return Err(ProviderError::Winget(WingetError::NotAvailable(
+                "winget command failed".to_string(),
+            )));
+        }
+
+        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
+        let min_version = "1.6";
+        let meets_minimum = version.trim_start_matches('v') >= min_version;
+
+        Ok(super::ProviderInfo {
+            version,
+            meets_minimum,
+        })
+    }
+
     fn install(&self, package: &PackageSpec) -> Result<PackageInstallResult, ProviderError> {
         let winget_package = WingetPackage {
             id: package.id.clone(),
             version: package.version.clone(),
             source: package.source.clone(),
-            override_args: None,
+            override_args: package.override_args.clone(),
             override_str: None,
         };
 
@@ -1071,6 +1103,20 @@ impl PackageManager for WingetProvider {
         }
     }
 
+    fn upgrade(&self, package_id: &str) -> Result<PackageInstallResult, ProviderError> {
+        match WingetProvider::upgrade(self, package_id) {
+            Ok(result) => Ok(PackageInstallResult {
+                package_id: result.package_id,
+                success: result.success,
+                already_installed: false,
+                installed_version: result.installed_version,
+                needs_reboot: result.reboot_required,
+                message: result.message.unwrap_or_default(),
+            }),
+            Err(e) => Err(ProviderError::Winget(e)),
+        }
+    }
+
     fn is_installed(&self, package_id: &str) -> Result<Option<String>, ProviderError> {
         self.get_installed_version(package_id)
             .map_err(ProviderError::Winget)
@@ -1092,6 +1138,7 @@ impl PackageManager for WingetProvider {
 }
 
 /// Information about the winget installation
+#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct WingetInfo {
     /// Winget version string
@@ -1624,6 +1671,7 @@ mod tests {
             id: "Git.Git".to_string(),
             version: Some("2.42.0".to_string()),
             source: Some("winget".to_string()),
+            override_args: Some(vec!["--override".to_string(), "/VERYSILENT".to_string()]),
         };
 
         // Simulate the conversion done inside PackageManager::install
@@ -1631,14 +1679,17 @@ mod tests {
             id: spec.id.clone(),
             version: spec.version.clone(),
             source: spec.source.clone(),
-            override_args: None,
+            override_args: spec.override_args.clone(),
             override_str: None,
         };
 
         assert_eq!(winget_package.id, "Git.Git");
         assert_eq!(winget_package.version, Some("2.42.0".to_string()));
         assert_eq!(winget_package.source, Some("winget".to_string()));
-        assert!(winget_package.override_args.is_none());
+        assert_eq!(
+            winget_package.override_args,
+            Some(vec!["--override".to_string(), "/VERYSILENT".to_string()])
+        );
         assert!(winget_package.override_str.is_none());
     }
 
