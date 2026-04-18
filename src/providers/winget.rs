@@ -256,6 +256,7 @@ impl WingetProvider {
     }
 
     /// Create a new winget provider with custom configuration
+    #[allow(dead_code)] // Called inside #[cfg(target_os = "windows")] blocks
     pub fn with_config(config: ProviderConfig) -> Self {
         Self {
             config,

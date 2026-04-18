@@ -195,6 +195,7 @@ impl PackageManagerRegistry {
     }
 
     /// Register a package manager
+    #[allow(dead_code)] // Called inside #[cfg(target_os)] blocks and tests
     pub fn register(&mut self, manager: Box<dyn PackageManager>) {
         self.managers.push(manager);
     }
