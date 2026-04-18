@@ -358,7 +358,7 @@ packages:
 
 - **Packages**: child packages are appended after parent packages
 - **Files**: child files are appended; same destination = child overrides parent
-- **Scripts**: concatenated (parent scripts run first)
+- **Commands**: concatenated (parent commands run first)
 - **Environment**: child variables override same-named parent variables
 - **Assertions**: child assertions are appended after parent assertions
 

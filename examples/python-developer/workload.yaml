@@ -14,11 +14,10 @@ files:
     destination: "~/pyproject.toml"
     backup: true
 
-scripts:
+commands:
   post_install:
-    - path: post-install.ps1
-      shell: powershell
-      description: "Install Python via uv and configure environment"
+    - run: "uv python install"
+      description: "Install latest Python via uv"
       timeout: 300
 
 environment:

@@ -37,19 +37,16 @@ These options are available on **all** commands:
 |------|---------|-------------|
 | `-d, --dry-run` | — | Show what would be done without making changes |
 | `-f, --force` | — | Skip confirmation prompts |
-| `-p, --packages-only` | — | Only install packages, skip files and scripts |
+| `-p, --packages-only` | — | Only install packages, skip files |
 | `--skip-packages` | — | Skip package installation |
 | `--skip-files` | — | Skip file operations |
-| `--skip-scripts` | — | Skip all script execution |
-| `--skip-pre-scripts` | — | Skip pre-installation scripts |
-| `--skip-post-scripts` | — | Skip post-installation scripts |
 | `--no-backup` | — | Don't backup existing files before overwriting |
 | `--upgrade` | — | Upgrade existing packages to specified versions |
 | `--retry-failed` | — | Retry only failed packages from previous run |
 | `--parallel` | — | Run installations in parallel where safe |
 | `-j, --jobs <N>` | `4` | Number of parallel package installations |
 | `--timeout <SECONDS>` | `3600` | Global timeout for operations in seconds |
-| `--files-only` | — | Only process files, skip packages and scripts |
+| `--files-only` | — | Only process files, skip packages |
 | `--force-files` | — | Force overwrite files without checking hash |
 
 **Examples:**

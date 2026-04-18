@@ -295,10 +295,10 @@ description: "TODO: Add description for {name}"
 #   - source: config.toml
 #     destination: "~/.config/app/config.toml"
 #
-# scripts:
+# commands:
 #   post_install:
-#     - path: setup.ps1
-#       shell: powershell
+#     - run: echo "Setup complete"
+#       description: "Post-install setup"
 "#,
         name = name,
         extends_section = extends_section.trim_start()
@@ -341,13 +341,12 @@ files:
   #   destination: "~/.config/app/config.toml"
   #   backup: true  # Backup existing file before overwriting
 
-scripts:
-  # Post-installation script - runs after packages are installed
+commands:
+  # Post-installation commands - runs after packages are installed
   post_install:
-    - path: post-install.ps1
-      shell: powershell
+    - run: echo "Configure {name} environment"
       description: "Configure {name} environment"
-      timeout: 300  # Timeout in seconds
+      timeout: 300
 
 # Optional: Health check settings
 health:
@@ -422,20 +421,17 @@ files:
   #   destination: "~/.app/config"
   #   template: true
 
-# Scripts to execute at various stages
-scripts:
+# Commands to execute at various stages
+commands:
   # Pre-installation: Check prerequisites
   pre_install:
-    - path: pre-install.ps1
-      shell: powershell         # powershell, pwsh, cmd, bash
+    - run: echo "Checking prerequisites for {name}..."
       description: "Check prerequisites for {name}"
-      timeout: 60               # Seconds (default: 300)
-      # elevated: true          # Require admin (default: false)
+      timeout: 60
 
   # Post-installation: Configure the environment
   post_install:
-    - path: post-install.ps1
-      shell: powershell
+    - run: echo "Configuring {name} environment..."
       description: "Configure {name} environment"
       timeout: 300
 
@@ -642,7 +638,7 @@ mod tests {
         assert!(yaml.contains("name: my-app"));
         assert!(yaml.contains("packages:"));
         assert!(yaml.contains("files:"));
-        assert!(yaml.contains("scripts:"));
+        assert!(yaml.contains("commands:"));
         assert!(yaml.contains("health:"));
     }
 
@@ -654,7 +650,7 @@ mod tests {
         assert!(yaml.contains("- parent"));
         assert!(yaml.contains("packages:"));
         assert!(yaml.contains("files:"));
-        assert!(yaml.contains("scripts:"));
+        assert!(yaml.contains("commands:"));
         assert!(yaml.contains("environment:"));
         assert!(yaml.contains("health:"));
     }

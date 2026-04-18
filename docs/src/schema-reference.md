@@ -199,44 +199,9 @@ files:
     template: true
 ```
 
-### scripts
-
-The `scripts` object organizes script entries by execution phase. All phase keys are optional.
-
-| Field | Type | Description |
-|-------|------|-------------|
-| `scripts.pre_install` | list of [ScriptEntry](#scriptentry) | Scripts to run **before** package installation. |
-| `scripts.post_install` | list of [ScriptEntry](#scriptentry) | Scripts to run **after** package installation. |
-
-#### ScriptEntry
-
-Used in `pre_install` and `post_install` phases.
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `path` | string | yes | — | Path relative to the workload's `scripts/` directory. |
-| `shell` | string | no | `"powershell"` | Execution shell. |
-| `description` | string | no | `null` | Human-readable description of what the script does. |
-| `elevated` | boolean | no | `false` | Whether the script requires administrator privileges. |
-| `timeout` | integer | no | `300` | Timeout in seconds. |
-
-```yaml
-scripts:
-  pre_install:
-    - path: pre-install.ps1
-      description: "Prepare system for installation"
-      timeout: 60
-
-  post_install:
-    - path: configure-terminal.ps1
-      description: "Configure Windows Terminal settings"
-      timeout: 300
-      elevated: true
-```
-
 ### commands
 
-The `commands` object defines inline shell commands to execute at install phases. This is a lightweight alternative to scripts for simple one-liners.
+The `commands` object defines inline shell commands to execute at install phases.
 
 | Field | Type | Description |
 |-------|------|-------------|

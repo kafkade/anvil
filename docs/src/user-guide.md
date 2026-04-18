@@ -211,13 +211,10 @@ anvil install <WORKLOAD> [OPTIONS]
 |--------|-------------|
 | `--dry-run` | Preview actions without making changes |
 | `--force` | Skip confirmation prompts |
-| `-p, --packages-only` | Only install packages, skip files and scripts |
-| `--files-only` | Only process files, skip packages and scripts |
+| `-p, --packages-only` | Only install packages, skip files |
+| `--files-only` | Only process files, skip packages |
 | `--skip-packages` | Skip package installation |
 | `--skip-files` | Skip file operations |
-| `--skip-scripts` | Skip all script execution |
-| `--skip-pre-scripts` | Skip pre-installation scripts only |
-| `--skip-post-scripts` | Skip post-installation scripts only |
 | `--no-backup` | Don't backup existing files before overwriting |
 | `--upgrade` | Upgrade existing packages to specified versions |
 | `--retry-failed` | Retry only failed packages from previous run |

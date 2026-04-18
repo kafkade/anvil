@@ -19,12 +19,21 @@ files:
     destination: "~/.cargo/config.toml"
     backup: true
 
-scripts:
+commands:
   post_install:
-    - path: post-install.ps1
-      shell: powershell
-      description: "Install Rust components, toolchains, and cargo tools"
+    - run: "rustup default stable"
+      description: "Set default Rust toolchain to stable"
+      timeout: 120
+    - run: "rustup update stable"
+      description: "Update stable toolchain"
+      timeout: 300
+    - run: "rustup component add rust-src rust-analyzer clippy rustfmt llvm-tools"
+      description: "Install Rust components"
+      timeout: 300
+    - run: "cargo install cargo-watch cargo-nextest cargo-audit"
+      description: "Install common cargo tools"
       timeout: 900
+      continue_on_error: true
 
 environment:
   variables:

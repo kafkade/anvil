@@ -187,9 +187,6 @@ impl SchemaValidator {
         // Validate files
         self.validate_files(workload, &mut result);
 
-        // Validate scripts
-        self.validate_scripts(workload, &mut result);
-
         // Validate commands
         self.validate_commands(workload, &mut result);
 
@@ -212,14 +209,14 @@ impl SchemaValidator {
 
         let mut result = self.validate(&workload);
 
-        // Check for removed health_check field in raw YAML
-        Self::check_removed_health_check(&content, &mut result);
+        // Check for removed scripts fields in raw YAML
+        Self::check_removed_scripts_fields(&content, &mut result);
 
         Ok(result)
     }
 
-    /// Check raw YAML content for the removed scripts.health_check field
-    pub fn check_removed_health_check(content: &str, result: &mut ValidationResult) {
+    /// Check raw YAML content for removed scripts fields
+    pub fn check_removed_scripts_fields(content: &str, result: &mut ValidationResult) {
         // Parse as serde_yaml::Value to detect removed fields
         if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
             if let Some(scripts) = value.get("scripts") {
@@ -227,6 +224,12 @@ impl SchemaValidator {
                     result.add_error(
                         "scripts.health_check",
                         "scripts.health_check has been removed in v1.0. Use declarative assertions instead. See https://anvil.kafkade.com/workload-authoring.html",
+                    );
+                }
+                if scripts.get("pre_install").is_some() || scripts.get("post_install").is_some() {
+                    result.add_error(
+                        "scripts",
+                        "scripts.pre_install and scripts.post_install have been removed in v1.0. Use the commands block instead. See https://anvil.kafkade.com/workload-authoring.html",
                     );
                 }
             }
@@ -497,80 +500,6 @@ impl SchemaValidator {
                     );
                 }
             }
-        }
-    }
-
-    /// Validate script definitions
-    fn validate_scripts(&self, workload: &Workload, result: &mut ValidationResult) {
-        if let Some(scripts) = &workload.scripts {
-            // Validate pre-install scripts
-            if let Some(pre_scripts) = &scripts.pre_install {
-                for (i, script) in pre_scripts.iter().enumerate() {
-                    let path = format!("scripts.pre_install[{}]", i);
-                    self.validate_script_entry(&path, script, result);
-                }
-            }
-
-            // Validate post-install scripts
-            if let Some(post_scripts) = &scripts.post_install {
-                for (i, script) in post_scripts.iter().enumerate() {
-                    let path = format!("scripts.post_install[{}]", i);
-                    self.validate_script_entry(&path, script, result);
-                }
-            }
-        }
-    }
-
-    /// Validate a single script entry
-    fn validate_script_entry(
-        &self,
-        path: &str,
-        script: &super::workload::ScriptEntry,
-        result: &mut ValidationResult,
-    ) {
-        // Path is required
-        if script.path.is_empty() {
-            result.add_error(format!("{}.path", path), "Script path is required");
-        }
-
-        // Validate shell value
-        let valid_shells = ["powershell", "pwsh", "cmd", "bash"];
-        if !valid_shells.contains(&script.shell.to_lowercase().as_str()) {
-            result.add_warning(
-                format!("{}.shell", path),
-                format!(
-                    "Unknown shell '{}'. Expected one of: {:?}",
-                    script.shell, valid_shells
-                ),
-            );
-        }
-
-        // Validate timeout values
-        if script.timeout < 5 {
-            result.add_warning(
-                format!("{}.timeout", path),
-                format!(
-                    "Timeout of {} seconds may be too short. Consider at least 5 seconds.",
-                    script.timeout
-                ),
-            );
-        } else if script.timeout > 3600 {
-            result.add_warning(
-                format!("{}.timeout", path),
-                format!(
-                    "Timeout of {} seconds ({:.1} hours) is very long. Consider if this is intentional.",
-                    script.timeout,
-                    script.timeout as f64 / 3600.0
-                ),
-            );
-        }
-
-        // Warn about elevated scripts
-        if script.elevated && self.strict {
-            result.add_info(
-                format!("{}.elevated", path),
-                "Script requires elevated privileges. Ensure this is necessary.",
-            );
         }
     }
 

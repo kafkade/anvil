@@ -102,18 +102,6 @@ pub struct InstallArgs {
     #[arg(long)]
     pub skip_files: bool,
 
-    /// Skip all script execution
-    #[arg(long)]
-    pub skip_scripts: bool,
-
-    /// Skip pre-installation scripts
-    #[arg(long)]
-    pub skip_pre_scripts: bool,
-
-    /// Skip post-installation scripts
-    #[arg(long)]
-    pub skip_post_scripts: bool,
-
     /// Don't backup existing files before overwriting
     #[arg(long)]
     pub no_backup: bool,

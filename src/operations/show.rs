@@ -118,18 +118,18 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
     // Summary counts
     let package_count = workload.package_count();
     let file_count = workload.file_count();
-    let script_count = workload.script_count();
+    let command_count = workload.command_count();
 
     if use_color {
         println!("{}", "Summary:".bold());
         println!("  📦 {} package(s)", package_count.to_string().cyan());
         println!("  📄 {} file(s)", file_count.to_string().cyan());
-        println!("  📜 {} script(s)", script_count.to_string().cyan());
+        println!("  ⚡ {} command(s)", command_count.to_string().cyan());
     } else {
         println!("Summary:");
         println!("  Packages: {}", package_count);
         println!("  Files: {}", file_count);
-        println!("  Scripts: {}", script_count);
+        println!("  Commands: {}", command_count);
     }
 
     // Packages summary
@@ -183,45 +183,6 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
                     );
                 } else {
                     println!("  - {} -> {}", file.source, file.destination);
-                }
-            }
-        }
-    }
-
-    // Scripts summary
-    if let Some(ref scripts) = workload.scripts {
-        let mut _has_scripts = false;
-
-        if let Some(ref pre) = scripts.pre_install {
-            if !pre.is_empty() {
-                if !_has_scripts {
-                    println!();
-                    _has_scripts = true;
-                }
-                if use_color {
-                    println!("{}", "Pre-install Scripts:".bold());
-                } else {
-                    println!("Pre-install Scripts:");
-                }
-                for script in pre {
-                    print_script_entry(&script.path, script.description.as_deref(), use_color);
-                }
-            }
-        }
-
-        if let Some(ref post) = scripts.post_install {
-            if !post.is_empty() {
-                if !_has_scripts {
-                    println!();
-                    _has_scripts = true;
-                }
-                if use_color {
-                    println!("{}", "Post-install Scripts:".bold());
-                } else {
-                    println!("Post-install Scripts:");
-                }
-                for script in post {
-                    print_script_entry(&script.path, script.description.as_deref(), use_color);
                 }
             }
         }
@@ -290,20 +251,6 @@ fn print_field(label: &str, value: &str, use_color: bool) {
     }
 }
 
-/// Print a script entry
-fn print_script_entry(path: &str, description: Option<&str>, use_color: bool) {
-    if use_color {
-        let desc = description
-            .map(|d| format!(" - {}", d.dimmed()))
-            .unwrap_or_default();
-        println!("  {} {}{}", "•".dimmed(), path.cyan(), desc);
-    } else {
-        let desc = description.map(|d| format!(" - {}", d)).unwrap_or_default();
-        println!("  - {}{}", path, desc);
-    }
-}
-
-/// Count total number of scripts in a workload
 /// Display inheritance tree for a workload
 fn show_inheritance_tree(
     workload_name: &str,
@@ -390,7 +337,7 @@ fn show_inheritance_tree(
 
     let package_count = resolved.package_count();
     let file_count = resolved.file_count();
-    let script_count = resolved.script_count();
+    let command_count = resolved.command_count();
 
     if use_color {
         println!(
@@ -399,7 +346,7 @@ fn show_inheritance_tree(
             stats.total_workloads
         );
         println!("  Files: {}", file_count.to_string().cyan());
-        println!("  Scripts: {}", script_count.to_string().cyan());
+        println!("  Commands: {}", command_count.to_string().cyan());
         println!(
             "  Inheritance depth: {}",
             stats.max_depth.to_string().cyan()
@@ -410,7 +357,7 @@ fn show_inheritance_tree(
             package_count, stats.total_workloads
         );
         println!("  Files: {}", file_count);
-        println!("  Scripts: {}", script_count);
+        println!("  Commands: {}", command_count);
         println!("  Inheritance depth: {}", stats.max_depth);
     }
 
@@ -423,25 +370,9 @@ mod tests {
     use crate::config::workload::{Packages, WingetPackage};
 
     #[test]
-    fn test_script_count_empty() {
+    fn test_command_count_empty() {
         let workload = Workload::new("test", "1.0.0", "Test workload");
-        assert_eq!(workload.script_count(), 0);
-    }
-
-    #[test]
-    fn test_script_count_with_scripts() {
-        use crate::config::workload::{ScriptEntry, Scripts};
-
-        let mut workload = Workload::new("test", "1.0.0", "Test workload");
-        workload.scripts = Some(Scripts {
-            pre_install: Some(vec![ScriptEntry::new("pre.ps1")]),
-            post_install: Some(vec![
-                ScriptEntry::new("post1.ps1"),
-                ScriptEntry::new("post2.ps1"),
-            ]),
-        });
-
-        assert_eq!(workload.script_count(), 3);
+        assert_eq!(workload.command_count(), 0);
     }
 
     #[test]
