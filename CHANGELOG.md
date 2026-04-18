@@ -10,6 +10,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Removed
 - `scripts.health_check` field — use declarative `assertions` instead
 - `--scripts-only` and `--script` flags from `anvil health` command
+- `scripts.pre_install` and `scripts.post_install` fields — use the `commands` block instead
+- `--skip-scripts`, `--skip-pre-scripts`, `--skip-post-scripts` flags from `anvil install` command
 
 ## [0.6.0] - 2026-04-17
 

@@ -14,7 +14,6 @@ use anyhow::{Context, Result};
 use colored::Colorize;
 use std::collections::HashSet;
 use std::path::Path;
-use std::time::Duration;
 use tracing::{debug, trace};
 
 use crate::cli::commands::ValidateArgs;
@@ -23,7 +22,6 @@ use crate::cli::Cli;
 use crate::config::schema::{SchemaValidator, ValidationResult, ValidationSeverity};
 use crate::config::workload::Workload;
 use crate::config::ConfigManager;
-use crate::providers::script::{ScriptConfig, ScriptProvider, Shell};
 
 /// Execute the validate command
 pub fn execute(args: &ValidateArgs, cli: &Cli) -> Result<()> {
@@ -101,10 +99,10 @@ pub fn execute(args: &ValidateArgs, cli: &Cli) -> Result<()> {
     // Run schema validation
     let mut result = validator.validate(&workload);
 
-    // Check for removed scripts.health_check field in raw YAML
-    SchemaValidator::check_removed_health_check(&content, &mut result);
+    // Check for removed scripts fields in raw YAML
+    SchemaValidator::check_removed_scripts_fields(&content, &mut result);
 
-    // Check for files and scripts existence
+    // Check for files existence
     let base_dir = workload_file.parent().unwrap_or(Path::new("."));
     let file_result = validate_referenced_files(&workload, base_dir, args.strict);
     result.merge(file_result);
@@ -112,20 +110,6 @@ pub fn execute(args: &ValidateArgs, cli: &Cli) -> Result<()> {
     // Validate parent workloads exist and check for circular dependencies
     let inheritance_result = validate_inheritance(&workload, base_dir, args.strict);
     result.merge(inheritance_result);
-
-    // Validate script syntax if requested
-    if args.check_scripts {
-        if !cli.quiet {
-            println!();
-            if use_color {
-                println!("{} Validating script syntax...", "ℹ".blue());
-            } else {
-                print_info("Validating script syntax...");
-            }
-        }
-        let script_result = validate_script_syntax(&workload, base_dir, args.strict, cli.quiet);
-        result.merge(script_result);
-    }
 
     // Print results
     if !result.messages.is_empty() {
@@ -279,212 +263,6 @@ fn validate_referenced_files(
                         format!("files[{}].source", i),
                         format!("File exists but cannot be read: {}", e),
                     );
-                }
-            }
-        }
-    }
-
-    // Check scripts
-    if let Some(scripts) = &workload.scripts {
-        let scripts_dir = base_dir.join("scripts");
-
-        // Check pre-install scripts
-        if let Some(pre_scripts) = &scripts.pre_install {
-            for (i, script) in pre_scripts.iter().enumerate() {
-                let script_path = scripts_dir.join(&script.path);
-                if !script_path.exists() {
-                    let msg = format!("Script file not found: {}", script_path.display());
-                    if strict {
-                        result.add_error(format!("scripts.pre_install[{}].path", i), msg);
-                    } else {
-                        result.add_warning(format!("scripts.pre_install[{}].path", i), msg);
-                    }
-                } else {
-                    // Check for common script issues
-                    check_script_file(
-                        &script_path,
-                        &format!("scripts.pre_install[{}]", i),
-                        &mut result,
-                    );
-                }
-            }
-        }
-
-        // Check post-install scripts
-        if let Some(post_scripts) = &scripts.post_install {
-            for (i, script) in post_scripts.iter().enumerate() {
-                let script_path = scripts_dir.join(&script.path);
-                if !script_path.exists() {
-                    let msg = format!("Script file not found: {}", script_path.display());
-                    if strict {
-                        result.add_error(format!("scripts.post_install[{}].path", i), msg);
-                    } else {
-                        result.add_warning(format!("scripts.post_install[{}].path", i), msg);
-                    }
-                } else {
-                    check_script_file(
-                        &script_path,
-                        &format!("scripts.post_install[{}]", i),
-                        &mut result,
-                    );
-                }
-            }
-        }
-    }
-
-    result
-}
-
-/// Check a script file for common issues (BOM, encoding, line endings)
-fn check_script_file(path: &Path, field_path: &str, result: &mut ValidationResult) {
-    // Read file as bytes to check for BOM
-    if let Ok(bytes) = std::fs::read(path) {
-        // Check for UTF-8 BOM (EF BB BF)
-        if bytes.len() >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF {
-            result.add_info(
-                field_path.to_string(),
-                "Script has UTF-8 BOM (may cause issues with some tools)".to_string(),
-            );
-        }
-
-        // Check for UTF-16 BOM
-        if bytes.len() >= 2
-            && ((bytes[0] == 0xFF && bytes[1] == 0xFE) || (bytes[0] == 0xFE && bytes[1] == 0xFF))
-        {
-            result.add_warning(
-                field_path.to_string(),
-                "Script appears to be UTF-16 encoded (may cause issues)".to_string(),
-            );
-        }
-
-        // Try to parse as UTF-8
-        if let Ok(content) = String::from_utf8(bytes.clone()) {
-            // Check for mixed line endings
-            let has_crlf = content.contains("\r\n");
-            let has_lf_only = content.contains('\n') && !content.contains('\r');
-            if has_crlf && has_lf_only {
-                result.add_info(
-                    field_path.to_string(),
-                    "Script has mixed line endings (CRLF and LF)".to_string(),
-                );
-            }
-
-            // Check for empty script
-            if content.trim().is_empty() {
-                result.add_warning(field_path.to_string(), "Script file is empty".to_string());
-            }
-        } else {
-            result.add_warning(
-                field_path.to_string(),
-                "Script is not valid UTF-8".to_string(),
-            );
-        }
-    }
-}
-
-/// Validate PowerShell script syntax using the parser
-fn validate_script_syntax(
-    workload: &Workload,
-    base_dir: &Path,
-    strict: bool,
-    quiet: bool,
-) -> ValidationResult {
-    let mut result = ValidationResult::new();
-
-    let scripts = match &workload.scripts {
-        Some(s) => s,
-        None => return result,
-    };
-
-    let scripts_dir = base_dir.join("scripts");
-    let provider = ScriptProvider::new().with_base_path(&scripts_dir);
-
-    let mut scripts_to_validate: Vec<(&str, &str, &str)> = Vec::new();
-
-    // Collect all scripts
-    if let Some(pre) = &scripts.pre_install {
-        for script in pre {
-            scripts_to_validate.push(("pre_install", &script.path, &script.shell));
-        }
-    }
-    if let Some(post) = &scripts.post_install {
-        for script in post {
-            scripts_to_validate.push(("post_install", &script.path, &script.shell));
-        }
-    }
-
-    if scripts_to_validate.is_empty() {
-        return result;
-    }
-
-    for (phase, script_path, shell_name) in scripts_to_validate {
-        let full_path = scripts_dir.join(script_path);
-
-        if !full_path.exists() {
-            // Already reported in file existence check
-            continue;
-        }
-
-        // Determine shell
-        let shell = Shell::from_str(shell_name).unwrap_or(Shell::PowerShell);
-
-        // Only validate PowerShell scripts
-        if shell != Shell::PowerShell && shell != Shell::Pwsh {
-            if !quiet {
-                result.add_info(
-                    format!("scripts.{}.{}", phase, script_path),
-                    format!("Skipping syntax check for {} script", shell_name),
-                );
-            }
-            continue;
-        }
-
-        // Build config for validation
-        let config = ScriptConfig::new(script_path)
-            .with_shell(shell)
-            .with_timeout(Duration::from_secs(30));
-
-        // Validate syntax
-        match provider.validate_syntax(&config) {
-            Ok(()) => {
-                if !quiet {
-                    result.add_info(
-                        format!("scripts.{}.{}", phase, script_path),
-                        "Syntax OK".to_string(),
-                    );
-                }
-            }
-            Err(e) => {
-                let msg = match &e {
-                    crate::providers::script::ScriptError::SyntaxError { message, .. } => {
-                        // Check if the error might be related to Unicode characters
-                        // which is common in scripts using emoji or special chars
-                        let is_unicode_issue = message.contains("Unexpected token")
-                            && (message.contains("recommended")
-                                || message.contains("}")
-                                || message.contains("GB"));
-
-                        if is_unicode_issue {
-                            format!(
-                                "Possible encoding issue (Unicode chars): {}",
-                                message.lines().next().unwrap_or("unknown")
-                            )
-                        } else {
-                            format!(
-                                "Syntax error: {}",
-                                message.lines().next().unwrap_or("unknown")
-                            )
-                        }
-                    }
-                    _ => format!("Validation error: {}", e),
-                };
-
-                // Unicode-related issues are always warnings, not errors
-                let is_likely_unicode = msg.contains("Possible encoding issue");
-                if strict && !is_likely_unicode {
-                    result.add_error(format!("scripts.{}.{}", phase, script_path), msg);
-                } else {
-                    result.add_warning(format!("scripts.{}.{}", phase, script_path), msg);
                 }
             }
         }
@@ -726,13 +504,6 @@ fn print_json_schema() -> Result<()> {
         }
       }
     },
-    "scripts": {
-      "type": "object",
-      "properties": {
-        "pre_install": { "$ref": "#/definitions/scriptList" },
-        "post_install": { "$ref": "#/definitions/scriptList" }
-      }
-    },
     "commands": {
       "type": "object",
       "description": "Inline command definitions",
@@ -801,37 +572,6 @@ fn print_json_schema() -> Result<()> {
     }
   },
   "definitions": {
-    "scriptList": {
-      "type": "array",
-      "items": {
-        "type": "object",
-        "required": ["path"],
-        "properties": {
-          "path": {
-            "type": "string",
-            "description": "Relative path from workload's scripts/ directory"
-          },
-          "shell": {
-            "type": "string",
-            "default": "powershell",
-            "enum": ["powershell", "pwsh", "cmd", "bash"]
-          },
-          "description": { "type": "string" },
-          "elevated": {
-            "type": "boolean",
-            "default": false,
-            "description": "Whether to require admin privileges"
-          },
-          "timeout": {
-            "type": "integer",
-            "default": 300,
-            "minimum": 5,
-            "maximum": 3600,
-            "description": "Timeout in seconds"
-          }
-        }
-      }
-    },
     "commandList": {
       "type": "array",
       "items": {

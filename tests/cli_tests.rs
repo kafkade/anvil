@@ -456,25 +456,6 @@ mod install_command {
     }
 
     #[test]
-    fn install_with_skip_scripts() {
-        assert_or_skip_winget!(anvil().args([
-            "install",
-            "./examples/minimal",
-            "--dry-run",
-            "--skip-scripts"
-        ]));
-        anvil()
-            .args([
-                "install",
-                "./examples/minimal",
-                "--dry-run",
-                "--skip-scripts",
-            ])
-            .assert()
-            .success();
-    }
-
-    #[test]
     fn install_with_all_skip_flags() {
         anvil()
             .args([
@@ -483,7 +464,6 @@ mod install_command {
                 "--dry-run",
                 "--skip-packages",
                 "--skip-files",
-                "--skip-scripts",
             ])
             .assert()
             .success();
@@ -508,27 +488,18 @@ mod install_command {
     }
 
     #[test]
-    fn install_deprecation_warning_when_commands_and_scripts_coexist() {
+    fn install_rejects_removed_scripts_fields() {
         let temp = TempDir::new().unwrap();
         common::create_workload_with_commands_and_scripts(temp.path(), "coexist-test").unwrap();
         let workload_path = temp.path().join("coexist-test");
 
-        // When both commands and scripts exist for the same phase, stderr should contain deprecation warnings
+        // Validation should report an error for the removed scripts fields
         anvil()
-            .args([
-                "install",
-                workload_path.to_str().unwrap(),
-                "--dry-run",
-                "--skip-scripts",
-                "--skip-packages",
-            ])
+            .args(["validate", workload_path.to_str().unwrap()])
             .assert()
-            .success()
-            .stderr(predicate::str::contains(
-                "scripts.pre_install` is deprecated when used alongside `commands.pre_install`",
-            ))
-            .stderr(predicate::str::contains(
-                "scripts.post_install` is deprecated when used alongside `commands.post_install`",
+            .failure()
+            .stdout(predicate::str::contains(
+                "scripts.pre_install and scripts.post_install have been removed in v1.0",
             ));
     }
 }
@@ -1008,20 +979,18 @@ files:
     }
 
     #[test]
-    fn workload_with_scripts() {
+    fn workload_with_commands() {
         let temp = TempDir::new().unwrap();
-        let workload_dir = temp.path().join("scripts-workload");
-        let scripts_dir = workload_dir.join("scripts");
-        fs::create_dir_all(&scripts_dir).unwrap();
-        fs::write(scripts_dir.join("post-install.ps1"), "exit 0").unwrap();
+        let workload_dir = temp.path().join("commands-workload");
+        fs::create_dir_all(&workload_dir).unwrap();
         fs::write(
             workload_dir.join("workload.yaml"),
-            r#"name: scripts-workload
+            r#"name: commands-workload
 version: "1.0.0"
-description: "Workload with scripts"
-scripts:
+description: "Workload with commands"
+commands:
   post_install:
-    - path: scripts/post-install.ps1
+    - run: echo "Post-install setup"
       description: "Post-install setup"
 "#,
         )

@@ -423,9 +423,9 @@ packages:
   winget:
     - id: Package.ID
 
-scripts:
+commands:
   post_install:
-    - path: scripts/setup.ps1
+    - run: "echo Setting up..."
       description: "Install and configure"
 
 assertions:

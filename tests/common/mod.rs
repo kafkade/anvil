@@ -139,10 +139,8 @@ extends:
 /// Result indicating success or IO error
 pub fn create_full_workload(dir: &Path, name: &str) -> std::io::Result<()> {
     let workload_dir = dir.join(name);
-    let scripts_dir = workload_dir.join("scripts");
     let files_dir = workload_dir.join("files");
 
-    fs::create_dir_all(&scripts_dir)?;
     fs::create_dir_all(&files_dir)?;
 
     // Create workload.yaml
@@ -163,14 +161,13 @@ files:
     backup: true
     template: false
 
-scripts:
+commands:
   pre_install:
-    - path: scripts/pre-install.ps1
+    - run: echo "Pre-installation checks"
       description: "Pre-installation checks"
       timeout: 60
-
   post_install:
-    - path: scripts/post-install.ps1
+    - run: echo "Post-installation configuration"
       description: "Post-installation configuration"
       timeout: 120
 
@@ -194,34 +191,6 @@ environment:
   "setting1": "value1",
   "setting2": "value2"
 }
-"#,
-    )?;
-
-    // Create pre-install script
-    fs::write(
-        scripts_dir.join("pre-install.ps1"),
-        r#"# Pre-installation script
-Write-Host "Running pre-installation checks..."
-exit 0
-"#,
-    )?;
-
-    // Create post-install script
-    fs::write(
-        scripts_dir.join("post-install.ps1"),
-        r#"# Post-installation script
-Write-Host "Running post-installation configuration..."
-exit 0
-"#,
-    )?;
-
-    // Create health check script
-    fs::write(
-        scripts_dir.join("health-check.ps1"),
-        r#"# Health check script
-Write-Host "Running health checks..."
-Write-Host "All checks passed!"
-exit 0
 "#,
     )?;
 
@@ -439,18 +408,17 @@ exit 0
     Ok(())
 }
 
-/// Create a workload with both commands and scripts for testing
-/// the deprecation warning when both coexist
+/// Create a workload with the removed scripts fields for testing
+/// that validation correctly rejects them
 #[allow(dead_code)]
 pub fn create_workload_with_commands_and_scripts(dir: &Path, name: &str) -> std::io::Result<()> {
     let workload_dir = dir.join(name);
-    let scripts_dir = workload_dir.join("scripts");
-    fs::create_dir_all(&scripts_dir)?;
+    fs::create_dir_all(&workload_dir)?;
 
     let yaml = format!(
         r#"name: {name}
 version: "1.0.0"
-description: "Workload with both commands and scripts"
+description: "Workload with removed scripts fields"
 
 commands:
   pre_install:
@@ -471,20 +439,6 @@ scripts:
     );
 
     fs::write(workload_dir.join("workload.yaml"), yaml)?;
-    fs::write(
-        scripts_dir.join("pre-install.ps1"),
-        r#"# Pre-install script
-Write-Host "Pre-install running..."
-exit 0
-"#,
-    )?;
-    fs::write(
-        scripts_dir.join("post-install.ps1"),
-        r#"# Post-install script
-Write-Host "Post-install running..."
-exit 0
-"#,
-    )?;
 
     Ok(())
 }
@@ -529,9 +483,6 @@ mod tests {
         let workload_dir = temp.path().join("full-test");
         assert!(workload_dir.join("workload.yaml").exists());
         assert!(workload_dir.join("files/config.json").exists());
-        assert!(workload_dir.join("scripts/pre-install.ps1").exists());
-        assert!(workload_dir.join("scripts/post-install.ps1").exists());
-        assert!(workload_dir.join("scripts/health-check.ps1").exists());
     }
 
     #[test]

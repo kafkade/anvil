@@ -11,7 +11,7 @@ use tracing::{debug, trace};
 
 use super::workload::{
     AptPackage, BrewPackage, CommandBlock, CommandEntry, Environment, FileEntry, Packages,
-    ScriptEntry, Scripts, WingetPackage, Workload,
+    WingetPackage, Workload,
 };
 use super::ConfigManager;
 
@@ -342,9 +342,8 @@ impl InheritanceError {
 /// | description | Child overwrites |
 /// | packages.winget | Append (child after parent) |
 /// | files | Append (same destinations overwritten by child) |
-/// | scripts.pre_install | Parent first, then child |
-/// | scripts.post_install | Parent first, then child |
-/// | ~~scripts.health_check~~ | *(removed in v1.0)* |
+/// | commands.pre_install | Parent first, then child |
+/// | commands.post_install | Parent first, then child |
 /// | environment.variables | Child overwrites same-named |
 /// | environment.path_additions | Append |
 ///
@@ -506,9 +505,6 @@ fn merge_workloads(parent: Workload, child: Workload) -> Workload {
         // Merge files (child can override same destinations)
         files: merge_files(parent.files, child.files),
 
-        // Merge scripts
-        scripts: merge_scripts(parent.scripts, child.scripts),
-
         // Merge commands
         commands: merge_commands(parent.commands, child.commands),
 
@@ -636,54 +632,6 @@ fn merge_files(
                     parent.push(child_file);
                 }
             }
-            Some(parent)
-        }
-    }
-}
-
-/// Merge script definitions
-///
-/// Strategy:
-/// - pre_install: Parent scripts first, then child scripts
-/// - post_install: Parent scripts first, then child scripts
-fn merge_scripts(parent: Option<Scripts>, child: Option<Scripts>) -> Option<Scripts> {
-    match (parent, child) {
-        (None, None) => None,
-        (Some(p), None) => Some(p),
-        (None, Some(c)) => Some(c),
-        (Some(parent), Some(child)) => {
-            let mut result = Scripts {
-                pre_install: None,
-                post_install: None,
-            };
-
-            // Pre-install: parent first, then child
-            result.pre_install = merge_script_list(parent.pre_install, child.pre_install);
-
-            // Post-install: parent first, then child
-            result.post_install = merge_script_list(parent.post_install, child.post_install);
-
-            // Only return Some if at least one script list is present
-            if result.pre_install.is_some() || result.post_install.is_some() {
-                Some(result)
-            } else {
-                None
-            }
-        }
-    }
-}
-
-/// Merge two script entry lists (parent first, then child)
-fn merge_script_list(
-    parent: Option<Vec<ScriptEntry>>,
-    child: Option<Vec<ScriptEntry>>,
-) -> Option<Vec<ScriptEntry>> {
-    match (parent, child) {
-        (None, None) => None,
-        (Some(p), None) => Some(p),
-        (None, Some(c)) => Some(c),
-        (Some(mut parent), Some(child)) => {
-            parent.extend(child);
             Some(parent)
         }
     }
@@ -1123,34 +1071,6 @@ mod tests {
 
         let merged = merge_workloads(parent, child);
         assert!(merged.extends.is_none());
-    }
-
-    #[test]
-    fn test_merge_scripts_order() {
-        use crate::config::workload::ScriptEntry;
-
-        let parent = Some(Scripts {
-            pre_install: Some(vec![ScriptEntry::new("parent-pre.ps1")]),
-            post_install: Some(vec![ScriptEntry::new("parent-post.ps1")]),
-        });
-        let child = Some(Scripts {
-            pre_install: Some(vec![ScriptEntry::new("child-pre.ps1")]),
-            post_install: Some(vec![ScriptEntry::new("child-post.ps1")]),
-        });
-
-        let merged = merge_scripts(parent, child).unwrap();
-
-        // Pre-install: parent first, then child
-        let pre = merged.pre_install.unwrap();
-        assert_eq!(pre.len(), 2);
-        assert_eq!(pre[0].path, "parent-pre.ps1");
-        assert_eq!(pre[1].path, "child-pre.ps1");
-
-        // Post-install: parent first, then child
-        let post = merged.post_install.unwrap();
-        assert_eq!(post.len(), 2);
-        assert_eq!(post[0].path, "parent-post.ps1");
-        assert_eq!(post[1].path, "child-post.ps1");
     }
 
     #[test]

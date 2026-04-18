@@ -3,13 +3,13 @@
 //! This module implements the `anvil install` command which applies
 //! a workload configuration to the system by:
 //! 1. Validating winget availability
-//! 2. Running pre-installation scripts
+//! 2. Running pre-install commands
 //! 3. Installing packages via winget (with progress tracking)
 //! 4. Copying files to target destinations
-//! 5. Running post-installation scripts
+//! 5. Running post-install commands
 
 use std::sync::Arc;
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use anyhow::{Context, Result};
 
@@ -21,10 +21,6 @@ use crate::config::workload::{WingetPackage, Workload};
 use crate::config::ConfigManager;
 use crate::providers::backup::BackupManager;
 use crate::providers::filesystem::{CopyOptions, CopyResult};
-use crate::providers::script::{
-    OutputMode, ScriptConfig, ScriptContext, ScriptExecutionResult, ScriptExecutionSummary,
-    ScriptPhase, ScriptProvider,
-};
 use crate::providers::template::TemplateProcessor;
 use crate::providers::{create_registry, FilesystemProvider, PackageSpec, ProviderConfig};
 use crate::state::{FileState, FileStateManager, InstallationState, PackageCache};
@@ -161,45 +157,6 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         }
     }
 
-    // Deprecation warning: scripts alongside commands
-    if let (Some(commands), Some(scripts)) = (&workload.commands, &workload.scripts) {
-        let has_cmd_pre = commands
-            .pre_install
-            .as_ref()
-            .map(|c| !c.is_empty())
-            .unwrap_or(false);
-        let has_script_pre = scripts
-            .pre_install
-            .as_ref()
-            .map(|s| !s.is_empty())
-            .unwrap_or(false);
-        if has_cmd_pre && has_script_pre {
-            print_warning(
-                "Deprecation notice: `scripts.pre_install` is deprecated when used alongside \
-                 `commands.pre_install`. Migrate scripts to inline commands. \
-                 See docs/src/specification.md for details.",
-            );
-        }
-
-        let has_cmd_post = commands
-            .post_install
-            .as_ref()
-            .map(|c| !c.is_empty())
-            .unwrap_or(false);
-        let has_script_post = scripts
-            .post_install
-            .as_ref()
-            .map(|s| !s.is_empty())
-            .unwrap_or(false);
-        if has_cmd_post && has_script_post {
-            print_warning(
-                "Deprecation notice: `scripts.post_install` is deprecated when used alongside \
-                 `commands.post_install`. Migrate scripts to inline commands. \
-                 See docs/src/specification.md for details.",
-            );
-        }
-    }
-
     if !args.force && !args.dry_run && !confirm_installation(&workload)? {
         print_info("Installation cancelled by user");
         return Ok(());
@@ -214,12 +171,6 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
     } else {
         crate::commands::CommandSummary::new()
     };
-
-    // Run pre-installation scripts (skip if files_only)
-    let mut pre_script_summary = ScriptExecutionSummary::new();
-    if !args.skip_scripts && !args.skip_pre_scripts && !args.files_only {
-        pre_script_summary = run_pre_install_scripts(&context, args)?;
-    }
 
     // Install packages (skip if files_only)
     let mut summary = InstallationSummary::default();
@@ -241,16 +192,7 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         crate::commands::CommandSummary::new()
     };
 
-    // Run post-installation scripts (skip if files_only)
-    let mut post_script_summary = ScriptExecutionSummary::new();
-    if !args.skip_scripts && !args.skip_post_scripts && !args.packages_only && !args.files_only {
-        post_script_summary = run_post_install_scripts(&context, args)?;
-    }
-
-    // Check if any scripts or commands require reboot
-    if pre_script_summary.requires_reboot || post_script_summary.requires_reboot {
-        summary.reboot_required = true;
-    }
+    // Check if any commands require reboot
     if pre_cmd_summary.requires_reboot || post_cmd_summary.requires_reboot {
         summary.reboot_required = true;
     }
@@ -449,7 +391,7 @@ fn print_install_header(workload: &Workload, dry_run: bool, file_count: usize) {
     println!("Description: {}", workload.description);
     println!("Packages:    {}", workload.package_count());
     println!("Files:       {}", file_count);
-    println!("Scripts:     {}", workload.script_count());
+    println!("Commands:    {}", workload.command_count());
     println!();
 }
 
@@ -656,165 +598,6 @@ fn print_command_summary(summary: &crate::commands::CommandSummary, phase: &str)
             phase, summary.succeeded, summary.failed, summary.skipped
         ));
     }
-}
-
-/// Run pre-installation scripts with enhanced output and tracking
-fn run_pre_install_scripts(
-    context: &OperationContext,
-    _args: &InstallArgs,
-) -> Result<ScriptExecutionSummary> {
-    let scripts = match &context.workload.scripts {
-        Some(s) => s.pre_install.as_ref(),
-        None => None,
-    };
-
-    let mut summary = ScriptExecutionSummary::new();
-
-    if scripts.is_none() || scripts.unwrap().is_empty() {
-        context.debug("No pre-installation scripts to run");
-        return Ok(summary);
-    }
-
-    let scripts = scripts.unwrap();
-    println!();
-    print_info(&format!(
-        "Running {} pre-installation script(s)...",
-        scripts.len()
-    ));
-
-    let scripts_dir = context.workload_path.join("scripts");
-    let mut provider = ScriptProvider::new()
-        .with_dry_run(context.dry_run)
-        .with_verbose(context.verbosity > 1)
-        .with_base_path(&scripts_dir);
-
-    // Create script context for environment injection
-    let script_context = ScriptContext::new(&context.workload.name, &context.workload_path)
-        .with_phase(ScriptPhase::PreInstall)
-        .with_dry_run(context.dry_run)
-        .with_verbose(context.verbosity > 1);
-
-    for (idx, script) in scripts.iter().enumerate() {
-        let script_name = script
-            .description
-            .clone()
-            .unwrap_or_else(|| script.path.clone());
-
-        println!();
-        print_info(&format!(
-            "  [{}/{}] {}",
-            idx + 1,
-            scripts.len(),
-            script_name
-        ));
-
-        // Build script configuration
-        let mut config = ScriptConfig::new(&script.path)
-            .with_timeout(Duration::from_secs(script.timeout))
-            .with_elevated(script.elevated)
-            .with_working_dir(&scripts_dir);
-
-        // Set output mode based on verbosity
-        if context.verbosity > 0 {
-            config = config
-                .with_output_mode(OutputMode::Both)
-                .with_output_prefix("        ");
-        }
-
-        // Inject environment variables
-        provider.inject_environment_variables(&mut config, &script_context);
-
-        let start = Instant::now();
-        match provider.execute(&config) {
-            Ok(result) => {
-                let exec_result = ScriptExecutionResult::from_result(
-                    &result,
-                    script_name.clone(),
-                    scripts_dir.join(&script.path),
-                    ScriptPhase::PreInstall,
-                );
-
-                if result.success {
-                    print_success(&format!(
-                        "        ✓ {} completed ({:.1}s)",
-                        script.path,
-                        result.duration.as_secs_f64()
-                    ));
-
-                    if result.requires_reboot {
-                        print_warning("        Script indicates reboot required");
-                    }
-
-                    summary.add_result(exec_result);
-                } else {
-                    print_error(&format!(
-                        "        ✗ {} failed (exit code: {})",
-                        script.path, result.exit_code
-                    ));
-
-                    if !result.stderr.is_empty() && context.verbosity > 0 {
-                        for line in result.stderr.lines().take(5) {
-                            eprintln!("          {}", line);
-                        }
-                    }
-
-                    summary.add_result(exec_result);
-                    anyhow::bail!("Pre-installation script failed: {}", script.path);
-                }
-            }
-            Err(e) => {
-                let duration = start.elapsed();
-
-                // Create a failed result for tracking
-                let exec_result = ScriptExecutionResult {
-                    script_name: script_name.clone(),
-                    script_path: scripts_dir.join(&script.path),
-                    phase: ScriptPhase::PreInstall,
-                    exit_code: -1,
-                    stdout: String::new(),
-                    stderr: e.to_string(),
-                    duration,
-                    success: false,
-                    requires_reboot: false,
-                };
-                summary.add_result(exec_result);
-
-                // Provide helpful error messages
-                match &e {
-                    crate::providers::script::ScriptError::ElevationRequired { .. } => {
-                        print_error(&format!("        ✗ {} requires elevation", script.path));
-                        print_warning(
-                            "        Run Anvil as Administrator or use --skip-pre-scripts",
-                        );
-                    }
-                    crate::providers::script::ScriptError::Timeout {
-                        timeout_seconds, ..
-                    } => {
-                        print_error(&format!(
-                            "        ✗ {} timed out after {}s",
-                            script.path, timeout_seconds
-                        ));
-                        print_warning("        Increase timeout in workload.yaml or check script");
-                    }
-                    _ => {
-                        print_error(&format!("        ✗ {} error: {}", script.path, e));
-                    }
-                }
-
-                anyhow::bail!("Pre-installation script error: {}", e);
-            }
-        }
-    }
-
-    if summary.succeeded > 0 {
-        println!();
-        print_success(&format!(
-            "Pre-installation scripts complete ({} succeeded)",
-            summary.succeeded
-        ));
-    }
-
-    Ok(summary)
 }
 
 /// Install packages with progress tracking
@@ -1667,185 +1450,6 @@ fn format_file_size(bytes: u64) -> String {
     } else {
         format!("{} B", bytes)
     }
-}
-
-/// Run post-installation scripts with enhanced output and tracking
-fn run_post_install_scripts(
-    context: &OperationContext,
-    _args: &InstallArgs,
-) -> Result<ScriptExecutionSummary> {
-    let scripts = match &context.workload.scripts {
-        Some(s) => s.post_install.as_ref(),
-        None => None,
-    };
-
-    let mut summary = ScriptExecutionSummary::new();
-
-    if scripts.is_none() || scripts.unwrap().is_empty() {
-        context.debug("No post-installation scripts to run");
-        return Ok(summary);
-    }
-
-    let scripts = scripts.unwrap();
-    println!();
-    print_info(&format!(
-        "Running {} post-installation script(s)...",
-        scripts.len()
-    ));
-
-    let scripts_dir = context.workload_path.join("scripts");
-    let mut provider = ScriptProvider::new()
-        .with_dry_run(context.dry_run)
-        .with_verbose(context.verbosity > 1)
-        .with_base_path(&scripts_dir);
-
-    // Create script context for environment injection
-    let script_context = ScriptContext::new(&context.workload.name, &context.workload_path)
-        .with_phase(ScriptPhase::PostInstall)
-        .with_dry_run(context.dry_run)
-        .with_verbose(context.verbosity > 1);
-
-    for (idx, script) in scripts.iter().enumerate() {
-        let script_name = script
-            .description
-            .clone()
-            .unwrap_or_else(|| script.path.clone());
-
-        println!();
-        print_info(&format!(
-            "  [{}/{}] {}",
-            idx + 1,
-            scripts.len(),
-            script_name
-        ));
-
-        // Build script configuration
-        let mut config = ScriptConfig::new(&script.path)
-            .with_timeout(Duration::from_secs(script.timeout))
-            .with_elevated(script.elevated)
-            .with_working_dir(&scripts_dir);
-
-        // Set output mode - always stream for post-install (users want to see progress)
-        if context.verbosity > 0 {
-            config = config
-                .with_output_mode(OutputMode::Both)
-                .with_output_prefix("        ");
-        } else {
-            // Even without verbose, stream output for post-install
-            config = config
-                .with_output_mode(OutputMode::Stream)
-                .with_output_prefix("        ");
-        }
-
-        // Inject environment variables
-        provider.inject_environment_variables(&mut config, &script_context);
-
-        let start = Instant::now();
-        match provider.execute(&config) {
-            Ok(result) => {
-                let exec_result = ScriptExecutionResult::from_result(
-                    &result,
-                    script_name.clone(),
-                    scripts_dir.join(&script.path),
-                    ScriptPhase::PostInstall,
-                );
-
-                if result.success {
-                    print_success(&format!(
-                        "        ✓ {} completed ({:.1}s)",
-                        script.path,
-                        result.duration.as_secs_f64()
-                    ));
-
-                    if result.requires_reboot {
-                        print_warning("        Script indicates reboot required");
-                        summary.requires_reboot = true;
-                    }
-
-                    summary.add_result(exec_result);
-                } else {
-                    print_warning(&format!(
-                        "        ⚠ {} completed with exit code {} ({:.1}s)",
-                        script.path,
-                        result.exit_code,
-                        result.duration.as_secs_f64()
-                    ));
-
-                    if !result.stderr.is_empty() && context.verbosity > 0 {
-                        for line in result.stderr.lines().take(5) {
-                            eprintln!("          {}", line);
-                        }
-                    }
-
-                    summary.add_result(exec_result);
-                    // Don't fail on post-install script non-zero exit, just warn
-                }
-            }
-            Err(e) => {
-                let duration = start.elapsed();
-
-                // Create a failed result for tracking
-                let exec_result = ScriptExecutionResult {
-                    script_name: script_name.clone(),
-                    script_path: scripts_dir.join(&script.path),
-                    phase: ScriptPhase::PostInstall,
-                    exit_code: -1,
-                    stdout: String::new(),
-                    stderr: e.to_string(),
-                    duration,
-                    success: false,
-                    requires_reboot: false,
-                };
-                summary.add_result(exec_result);
-
-                // Provide helpful error messages but don't fail
-                match &e {
-                    crate::providers::script::ScriptError::ElevationRequired { .. } => {
-                        print_warning(&format!(
-                            "        ⚠ {} requires elevation (skipped)",
-                            script.path
-                        ));
-                        print_info(
-                            "        Run Anvil as Administrator to execute elevated scripts",
-                        );
-                    }
-                    crate::providers::script::ScriptError::Timeout {
-                        timeout_seconds, ..
-                    } => {
-                        print_warning(&format!(
-                            "        ⚠ {} timed out after {}s",
-                            script.path, timeout_seconds
-                        ));
-                        print_info("        Increase timeout in workload.yaml if needed");
-                    }
-                    _ => {
-                        print_warning(&format!("        ⚠ {} error: {}", script.path, e));
-                    }
-                }
-
-                // Don't fail on post-install script errors
-                print_info(
-                    "        Post-installation script failed, but installation may still work",
-                );
-            }
-        }
-    }
-
-    println!();
-    if summary.failed > 0 {
-        print_warning(&format!(
-            "Post-installation scripts: {} succeeded, {} failed",
-            summary.succeeded, summary.failed
-        ));
-    } else if summary.succeeded > 0 {
-        print_success(&format!(
-            "Post-installation scripts complete ({} succeeded, {:.1}s total)",
-            summary.succeeded,
-            summary.total_duration.as_secs_f64()
-        ));
-    }
-
-    Ok(summary)
 }
 
 /// Print final installation summary

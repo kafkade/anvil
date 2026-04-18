@@ -54,7 +54,6 @@ description: string             # Human-readable description
 extends: string[]               # Parent workloads to inherit from
 packages: object                # Package definitions
 files: array                    # File deployment definitions
-scripts: object                 # Script execution definitions
 commands: object                # Inline command definitions
 environment: object             # Environment variable configuration
 assertions: array               # Declarative health assertions
@@ -106,11 +105,8 @@ Package installation definitions (see [Package Definitions](#3-package-definitio
 #### `files`
 File deployment definitions (see [File Definitions](#4-file-definitions)).
 
-#### `scripts`
-Script execution definitions (see [Script Definitions](#5-script-definitions)).
-
 #### `commands`
-Inline command definitions (see [Commands (Inline)](#6-commands-inline)).
+Inline command definitions (see [Commands (Inline)](#5-commands-inline)).
 
 #### `environment`
 Environment variable configuration (see [Environment Configuration](#7-environment-configuration)).
@@ -383,215 +379,11 @@ files:
 
 ---
 
-## 5. Script Definitions
+## 5. Commands (Inline)
 
-Define PowerShell or CMD scripts for installation steps and health checks.
+Commands let you run arbitrary shell commands directly from `workload.yaml`. They support conditional execution via the same predicate engine used by [Assertions](#7-assertions).
 
-### Script Categories
-
-```yaml
-scripts:
-  pre_install:     # Run before package installation
-    - path: scripts/pre-install.ps1
-    
-  post_install:    # Run after package installation
-    - path: scripts/post-install.ps1
-```
-
-### Full Script Options
-
-```yaml
-scripts:
-  post_install:
-    - path: scripts/setup.ps1
-      shell: powershell           # powershell, pwsh, cmd
-      description: "Configure application settings"
-      elevated: false             # Run as administrator
-      timeout: 300                # Timeout in seconds
-```
-
-### Script Fields
-
-| Field | Required | Default | Description |
-|-------|----------|---------|-------------|
-| `path` | Yes | - | Path relative to workload directory |
-| `shell` | No | `powershell` | Shell: `powershell`, `pwsh`, `cmd` |
-| `description` | No | - | Human-readable description |
-| `elevated` | No | `false` | Run with administrator privileges |
-| `timeout` | No | `300` | Timeout in seconds |
-
-> **Note:** `scripts.health_check` was removed in v1.0. Use declarative `assertions` instead.
-
-### Script Guidelines
-
-#### Exit Codes
-
-- `0` - Success
-- Non-zero - Failure
-
-```powershell
-# Good: explicit exit codes
-if (Test-Path $requiredFile) {
-    exit 0
-} else {
-    Write-Error "Required file not found"
-    exit 1
-}
-```
-
-#### Output Handling
-
-- Use `Write-Host` for informational output
-- Use `Write-Error` for error messages
-- Use `Write-Warning` for warnings
-
-```powershell
-Write-Host "Installing components..."
-Write-Warning "This may take a while"
-Write-Error "Installation failed"
-```
-
-#### Idempotency
-
-Scripts should be safe to run multiple times:
-
-```powershell
-# Good: check before acting
-if (-not (Test-Path "C:\Tools\mytool")) {
-    Write-Host "Installing mytool..."
-    # Install logic here
-} else {
-    Write-Host "mytool already installed"
-}
-```
-
-#### Error Handling
-
-Use try-catch for robust error handling:
-
-```powershell
-try {
-    # Risky operation
-    Invoke-WebRequest -Uri $url -OutFile $path
-    exit 0
-}
-catch {
-    Write-Error "Failed to download: $_"
-    exit 1
-}
-```
-
-### Sample Scripts
-
-#### Pre-Install Check
-
-```powershell
-# scripts/pre-install.ps1
-# Check prerequisites before installation
-
-$ErrorActionPreference = "Stop"
-
-# Check Windows version
-$version = [Environment]::OSVersion.Version
-if ($version.Major -lt 10) {
-    Write-Error "Windows 10 or later required"
-    exit 1
-}
-
-# Check available disk space (need 1GB)
-$drive = Get-PSDrive C
-$freeGB = [math]::Round($drive.Free / 1GB, 2)
-if ($freeGB -lt 1) {
-    Write-Error "Insufficient disk space. Need 1GB, have ${freeGB}GB"
-    exit 1
-}
-
-Write-Host "Prerequisites check passed"
-exit 0
-```
-
-#### Post-Install Configuration
-
-```powershell
-# scripts/post-install.ps1
-# Configure application after installation
-
-$ErrorActionPreference = "Stop"
-
-try {
-    # Install Rust components
-    Write-Host "Installing Rust components..."
-    rustup component add rustfmt
-    rustup component add clippy
-    
-    # Install common cargo tools
-    Write-Host "Installing cargo tools..."
-    cargo install cargo-watch
-    cargo install cargo-edit
-    
-    Write-Host "Post-install configuration complete"
-    exit 0
-}
-catch {
-    Write-Error "Post-install failed: $_"
-    exit 1
-}
-```
-
-#### Health Check
-
-```powershell
-# scripts/health-check.ps1
-# Verify Rust development environment
-
-$ErrorActionPreference = "Stop"
-$errors = @()
-
-# Check rustc
-try {
-    $rustVersion = rustc --version
-    Write-Host "✓ Rust compiler: $rustVersion"
-}
-catch {
-    $errors += "rustc not found"
-}
-
-# Check cargo
-try {
-    $cargoVersion = cargo --version
-    Write-Host "✓ Cargo: $cargoVersion"
-}
-catch {
-    $errors += "cargo not found"
-}
-
-# Check rustfmt
-try {
-    $null = rustfmt --version
-    Write-Host "✓ rustfmt installed"
-}
-catch {
-    $errors += "rustfmt not installed"
-}
-
-# Report results
-if ($errors.Count -gt 0) {
-    Write-Error "Health check failed:"
-    $errors | ForEach-Object { Write-Error "  - $_" }
-    exit 1
-}
-
-Write-Host "All health checks passed"
-exit 0
-```
-
----
-
-## 6. Commands (Inline)
-
-Commands let you run arbitrary shell commands directly from `workload.yaml` without creating separate script files. They support conditional execution via the same predicate engine used by [Assertions](#8-assertions).
-
-Use commands for simple one-liners (e.g., `cargo install`, `npm install -g`). Use scripts for complex multi-step logic that benefits from a dedicated file.
+> **Note:** `scripts.pre_install` and `scripts.post_install` were removed in v1.0. Use the `commands` block instead.
 
 ### Basic Structure
 
@@ -632,7 +424,7 @@ commands:
 
 ### Conditional Execution
 
-The `when` field accepts any condition type from the [Assertions](#8-assertions) predicate engine:
+The `when` field accepts any condition type from the [Assertions](#7-assertions) predicate engine:
 
 ```yaml
 commands:
@@ -673,7 +465,7 @@ commands:
 
 ---
 
-## 7. Environment Configuration
+## 6. Environment Configuration
 
 Configure environment variables and PATH additions.
 
@@ -734,7 +526,7 @@ PATH additions are appended to the existing PATH for the specified scope.
 
 ---
 
-## 8. Assertions
+## 7. Assertions
 
 Assertions are declarative health checks defined directly in `workload.yaml`. They let you validate system state — such as installed commands, existing files, environment variables, and PATH entries — without writing PowerShell scripts.
 
@@ -927,7 +719,7 @@ health:
 
 ---
 
-## 9. Inheritance
+## 8. Inheritance
 
 Workloads can extend other workloads to inherit their configuration.
 
@@ -961,7 +753,7 @@ When a workload extends parents, configuration is merged:
 |---------|----------------|
 | `packages` | Merged; child packages added to parent packages |
 | `files` | Merged; child files override parent files with same destination |
-| `scripts` | Merged; child scripts run after parent scripts |
+| `commands` | Merged; child commands run after parent commands |
 | `environment` | Merged; child variables override parent variables |
 
 ### Override Example
@@ -1030,7 +822,7 @@ anvil show my-workload --resolved
 
 ---
 
-## 10. Variable Expansion
+## 9. Variable Expansion
 
 Use variables in paths and values for dynamic configuration.
 
@@ -1080,7 +872,7 @@ environment:
 
 ---
 
-## 11. Best Practices
+## 10. Best Practices
 
 ### Workload Design
 
@@ -1199,7 +991,7 @@ environment:
 
 ---
 
-## 12. Example Workloads
+## 11. Example Workloads
 
 ### Minimal Workload
 
@@ -1262,19 +1054,14 @@ files:
     destination: "${APPDATA}/Code/User/settings.json"
     template: true
 
-scripts:
-  pre_install:
-    - path: scripts/pre-check.ps1
-      description: "Check prerequisites"
-      
-  post_install:
-    - path: scripts/setup-rust.ps1
-      description: "Configure Rust toolchain"
-      elevated: false
-      timeout: 600
-
 commands:
+  pre_install:
+    - run: "echo Checking prerequisites..."
+      description: "Check prerequisites"
   post_install:
+    - run: "rustup default stable && rustup update stable"
+      description: "Configure Rust toolchain"
+      timeout: 600
     - run: "rustup component add rustfmt clippy"
       description: "Add Rust components"
       when:
@@ -1319,46 +1106,24 @@ packages:
     - id: Docker.DockerDesktop
     - id: WasmEdge.WasmEdge
 
-scripts:
+commands:
   post_install:
-    - path: scripts/setup-targets.ps1
-      description: "Add Rust compilation targets"
+    - run: "rustup target add wasm32-unknown-unknown"
+      description: "Add WASM target"
+    - run: "rustup target add thumbv7em-none-eabihf"
+      description: "Add embedded target"
+    - run: "cargo install cargo-embed probe-run"
+      description: "Install embedded cargo tools"
+      continue_on_error: true
 
 environment:
   path_additions:
     - "~/.wasmedge/bin"
 ```
 
-With corresponding script:
-
-```powershell
-# rust-advanced/scripts/setup-targets.ps1
-# Add additional Rust compilation targets
-
-$ErrorActionPreference = "Stop"
-
-try {
-    Write-Host "Adding WASM target..."
-    rustup target add wasm32-unknown-unknown
-    
-    Write-Host "Adding embedded targets..."
-    rustup target add thumbv7em-none-eabihf
-    
-    Write-Host "Installing cargo tools for embedded..."
-    cargo install cargo-embed
-    cargo install probe-run
-    
-    exit 0
-}
-catch {
-    Write-Error "Setup failed: $_"
-    exit 1
-}
-```
-
 ---
 
-## 13. Private Workload Repositories
+## 12. Private Workload Repositories
 
 You can maintain your own workloads in a separate Git repository and configure Anvil to discover them.
 

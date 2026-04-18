@@ -30,10 +30,6 @@ pub struct Workload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub files: Option<Vec<FileEntry>>,
 
-    /// Script definitions
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub scripts: Option<Scripts>,
-
     /// Inline command definitions
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub commands: Option<CommandBlock>,
@@ -66,7 +62,6 @@ impl Workload {
             extends: None,
             packages: None,
             files: None,
-            scripts: None,
             commands: None,
             environment: None,
             health: None,
@@ -83,7 +78,6 @@ impl Workload {
             extends: None,
             packages: None,
             files: None,
-            scripts: None,
             commands: None,
             environment: None,
             health: None,
@@ -123,18 +117,6 @@ impl Workload {
     /// Get the total number of files
     pub fn file_count(&self) -> usize {
         self.files.as_ref().map(|f| f.len()).unwrap_or(0)
-    }
-
-    /// Get the total number of scripts (pre_install + post_install)
-    pub fn script_count(&self) -> usize {
-        self.scripts
-            .as_ref()
-            .map(|s| {
-                let pre = s.pre_install.as_ref().map(|p| p.len()).unwrap_or(0);
-                let post = s.post_install.as_ref().map(|p| p.len()).unwrap_or(0);
-                pre + post
-            })
-            .unwrap_or(0)
     }
 
     /// Get the total number of commands (pre_install + post_install)
@@ -298,65 +280,6 @@ impl FileEntry {
     }
 }
 
-/// Script definitions for various phases
-#[allow(dead_code)]
-#[derive(Debug, Clone, Default, Serialize, Deserialize)]
-pub struct Scripts {
-    /// Scripts to run before package installation
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub pre_install: Option<Vec<ScriptEntry>>,
-
-    /// Scripts to run after package installation
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub post_install: Option<Vec<ScriptEntry>>,
-}
-
-/// A script to execute
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ScriptEntry {
-    /// Relative path from workload's scripts/ directory
-    pub path: String,
-
-    /// Execution shell (default: "powershell")
-    #[serde(default = "default_shell")]
-    pub shell: String,
-
-    /// Description of what the script does
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-
-    /// Whether to require admin privileges (default: false)
-    #[serde(default)]
-    pub elevated: bool,
-
-    /// Timeout in seconds (default: 300)
-    #[serde(default = "default_timeout")]
-    pub timeout: u64,
-}
-
-fn default_shell() -> String {
-    "powershell".to_string()
-}
-
-fn default_timeout() -> u64 {
-    300
-}
-
-#[allow(dead_code)]
-impl ScriptEntry {
-    /// Create a new script entry
-    pub fn new(path: impl Into<String>) -> Self {
-        Self {
-            path: path.into(),
-            shell: default_shell(),
-            description: None,
-            elevated: false,
-            timeout: default_timeout(),
-        }
-    }
-}
-
 /// Commands block for inline command execution
 #[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
@@ -368,6 +291,10 @@ pub struct CommandBlock {
     /// Commands to run after package installation
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub post_install: Option<Vec<CommandEntry>>,
+}
+
+fn default_timeout() -> u64 {
+    300
 }
 
 /// A single command to execute
@@ -510,10 +437,6 @@ packages:
 files:
   - source: config.toml
     destination: "~/.config/app/config.toml"
-scripts:
-  post_install:
-    - path: setup.ps1
-      description: "Run setup"
 "#;
         let workload: Workload = serde_yaml::from_str(yaml).unwrap();
         assert_eq!(workload.name, "full-workload");
