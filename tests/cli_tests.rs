@@ -715,18 +715,18 @@ mod health_command {
     }
 
     #[test]
-    fn health_deprecation_warning_when_both_assertions_and_scripts() {
+    fn validate_rejects_removed_health_check_field() {
         let temp = TempDir::new().unwrap();
         common::create_workload_with_both_assertions_and_scripts(temp.path(), "both-test").unwrap();
         let workload_path = temp.path().join("both-test");
 
-        // When both assertions and scripts.health_check exist, stderr should contain deprecation warning
+        // validate should report an error for the removed scripts.health_check field
         anvil()
-            .args(["health", workload_path.to_str().unwrap()])
+            .args(["validate", workload_path.to_str().unwrap()])
             .assert()
-            .code(predicate::in_iter([0, 1]))
-            .stderr(predicate::str::contains(
-                "scripts.health_check` is deprecated when used alongside `assertions`",
+            .failure()
+            .stdout(predicate::str::contains(
+                "scripts.health_check has been removed in v1.0",
             ));
     }
 }
@@ -1013,17 +1013,16 @@ files:
         let workload_dir = temp.path().join("scripts-workload");
         let scripts_dir = workload_dir.join("scripts");
         fs::create_dir_all(&scripts_dir).unwrap();
-        fs::write(scripts_dir.join("health.ps1"), "exit 0").unwrap();
+        fs::write(scripts_dir.join("post-install.ps1"), "exit 0").unwrap();
         fs::write(
             workload_dir.join("workload.yaml"),
             r#"name: scripts-workload
 version: "1.0.0"
 description: "Workload with scripts"
 scripts:
-  health_check:
-    - path: scripts/health.ps1
-      name: "Basic Check"
-      description: "Simple health check"
+  post_install:
+    - path: scripts/post-install.ps1
+      description: "Post-install setup"
 "#,
         )
         .unwrap();

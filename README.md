@@ -121,10 +121,12 @@ scripts:
   post_install:
     - path: scripts/setup.ps1
       description: "Install Rust components"
-      
-  health_check:
-    - path: scripts/health.ps1
-      name: "Rust Toolchain"
+
+assertions:
+  - name: "Cargo is available"
+    check:
+      type: command_exists
+      command: cargo
 ```
 
 ## 🔧 CLI Reference

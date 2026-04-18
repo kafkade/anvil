@@ -207,7 +207,6 @@ The `scripts` object organizes script entries by execution phase. All phase keys
 |-------|------|-------------|
 | `scripts.pre_install` | list of [ScriptEntry](#scriptentry) | Scripts to run **before** package installation. |
 | `scripts.post_install` | list of [ScriptEntry](#scriptentry) | Scripts to run **after** package installation. |
-| `scripts.health_check` | list of [HealthCheckScript](#healthcheckscript) | Scripts for health validation. |
 
 #### ScriptEntry
 
@@ -221,17 +220,6 @@ Used in `pre_install` and `post_install` phases.
 | `elevated` | boolean | no | `false` | Whether the script requires administrator privileges. |
 | `timeout` | integer | no | `300` | Timeout in seconds. |
 
-#### HealthCheckScript
-
-Used in the `health_check` phase. Requires a `name` field (unlike other script types).
-
-| Field | Type | Required | Default | Description |
-|-------|------|----------|---------|-------------|
-| `path` | string | yes | — | Path relative to the workload's `scripts/` directory. |
-| `name` | string | yes | — | Display name for the health check. |
-| `description` | string | no | `null` | Description of what this check validates. |
-| `shell` | string | no | `"powershell"` | Execution shell. |
-
 ```yaml
 scripts:
   pre_install:
@@ -244,14 +232,6 @@ scripts:
       description: "Configure Windows Terminal settings"
       timeout: 300
       elevated: true
-
-  health_check:
-    - path: health-check/check-tools.ps1
-      name: "Developer Tools"
-      description: "Verify developer tools are installed"
-    - path: health-check/check-config.ps1
-      name: "Configuration Files"
-      description: "Verify configuration files are deployed"
 ```
 
 ### commands
@@ -327,14 +307,12 @@ Flags that control which categories of health checks are evaluated during `anvil
 |-------|------|----------|---------|-------------|
 | `package_check` | boolean | no | `true` | Verify that declared packages are installed. |
 | `file_check` | boolean | no | `true` | Verify that declared files are deployed. |
-| `script_check` | boolean | no | `true` | Run `scripts.health_check` scripts. |
 | `assertion_check` | boolean | no | `true` | Evaluate declarative assertions. |
 
 ```yaml
 health:
   package_check: true
   file_check: true
-  script_check: true
   assertion_check: true
 ```
 
@@ -520,11 +498,6 @@ scripts:
       timeout: 300
       elevated: true
 
-  health_check:
-    - path: health-check/check-tools.ps1
-      name: "Developer Tools"
-      description: "Verify all developer tools are installed"
-
 commands:
   post_install:
     - run: "rustup default stable"
@@ -550,7 +523,6 @@ environment:
 health:
   package_check: true
   file_check: true
-  script_check: true
   assertion_check: true
 
 assertions:

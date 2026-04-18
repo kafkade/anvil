@@ -21,11 +21,6 @@ scripts:
       description: "Install Python via uv and configure environment"
       timeout: 300
 
-  health_check:
-    - path: health-check.ps1
-      name: "Python Environment"
-      description: "Verifies Python and uv are properly installed"
-
 environment:
   variables:
     - name: UV_PYTHON_PREFERENCE
@@ -53,5 +48,4 @@ assertions:
 health:
   package_check: true
   file_check: true
-  script_check: true
   assertion_check: true

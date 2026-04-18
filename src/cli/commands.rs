@@ -174,10 +174,6 @@ pub struct HealthArgs {
     #[arg(long)]
     pub files_only: bool,
 
-    /// Only run health check scripts
-    #[arg(long)]
-    pub scripts_only: bool,
-
     /// Only evaluate declarative assertions
     #[arg(long)]
     pub assertions_only: bool,
@@ -201,10 +197,6 @@ pub struct HealthArgs {
     /// Show file differences for modified files
     #[arg(long)]
     pub show_diff: bool,
-
-    /// Run only a specific health check script by name
-    #[arg(long, value_name = "NAME")]
-    pub script: Option<String>,
 }
 
 /// Arguments for the `list` command

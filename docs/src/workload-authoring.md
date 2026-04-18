@@ -396,9 +396,6 @@ scripts:
     
   post_install:    # Run after package installation
     - path: scripts/post-install.ps1
-    
-  health_check:    # Run during health checks
-    - path: scripts/health-check.ps1
 ```
 
 ### Full Script Options
@@ -423,20 +420,7 @@ scripts:
 | `elevated` | No | `false` | Run with administrator privileges |
 | `timeout` | No | `300` | Timeout in seconds |
 
-> **Note:** Health check scripts use a separate schema with `name` (required) and `shell` fields, but do not support `timeout` or `elevated`.
-
-### Health Check Scripts
-
-Health check scripts verify system state:
-
-```yaml
-scripts:
-  health_check:
-    - path: scripts/check-rust.ps1
-      name: "Rust Toolchain"
-      description: "Verify Rust is installed and configured"
-      timeout: 30
-```
+> **Note:** `scripts.health_check` was removed in v1.0. Use declarative `assertions` instead.
 
 ### Script Guidelines
 
@@ -899,7 +883,6 @@ Assertions are evaluated during `anvil health` when `assertion_check` is enabled
 health:
   package_check: true
   file_check: true
-  script_check: true
   assertion_check: true   # Evaluate declarative assertions
 ```
 
@@ -1189,12 +1172,13 @@ environment:
    }
    ```
 
-3. **Include Health Checks**
+3. **Include Assertions**
    ```yaml
-   scripts:
-     health_check:
-       - path: scripts/verify.ps1
-         name: "Installation Verification"
+   assertions:
+     - name: "Installation verified"
+       check:
+         type: command_exists
+         command: my-tool
    ```
 
 ### Testing
@@ -1288,11 +1272,6 @@ scripts:
       description: "Configure Rust toolchain"
       elevated: false
       timeout: 600
-      
-  health_check:
-    - path: scripts/health.ps1
-      name: "Rust Environment"
-      description: "Verify Rust development environment"
 
 commands:
   post_install:

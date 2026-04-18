@@ -125,15 +125,14 @@ impl Workload {
         self.files.as_ref().map(|f| f.len()).unwrap_or(0)
     }
 
-    /// Get the total number of scripts (pre_install + post_install + health_check)
+    /// Get the total number of scripts (pre_install + post_install)
     pub fn script_count(&self) -> usize {
         self.scripts
             .as_ref()
             .map(|s| {
                 let pre = s.pre_install.as_ref().map(|p| p.len()).unwrap_or(0);
                 let post = s.post_install.as_ref().map(|p| p.len()).unwrap_or(0);
-                let health = s.health_check.as_ref().map(|h| h.len()).unwrap_or(0);
-                pre + post + health
+                pre + post
             })
             .unwrap_or(0)
     }
@@ -310,10 +309,6 @@ pub struct Scripts {
     /// Scripts to run after package installation
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub post_install: Option<Vec<ScriptEntry>>,
-
-    /// Scripts for health validation
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub health_check: Option<Vec<HealthCheckScript>>,
 }
 
 /// A script to execute
@@ -358,38 +353,6 @@ impl ScriptEntry {
             description: None,
             elevated: false,
             timeout: default_timeout(),
-        }
-    }
-}
-
-/// A health check script with metadata
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HealthCheckScript {
-    /// Relative path from workload's scripts/ directory
-    pub path: String,
-
-    /// Display name for the check
-    pub name: String,
-
-    /// Description of what this check validates
-    #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub description: Option<String>,
-
-    /// Execution shell (default: "powershell")
-    #[serde(default = "default_shell")]
-    pub shell: String,
-}
-
-#[allow(dead_code)]
-impl HealthCheckScript {
-    /// Create a new health check script
-    pub fn new(path: impl Into<String>, name: impl Into<String>) -> Self {
-        Self {
-            path: path.into(),
-            name: name.into(),
-            description: None,
-            shell: default_shell(),
         }
     }
 }
@@ -499,10 +462,6 @@ pub struct HealthConfig {
     #[serde(default = "default_true")]
     pub file_check: bool,
 
-    /// Whether to run health check scripts (default: true)
-    #[serde(default = "default_true")]
-    pub script_check: bool,
-
     /// Whether to evaluate declarative assertions (default: true)
     #[serde(default = "default_true")]
     pub assertion_check: bool,
@@ -513,7 +472,6 @@ impl Default for HealthConfig {
         Self {
             package_check: true,
             file_check: true,
-            script_check: true,
             assertion_check: true,
         }
     }

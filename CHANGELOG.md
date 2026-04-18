@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- `scripts.health_check` field — use declarative `assertions` instead
+- `--scripts-only` and `--script` flags from `anvil health` command
+
 ## [0.6.0] - 2026-04-17
 
 ### Added
@@ -35,7 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Integration tests no longer fail on Linux and macOS due to winget-dependent tests running on non-Windows platforms
 
 ### Deprecated
-- `scripts.health_check` when used alongside `assertions` (migrate to declarative assertions; removal planned for v1.0)
+- ~~`scripts.health_check` when used alongside `assertions`~~ — **removed** (see Removed above)
 - `scripts.pre_install` and `scripts.post_install` when used alongside `commands` (migrate to inline commands; removal planned for v1.0)
 
 ## [0.5.0] - 2026-04-17

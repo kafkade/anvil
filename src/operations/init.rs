@@ -153,14 +153,6 @@ pub fn execute(args: &InitArgs, cli: &Cli) -> Result<()> {
             post_install,
         )
         .context("Failed to write post-install.ps1")?;
-
-        debug!("Creating health-check script");
-        let health_check = generate_health_check_script(&args.name);
-        fs::write(
-            output_dir.join("scripts").join("health-check.ps1"),
-            health_check,
-        )
-        .context("Failed to write health-check.ps1")?;
     }
 
     // Create a pre-install script for full template
@@ -357,17 +349,18 @@ scripts:
       description: "Configure {name} environment"
       timeout: 300  # Timeout in seconds
 
-  # Health check script - validates the installation
-  health_check:
-    - path: health-check.ps1
-      name: "{name} Health Check"
-      description: "Verify {name} is properly configured"
-
 # Optional: Health check settings
 health:
   package_check: true   # Verify packages are installed
   file_check: true      # Verify files are deployed
-  script_check: true    # Run health check scripts
+  assertion_check: true # Evaluate declarative assertions
+
+# Optional: Declarative health assertions
+# assertions:
+#   - name: "Example command exists"
+#     check:
+#       type: command_exists
+#       command: my-tool
 "#,
         name = name,
         extends_section = extends_section.trim_start()
@@ -446,12 +439,6 @@ scripts:
       description: "Configure {name} environment"
       timeout: 300
 
-  # Health checks: Validate installation
-  health_check:
-    - path: health-check.ps1
-      name: "{name} Health Check"
-      description: "Verify {name} is properly configured"
-
 # Environment configuration
 environment:
   # Environment variables to set
@@ -493,7 +480,6 @@ assertions:
 health:
   package_check: true    # Verify all packages are installed
   file_check: true       # Verify all files are deployed correctly
-  script_check: true     # Run all health check scripts
   assertion_check: true  # Evaluate declarative assertions
 "#,
         name = name,
@@ -594,87 +580,6 @@ exit 0
     )
 }
 
-fn generate_health_check_script(name: &str) -> String {
-    format!(
-        r#"# health-check.ps1 - {name} Workload
-# This script validates that the {name} environment is properly configured
-#
-# Exit codes:
-#   0 - All checks passed
-#   1 - One or more checks failed
-
-$ErrorActionPreference = "Continue"
-$exitCode = 0
-
-Write-Host "{name} Health Check" -ForegroundColor Cyan
-Write-Host ("=" * 40) -ForegroundColor Cyan
-Write-Host ""
-
-# Helper function for consistent output
-function Test-Check {{
-    param(
-        [string]$Name,
-        [scriptblock]$Test
-    )
-
-    try {{
-        $result = & $Test
-        if ($result) {{
-            Write-Host "  [PASS] $Name" -ForegroundColor Green
-            return $true
-        }} else {{
-            Write-Host "  [FAIL] $Name" -ForegroundColor Red
-            return $false
-        }}
-    }} catch {{
-        Write-Host "  [FAIL] $Name - $($_.Exception.Message)" -ForegroundColor Red
-        return $false
-    }}
-}}
-
-# TODO: Add your health checks here
-# Examples:
-
-# Check if a command is available
-# if (-not (Test-Check "Git is installed" {{ Get-Command git -ErrorAction Stop }})) {{
-#     $exitCode = 1
-# }}
-
-# Check if a file exists
-# if (-not (Test-Check "Config file exists" {{ Test-Path "~/.config/myapp/config.toml" }})) {{
-#     $exitCode = 1
-# }}
-
-# Check environment variable
-# if (-not (Test-Check "MY_VAR is set" {{ $env:MY_VAR -ne $null }})) {{
-#     $exitCode = 1
-# }}
-
-# Check a directory is in PATH
-# if (-not (Test-Check "~/.local/bin in PATH" {{ $env:Path -like "*\.local\bin*" }})) {{
-#     $exitCode = 1
-# }}
-
-# Placeholder check - remove after adding real checks
-if (-not (Test-Check "Placeholder check (always passes)" {{ $true }})) {{
-    $exitCode = 1
-}}
-
-Write-Host ""
-Write-Host ("-" * 40) -ForegroundColor Gray
-
-if ($exitCode -eq 0) {{
-    Write-Host "All checks passed!" -ForegroundColor Green
-}} else {{
-    Write-Host "Some checks failed." -ForegroundColor Red
-}}
-
-exit $exitCode
-"#,
-        name = name
-    )
-}
-
 fn generate_sample_config(name: &str) -> String {
     format!(
         r#"# Sample configuration file for {name}
@@ -760,15 +665,6 @@ mod tests {
         assert!(script.contains("post-install.ps1"));
         assert!(script.contains("test"));
         assert!(script.contains("exit 0"));
-    }
-
-    #[test]
-    fn test_generate_health_check_script() {
-        let script = generate_health_check_script("test");
-        assert!(script.contains("health-check.ps1"));
-        assert!(script.contains("test"));
-        assert!(script.contains("[PASS]"));
-        assert!(script.contains("[FAIL]"));
     }
 
     #[test]
