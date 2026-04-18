@@ -5,7 +5,6 @@
 //! - JSON: Machine-readable JSON output
 //! - YAML: Human-readable YAML output
 //! - HTML: Report-style HTML output
-
 use std::io::Write;
 
 use anyhow::Result;
@@ -14,10 +13,8 @@ use serde::Serialize;
 
 use crate::cli::commands::OutputFormat;
 use crate::cli::formats::html::HtmlFormatter;
-use crate::cli::formats::OutputFormatter;
 
 /// Status indicator for check results
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "UPPERCASE")]
 pub enum CheckStatus {
@@ -30,8 +27,6 @@ pub enum CheckStatus {
     /// Check was skipped
     Skip,
 }
-
-#[allow(dead_code)]
 impl CheckStatus {
     /// Returns the display symbol for the status
     pub fn symbol(&self) -> &'static str {
@@ -40,17 +35,6 @@ impl CheckStatus {
             CheckStatus::Fail => "✗",
             CheckStatus::Warn => "⚠",
             CheckStatus::Skip => "○",
-        }
-    }
-
-    /// Returns the colored display string
-    pub fn colored_symbol(&self) -> String {
-        use colored::Colorize;
-        match self {
-            CheckStatus::Ok => "✓".green().to_string(),
-            CheckStatus::Fail => "✗".red().to_string(),
-            CheckStatus::Warn => "⚠".yellow().to_string(),
-            CheckStatus::Skip => "○".dimmed().to_string(),
         }
     }
 
@@ -78,7 +62,6 @@ impl std::fmt::Display for CheckStatus {
 
 /// A single check result for reporting
 /// Script internal counts for health check scripts
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct ScriptCounts {
     /// Number of passed checks within the script
@@ -88,8 +71,6 @@ pub struct ScriptCounts {
     /// Number of warnings within the script
     pub warnings: usize,
 }
-
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct CheckResult {
     /// Name of the check
@@ -108,21 +89,7 @@ pub struct CheckResult {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub script_counts: Option<ScriptCounts>,
 }
-
-#[allow(dead_code)]
 impl CheckResult {
-    /// Create a new passing check result
-    pub fn ok(name: impl Into<String>, category: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            status: CheckStatus::Ok,
-            message: None,
-            category: category.into(),
-            details: None,
-            script_counts: None,
-        }
-    }
-
     /// Create a new passing check result with a message
     pub fn ok_with_message(
         name: impl Into<String>,
@@ -136,29 +103,6 @@ impl CheckResult {
             category: category.into(),
             details: None,
             script_counts: None,
-        }
-    }
-
-    /// Create a new passing check result with script counts
-    pub fn ok_with_script_counts(
-        name: impl Into<String>,
-        category: impl Into<String>,
-        message: impl Into<String>,
-        passed: usize,
-        failed: usize,
-        warnings: usize,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            status: CheckStatus::Ok,
-            message: Some(message.into()),
-            category: category.into(),
-            details: None,
-            script_counts: Some(ScriptCounts {
-                passed,
-                failed,
-                warnings,
-            }),
         }
     }
 
@@ -178,55 +122,6 @@ impl CheckResult {
         }
     }
 
-    /// Create a new failing check result with details
-    pub fn fail_with_details(
-        name: impl Into<String>,
-        category: impl Into<String>,
-        message: impl Into<String>,
-        details: Vec<String>,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            status: CheckStatus::Fail,
-            message: Some(message.into()),
-            category: category.into(),
-            details: if details.is_empty() {
-                None
-            } else {
-                Some(details)
-            },
-            script_counts: None,
-        }
-    }
-
-    /// Create a new failing check result with script counts
-    pub fn fail_with_script_counts(
-        name: impl Into<String>,
-        category: impl Into<String>,
-        message: impl Into<String>,
-        details: Vec<String>,
-        passed: usize,
-        failed: usize,
-        warnings: usize,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            status: CheckStatus::Fail,
-            message: Some(message.into()),
-            category: category.into(),
-            details: if details.is_empty() {
-                None
-            } else {
-                Some(details)
-            },
-            script_counts: Some(ScriptCounts {
-                passed,
-                failed,
-                warnings,
-            }),
-        }
-    }
-
     /// Create a new warning check result
     pub fn warn(
         name: impl Into<String>,
@@ -236,45 +131,6 @@ impl CheckResult {
         Self {
             name: name.into(),
             status: CheckStatus::Warn,
-            message: Some(message.into()),
-            category: category.into(),
-            details: None,
-            script_counts: None,
-        }
-    }
-
-    /// Create a new warning check result with script counts
-    pub fn warn_with_script_counts(
-        name: impl Into<String>,
-        category: impl Into<String>,
-        message: impl Into<String>,
-        passed: usize,
-        failed: usize,
-        warnings: usize,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            status: CheckStatus::Warn,
-            message: Some(message.into()),
-            category: category.into(),
-            details: None,
-            script_counts: Some(ScriptCounts {
-                passed,
-                failed,
-                warnings,
-            }),
-        }
-    }
-
-    /// Create a skipped check result
-    pub fn skip(
-        name: impl Into<String>,
-        category: impl Into<String>,
-        message: impl Into<String>,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            status: CheckStatus::Skip,
             message: Some(message.into()),
             category: category.into(),
             details: None,
@@ -297,8 +153,6 @@ pub struct HealthSummary {
     /// Number of skipped checks
     pub skipped: usize,
 }
-
-#[allow(dead_code)]
 impl HealthSummary {
     /// Calculate summary from a list of check results
     ///
@@ -334,16 +188,6 @@ impl HealthSummary {
         }
 
         summary
-    }
-
-    /// Returns true if all checks passed (no failures)
-    pub fn is_healthy(&self) -> bool {
-        self.failed == 0
-    }
-
-    /// Returns true if all checks passed with no warnings
-    pub fn is_perfect(&self) -> bool {
-        self.failed == 0 && self.warnings == 0
     }
 }
 
@@ -392,8 +236,6 @@ pub enum Formatter {
     Yaml(YamlFormatter),
     Html(HtmlFormatter),
 }
-
-#[allow(dead_code)]
 impl Formatter {
     /// Format and write a health report
     pub fn format_health_report<W: Write>(
@@ -408,38 +250,6 @@ impl Formatter {
             Formatter::Html(f) => f.format_health(report, writer),
         }
     }
-
-    /// Format and write a workload list
-    pub fn format_workload_list<W: Write>(
-        &self,
-        workloads: &[WorkloadInfo],
-        writer: &mut W,
-    ) -> Result<()> {
-        match self {
-            Formatter::Table(f) => f.format_workload_list(workloads, writer),
-            Formatter::Json(f) => f.format_workload_list(workloads, writer),
-            Formatter::Yaml(f) => f.format_workload_list(workloads, writer),
-            Formatter::Html(f) => f.format_workload_list(workloads, writer),
-        }
-    }
-}
-
-/// Basic workload information for listing
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize)]
-pub struct WorkloadInfo {
-    /// Workload name
-    pub name: String,
-    /// Workload version
-    pub version: String,
-    /// Short description
-    pub description: String,
-    /// Parent workloads (if any)
-    pub extends: Vec<String>,
-    /// Number of packages
-    pub package_count: usize,
-    /// Number of files
-    pub file_count: usize,
 }
 
 /// Table formatter for human-readable output
@@ -463,8 +273,6 @@ impl TableFormatter {
         table
     }
 }
-
-#[allow(dead_code)]
 impl TableFormatter {
     pub fn format_health_report<W: Write>(
         &self,
@@ -547,27 +355,6 @@ impl TableFormatter {
 
         Ok(())
     }
-
-    pub fn format_workload_list<W: Write>(
-        &self,
-        workloads: &[WorkloadInfo],
-        writer: &mut W,
-    ) -> Result<()> {
-        let mut table = self.create_table();
-        table.set_header(vec!["Name", "Version", "Description", "Extends"]);
-
-        for workload in workloads {
-            table.add_row(vec![
-                Cell::new(&workload.name),
-                Cell::new(&workload.version),
-                Cell::new(&workload.description),
-                Cell::new(workload.extends.join(", ")),
-            ]);
-        }
-
-        writeln!(writer, "{}", table)?;
-        Ok(())
-    }
 }
 
 /// JSON formatter for machine-readable output
@@ -582,8 +369,6 @@ impl JsonFormatter {
         Self { pretty }
     }
 }
-
-#[allow(dead_code)]
 impl JsonFormatter {
     pub fn format_health_report<W: Write>(
         &self,
@@ -598,26 +383,10 @@ impl JsonFormatter {
         writeln!(writer, "{}", json)?;
         Ok(())
     }
-
-    pub fn format_workload_list<W: Write>(
-        &self,
-        workloads: &[WorkloadInfo],
-        writer: &mut W,
-    ) -> Result<()> {
-        let json = if self.pretty {
-            serde_json::to_string_pretty(workloads)?
-        } else {
-            serde_json::to_string(workloads)?
-        };
-        writeln!(writer, "{}", json)?;
-        Ok(())
-    }
 }
 
 /// YAML formatter for human-readable structured output
 pub struct YamlFormatter;
-
-#[allow(dead_code)]
 impl YamlFormatter {
     pub fn format_health_report<W: Write>(
         &self,
@@ -627,41 +396,6 @@ impl YamlFormatter {
         let yaml = serde_yaml::to_string(report)?;
         writeln!(writer, "{}", yaml)?;
         Ok(())
-    }
-
-    pub fn format_workload_list<W: Write>(
-        &self,
-        workloads: &[WorkloadInfo],
-        writer: &mut W,
-    ) -> Result<()> {
-        let yaml = serde_yaml::to_string(workloads)?;
-        writeln!(writer, "{}", yaml)?;
-        Ok(())
-    }
-}
-
-#[allow(dead_code)]
-impl HtmlFormatter {
-    pub fn format_workload_list<W: Write>(
-        &self,
-        workloads: &[WorkloadInfo],
-        writer: &mut W,
-    ) -> Result<()> {
-        // Convert output::WorkloadInfo to config::WorkloadInfo for the trait method
-        let config_workloads: Vec<crate::config::WorkloadInfo> = workloads
-            .iter()
-            .map(|w| crate::config::WorkloadInfo {
-                name: w.name.clone(),
-                version: w.version.clone(),
-                description: w.description.clone(),
-                extends: w.extends.clone(),
-                package_count: w.package_count,
-                file_count: w.file_count,
-                path: std::path::PathBuf::new(),
-                shadowed_paths: Vec::new(),
-            })
-            .collect();
-        self.format_list(&config_workloads, writer)
     }
 }
 

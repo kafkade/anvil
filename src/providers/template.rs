@@ -5,7 +5,6 @@
 //! - Custom helpers (upper, lower, replace, default, env, date)
 //! - Error handling with line number reporting
 //! - Preview mode for rendered output
-
 use std::collections::HashMap;
 use std::path::Path;
 
@@ -16,8 +15,8 @@ use handlebars::{
 use thiserror::Error;
 
 /// Errors that can occur during template processing
-#[allow(dead_code)]
 #[derive(Error, Debug)]
+#[allow(dead_code)] // Variants cover all expected error conditions
 pub enum TemplateError {
     /// Template file not found
     #[error("Template file not found: {0}")]
@@ -48,13 +47,10 @@ pub enum TemplateError {
 pub type TemplateResult<T> = Result<T, TemplateError>;
 
 /// Template processor using Handlebars
-#[allow(dead_code)]
 pub struct TemplateProcessor {
     handlebars: Handlebars<'static>,
     variables: HashMap<String, String>,
 }
-
-#[allow(dead_code)]
 impl TemplateProcessor {
     /// Create a new template processor with default variables
     pub fn new() -> Self {
@@ -82,16 +78,6 @@ impl TemplateProcessor {
     /// Set a template variable
     pub fn set_variable(&mut self, name: &str, value: &str) {
         self.variables.insert(name.to_string(), value.to_string());
-    }
-
-    /// Set multiple variables from a HashMap
-    pub fn set_variables(&mut self, vars: HashMap<String, String>) {
-        self.variables.extend(vars);
-    }
-
-    /// Get the current variables
-    pub fn variables(&self) -> &HashMap<String, String> {
-        &self.variables
     }
 
     /// Populate default system variables
@@ -230,40 +216,6 @@ impl TemplateProcessor {
         self.render_string(&template)
     }
 
-    /// Render a template file to a destination file
-    pub fn render_file_to(&self, source: &Path, destination: &Path) -> TemplateResult<()> {
-        let rendered = self.render_file(source)?;
-
-        // Create parent directory if needed
-        if let Some(parent) = destination.parent() {
-            if !parent.exists() {
-                std::fs::create_dir_all(parent)?;
-            }
-        }
-
-        std::fs::write(destination, rendered)?;
-        Ok(())
-    }
-
-    /// Preview what a template would render to (for dry-run mode)
-    pub fn preview(&self, template: &str) -> TemplateResult<TemplatePreview> {
-        let rendered = self.render_string(template)?;
-
-        // Find which variables were used
-        let used_variables: Vec<String> = self
-            .variables
-            .keys()
-            .filter(|k| template.contains(&format!("{{{{{}}}}}", k)))
-            .cloned()
-            .collect();
-
-        Ok(TemplatePreview {
-            rendered,
-            used_variables,
-            original_length: template.len(),
-        })
-    }
-
     /// Check if a file should be treated as a template
     pub fn is_template_file(path: &Path) -> bool {
         if let Some(ext) = path.extension() {
@@ -286,20 +238,24 @@ impl TemplateProcessor {
         path.to_path_buf()
     }
 
-    /// Validate a template for syntax errors without rendering
-    pub fn validate(&self, template: &str) -> TemplateResult<()> {
-        // Try to compile the template
-        self.handlebars
-            .render_template(template, &serde_json::json!({}))
-            .map_err(|e| {
-                // Try to extract line number from error
-                let message = e.to_string();
-                TemplateError::RenderFailed {
-                    message,
-                    source: Some(e),
-                }
-            })?;
-        Ok(())
+    /// Preview what a template would render to (for dry-run mode)
+    #[allow(dead_code)] // Test-only: used in module tests
+    pub fn preview(&self, template: &str) -> TemplateResult<TemplatePreview> {
+        let rendered = self.render_string(template)?;
+
+        // Find which variables were used
+        let used_variables: Vec<String> = self
+            .variables
+            .keys()
+            .filter(|k| template.contains(&format!("{{{{{}}}}}", k)))
+            .cloned()
+            .collect();
+
+        Ok(TemplatePreview {
+            rendered,
+            used_variables,
+            original_length: template.len(),
+        })
     }
 }
 
@@ -310,7 +266,7 @@ impl Default for TemplateProcessor {
 }
 
 /// Preview information for a rendered template
-#[allow(dead_code)]
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug)]
 pub struct TemplatePreview {
     /// The rendered output
@@ -319,14 +275,6 @@ pub struct TemplatePreview {
     pub used_variables: Vec<String>,
     /// Original template length
     pub original_length: usize,
-}
-
-#[allow(dead_code)]
-impl TemplatePreview {
-    /// Get the rendered length
-    pub fn rendered_length(&self) -> usize {
-        self.rendered.len()
-    }
 }
 
 // ============================================================================

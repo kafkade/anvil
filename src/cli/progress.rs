@@ -2,7 +2,6 @@
 //!
 //! This module provides utilities for displaying progress during
 //! long-running operations like package installation.
-
 use std::sync::Arc;
 use std::time::Duration;
 
@@ -13,31 +12,8 @@ use indicatif::{MultiProgress, ProgressBar, ProgressDrawTarget, ProgressStyle};
 const SPINNER_TICK_MS: u64 = 100;
 
 /// Progress bar styles
-#[allow(dead_code)]
 pub struct ProgressStyles;
-
-#[allow(dead_code)]
 impl ProgressStyles {
-    /// Style for package installation progress
-    pub fn install() -> ProgressStyle {
-        ProgressStyle::with_template(
-            "  {spinner:.green} [{bar:30.cyan/blue}] {pos}/{len} {wide_msg}",
-        )
-        .unwrap()
-        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-        .progress_chars("█▓▒░")
-    }
-
-    /// Style for download progress (with bytes)
-    pub fn download() -> ProgressStyle {
-        ProgressStyle::with_template(
-            "  {spinner:.green} [{bar:30.cyan/blue}] {bytes}/{total_bytes} {wide_msg}",
-        )
-        .unwrap()
-        .tick_chars("⠋⠙⠹⠸⠼⠴⠦⠧⠇⠏")
-        .progress_chars("█▓▒░")
-    }
-
     /// Style for indeterminate spinner
     pub fn spinner() -> ProgressStyle {
         ProgressStyle::with_template("  {spinner:.green} {wide_msg}")
@@ -69,24 +45,18 @@ impl ProgressStyles {
 }
 
 /// Manager for multi-progress bar display
-#[allow(dead_code)]
 pub struct ProgressManager {
     /// The multi-progress container
     multi_progress: MultiProgress,
     /// Whether progress display is enabled
     enabled: bool,
-    /// Whether to use quiet mode (minimal output)
-    quiet: bool,
 }
-
-#[allow(dead_code)]
 impl ProgressManager {
     /// Create a new progress manager
     pub fn new() -> Self {
         Self {
             multi_progress: MultiProgress::new(),
             enabled: true,
-            quiet: false,
         }
     }
 
@@ -95,58 +65,7 @@ impl ProgressManager {
         Self {
             multi_progress: MultiProgress::with_draw_target(ProgressDrawTarget::hidden()),
             enabled: false,
-            quiet: true,
         }
-    }
-
-    /// Check if progress display is enabled
-    pub fn is_enabled(&self) -> bool {
-        self.enabled
-    }
-
-    /// Check if quiet mode is active
-    pub fn is_quiet(&self) -> bool {
-        self.quiet
-    }
-
-    /// Disable progress display (but keep the manager)
-    pub fn disable(&mut self) {
-        self.enabled = false;
-        self.multi_progress = MultiProgress::with_draw_target(ProgressDrawTarget::hidden());
-    }
-
-    /// Enable progress display
-    pub fn enable(&mut self) {
-        self.enabled = true;
-        self.multi_progress = MultiProgress::new();
-    }
-
-    /// Create a new progress bar for package installation
-    pub fn create_install_bar(&self, total: u64, message: &str) -> ProgressBar {
-        let pb = if self.enabled {
-            self.multi_progress.add(ProgressBar::new(total))
-        } else {
-            ProgressBar::hidden()
-        };
-
-        pb.set_style(ProgressStyles::install());
-        pb.set_message(message.to_string());
-        pb.enable_steady_tick(Duration::from_millis(SPINNER_TICK_MS));
-        pb
-    }
-
-    /// Create a new spinner for indeterminate operations
-    pub fn create_spinner(&self, message: &str) -> ProgressBar {
-        let pb = if self.enabled {
-            self.multi_progress.add(ProgressBar::new_spinner())
-        } else {
-            ProgressBar::hidden()
-        };
-
-        pb.set_style(ProgressStyles::spinner());
-        pb.set_message(message.to_string());
-        pb.enable_steady_tick(Duration::from_millis(SPINNER_TICK_MS));
-        pb
     }
 
     /// Create a summary/overall progress bar
@@ -178,24 +97,6 @@ impl ProgressManager {
         pb
     }
 
-    /// Get a reference to the multi-progress container
-    pub fn multi_progress(&self) -> &MultiProgress {
-        &self.multi_progress
-    }
-
-    /// Suspend progress bars to allow other output
-    pub fn suspend<F, R>(&self, f: F) -> R
-    where
-        F: FnOnce() -> R,
-    {
-        self.multi_progress.suspend(f)
-    }
-
-    /// Clear all progress bars
-    pub fn clear(&self) -> std::io::Result<()> {
-        self.multi_progress.clear()
-    }
-
     /// Print a line above the progress bars
     pub fn println(&self, msg: &str) -> std::io::Result<()> {
         self.multi_progress.println(msg)
@@ -209,7 +110,6 @@ impl Default for ProgressManager {
 }
 
 /// Progress tracker for a single installation operation
-#[allow(dead_code)]
 pub struct InstallProgress {
     /// Overall progress bar
     summary_bar: ProgressBar,
@@ -217,8 +117,6 @@ pub struct InstallProgress {
     package_bars: Vec<ProgressBar>,
     /// Manager reference
     manager: Arc<ProgressManager>,
-    /// Total package count
-    total: usize,
     /// Current completed count
     completed: usize,
     /// Installed count
@@ -228,8 +126,6 @@ pub struct InstallProgress {
     /// Failed count
     failed: usize,
 }
-
-#[allow(dead_code)]
 impl InstallProgress {
     /// Create a new installation progress tracker
     pub fn new(manager: Arc<ProgressManager>, total: usize) -> Self {
@@ -240,7 +136,6 @@ impl InstallProgress {
             summary_bar,
             package_bars: Vec::new(),
             manager,
-            total,
             completed: 0,
             installed: 0,
             skipped: 0,
@@ -296,13 +191,6 @@ impl InstallProgress {
         self.update_summary();
     }
 
-    /// Update the package message (for status updates during install)
-    pub fn update_package_message(&self, idx: usize, message: &str) {
-        if let Some(bar) = self.package_bars.get(idx) {
-            bar.set_message(message.to_string());
-        }
-    }
-
     /// Update the summary bar
     fn update_summary(&self) {
         self.summary_bar.set_position(self.completed as u64);
@@ -320,68 +208,17 @@ impl InstallProgress {
         self.summary_bar.finish_and_clear();
     }
 
-    /// Get completion statistics
-    pub fn stats(&self) -> ProgressStats {
-        ProgressStats {
-            total: self.total,
-            completed: self.completed,
-            installed: self.installed,
-            skipped: self.skipped,
-            failed: self.failed,
-        }
-    }
-
     /// Print a line (suspending progress bars)
     pub fn println(&self, msg: &str) {
         let _ = self.manager.println(msg);
     }
 }
 
-/// Statistics from progress tracking
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub struct ProgressStats {
-    /// Total packages
-    pub total: usize,
-    /// Completed packages
-    pub completed: usize,
-    /// Successfully installed packages
-    pub installed: usize,
-    /// Skipped packages
-    pub skipped: usize,
-    /// Failed packages
-    pub failed: usize,
-}
-
-#[allow(dead_code)]
-impl ProgressStats {
-    /// Check if all packages were processed
-    pub fn is_complete(&self) -> bool {
-        self.completed == self.total
-    }
-
-    /// Check if all packages succeeded (installed or skipped)
-    pub fn is_successful(&self) -> bool {
-        self.failed == 0
-    }
-}
-
 /// Simple progress bar wrapper for single operations
-#[allow(dead_code)]
 pub struct SimpleProgress {
     bar: ProgressBar,
 }
-
-#[allow(dead_code)]
 impl SimpleProgress {
-    /// Create a new simple progress bar
-    pub fn new(total: u64) -> Self {
-        let bar = ProgressBar::new(total);
-        bar.set_style(ProgressStyles::install());
-        bar.enable_steady_tick(Duration::from_millis(SPINNER_TICK_MS));
-        Self { bar }
-    }
-
     /// Create a spinner (indeterminate progress)
     pub fn spinner(message: &str) -> Self {
         let bar = ProgressBar::new_spinner();
@@ -391,46 +228,14 @@ impl SimpleProgress {
         Self { bar }
     }
 
-    /// Create a hidden progress bar (for quiet mode)
-    pub fn hidden() -> Self {
-        Self {
-            bar: ProgressBar::hidden(),
-        }
-    }
-
-    /// Set the current position
-    pub fn set_position(&self, pos: u64) {
-        self.bar.set_position(pos);
-    }
-
-    /// Increment the position
-    pub fn inc(&self, delta: u64) {
-        self.bar.inc(delta);
-    }
-
     /// Set the message
     pub fn set_message(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
         self.bar.set_message(message);
     }
 
-    /// Finish with a message
-    pub fn finish_with_message(&self, message: impl Into<std::borrow::Cow<'static, str>>) {
-        self.bar.finish_with_message(message);
-    }
-
     /// Finish and clear
     pub fn finish_and_clear(&self) {
         self.bar.finish_and_clear();
-    }
-
-    /// Finish the progress bar
-    pub fn finish(&self) {
-        self.bar.finish();
-    }
-
-    /// Get the underlying progress bar
-    pub fn bar(&self) -> &ProgressBar {
-        &self.bar
     }
 }
 
@@ -468,23 +273,7 @@ mod tests {
     }
 
     #[test]
-    fn test_progress_stats() {
-        let stats = ProgressStats {
-            total: 5,
-            completed: 5,
-            installed: 3,
-            skipped: 1,
-            failed: 1,
-        };
-
-        assert!(stats.is_complete());
-        assert!(!stats.is_successful());
-    }
-
-    #[test]
     fn test_progress_manager_quiet_mode() {
-        let manager = ProgressManager::quiet();
-        assert!(!manager.is_enabled());
-        assert!(manager.is_quiet());
+        let _manager = ProgressManager::quiet();
     }
 }

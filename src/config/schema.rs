@@ -2,10 +2,6 @@
 //!
 //! This module provides validation logic for workload YAML files,
 //! ensuring they conform to the expected schema and contain valid values.
-
-use anyhow::{Context, Result};
-use std::path::Path;
-
 use super::workload::{Packages, Workload};
 
 /// Validation severity levels
@@ -76,8 +72,6 @@ pub struct ValidationResult {
     /// List of validation messages
     pub messages: Vec<ValidationMessage>,
 }
-
-#[allow(dead_code)]
 impl ValidationResult {
     /// Create a new empty validation result
     pub fn new() -> Self {
@@ -106,19 +100,6 @@ impl ValidationResult {
         self.add(ValidationMessage::info(path, message));
     }
 
-    /// Check if the validation passed (no errors)
-    pub fn is_valid(&self) -> bool {
-        !self
-            .messages
-            .iter()
-            .any(|m| m.severity == ValidationSeverity::Error)
-    }
-
-    /// Check if the validation passed with no warnings
-    pub fn is_perfect(&self) -> bool {
-        self.messages.is_empty()
-    }
-
     /// Get the count of errors
     pub fn error_count(&self) -> usize {
         self.messages
@@ -135,6 +116,27 @@ impl ValidationResult {
             .count()
     }
 
+    /// Merge another validation result into this one
+    pub fn merge(&mut self, other: ValidationResult) {
+        self.messages.extend(other.messages);
+    }
+}
+
+#[cfg(test)]
+impl ValidationResult {
+    /// Check if the validation passed (no errors)
+    pub fn is_valid(&self) -> bool {
+        !self
+            .messages
+            .iter()
+            .any(|m| m.severity == ValidationSeverity::Error)
+    }
+
+    /// Check if the validation passed with no warnings
+    pub fn is_perfect(&self) -> bool {
+        self.messages.is_empty()
+    }
+
     /// Get all error messages
     pub fn errors(&self) -> impl Iterator<Item = &ValidationMessage> {
         self.messages
@@ -148,21 +150,13 @@ impl ValidationResult {
             .iter()
             .filter(|m| m.severity == ValidationSeverity::Warning)
     }
-
-    /// Merge another validation result into this one
-    pub fn merge(&mut self, other: ValidationResult) {
-        self.messages.extend(other.messages);
-    }
 }
 
 /// Schema validator for workload definitions
-#[allow(dead_code)]
 pub struct SchemaValidator {
     /// Enable strict validation mode
     strict: bool,
 }
-
-#[allow(dead_code)]
 impl SchemaValidator {
     /// Create a new schema validator
     pub fn new() -> Self {
@@ -197,22 +191,6 @@ impl SchemaValidator {
         self.validate_assertions(workload, &mut result);
 
         result
-    }
-
-    /// Validate a workload file from path
-    pub fn validate_file(&self, path: &Path) -> Result<ValidationResult> {
-        let content = std::fs::read_to_string(path)
-            .with_context(|| format!("Failed to read file: {}", path.display()))?;
-
-        let workload: Workload = serde_yaml::from_str(&content)
-            .with_context(|| format!("Failed to parse YAML: {}", path.display()))?;
-
-        let mut result = self.validate(&workload);
-
-        // Check for removed scripts fields in raw YAML
-        Self::check_removed_scripts_fields(&content, &mut result);
-
-        Ok(result)
     }
 
     /// Check raw YAML content for removed scripts fields

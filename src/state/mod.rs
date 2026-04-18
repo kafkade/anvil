@@ -2,7 +2,6 @@
 //!
 //! This module handles tracking installation state and caching package information
 //! to improve performance and enable recovery from interrupted operations.
-
 pub mod cache;
 pub mod files;
 pub mod installation;
@@ -49,62 +48,6 @@ pub fn get_cache_dir() -> Result<PathBuf> {
     }
 
     Ok(cache_dir)
-}
-
-/// Clean up old state and cache files
-#[allow(dead_code)]
-pub fn cleanup_old_data(max_age_days: u32) -> Result<CleanupResult> {
-    let mut result = CleanupResult::default();
-    let max_age = chrono::Duration::days(max_age_days as i64);
-    let now = chrono::Utc::now();
-
-    // Clean state directory
-    if let Ok(state_dir) = get_state_dir() {
-        if let Ok(entries) = std::fs::read_dir(&state_dir) {
-            for entry in entries.flatten() {
-                if let Ok(metadata) = entry.metadata() {
-                    if let Ok(modified) = metadata.modified() {
-                        let modified: chrono::DateTime<chrono::Utc> = modified.into();
-                        if now.signed_duration_since(modified) > max_age
-                            && std::fs::remove_file(entry.path()).is_ok()
-                        {
-                            result.state_files_removed += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    // Clean cache directory
-    if let Ok(cache_dir) = get_cache_dir() {
-        if let Ok(entries) = std::fs::read_dir(&cache_dir) {
-            for entry in entries.flatten() {
-                if let Ok(metadata) = entry.metadata() {
-                    if let Ok(modified) = metadata.modified() {
-                        let modified: chrono::DateTime<chrono::Utc> = modified.into();
-                        if now.signed_duration_since(modified) > max_age
-                            && std::fs::remove_file(entry.path()).is_ok()
-                        {
-                            result.cache_files_removed += 1;
-                        }
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(result)
-}
-
-/// Result of cleanup operation
-#[allow(dead_code)]
-#[derive(Debug, Default)]
-pub struct CleanupResult {
-    /// Number of state files removed
-    pub state_files_removed: usize,
-    /// Number of cache files removed
-    pub cache_files_removed: usize,
 }
 
 #[cfg(test)]

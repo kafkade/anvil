@@ -3,15 +3,14 @@
 //! This module handles execution of inline commands defined in workload
 //! `commands:` blocks, with conditional execution, timeout enforcement,
 //! and structured result reporting.
-
 use std::time::Duration;
 
 use serde::Serialize;
 use thiserror::Error;
 
 /// Errors that can occur during command execution
-#[allow(dead_code)]
 #[derive(Error, Debug)]
+#[allow(dead_code)] // Variants needed for exhaustive command error coverage
 pub enum CommandError {
     /// Command executable was not found on the system
     #[error("Command not found: {0}")]
@@ -38,7 +37,6 @@ pub enum CommandError {
 }
 
 /// Status of a command execution
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
 pub enum CommandStatus {
     /// Command executed successfully (exit code 0)
@@ -52,7 +50,6 @@ pub enum CommandStatus {
 }
 
 /// Result of executing a single command
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct CommandResult {
     /// Display name or the command string
@@ -72,7 +69,6 @@ pub struct CommandResult {
 }
 
 /// Summary of a batch of command executions
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize)]
 pub struct CommandSummary {
     /// Total commands in the batch
@@ -92,8 +88,6 @@ pub struct CommandSummary {
     /// Individual results
     pub results: Vec<CommandResult>,
 }
-
-#[allow(dead_code)]
 impl CommandSummary {
     pub fn new() -> Self {
         Self::default()

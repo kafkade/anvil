@@ -4,29 +4,17 @@
 //! - Pre-installation scripts
 //! - Post-installation scripts
 //! - Health check validation scripts
-//!
-//! Features:
-//! - Proper timeout handling with process termination
-//! - Elevation detection and requirements
-#![allow(dead_code)]
-//! - Output streaming for real-time feedback
-//! - Environment variable injection
-//! - PowerShell Core (pwsh) support
-//! - Structured output parsing
 
 use std::collections::HashMap;
-use std::io::{BufRead, BufReader};
-use std::path::{Path, PathBuf};
-use std::process::{Child, Command, Output, Stdio};
-use std::sync::mpsc::{self, Receiver, Sender};
-use std::sync::{Arc, Mutex};
-use std::thread;
-use std::time::{Duration, Instant};
+use std::path::PathBuf;
+use std::process::{Command, Stdio};
+use std::time::Duration;
 
 use thiserror::Error;
 
 /// Errors that can occur during script execution
 #[derive(Error, Debug)]
+#[allow(dead_code)] // Variants cover all expected error conditions
 pub enum ScriptError {
     /// Script file not found
     #[error("Script not found: {0}")]
@@ -75,6 +63,7 @@ pub enum ScriptError {
 }
 
 /// Supported shell types
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 #[allow(clippy::enum_variant_names)]
 #[derive(Default)]
@@ -90,6 +79,7 @@ pub enum Shell {
     Bash,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl Shell {
     /// Get the executable name for this shell
     pub fn executable(&self) -> &'static str {
@@ -138,6 +128,7 @@ impl Shell {
 }
 
 /// Output mode for script execution
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub enum OutputMode {
     /// Capture output silently, return in result
@@ -150,6 +141,7 @@ pub enum OutputMode {
 }
 
 /// Script execution phase
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ScriptPhase {
     PreInstall,
@@ -157,6 +149,7 @@ pub enum ScriptPhase {
     Validation,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl std::fmt::Display for ScriptPhase {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
@@ -168,6 +161,7 @@ impl std::fmt::Display for ScriptPhase {
 }
 
 /// Configuration for script execution
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone)]
 pub struct ScriptConfig {
     /// Path to the script file
@@ -198,6 +192,7 @@ pub struct ScriptConfig {
     pub output_prefix: Option<String>,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl ScriptConfig {
     /// Create a new script configuration with defaults
     pub fn new(path: impl Into<PathBuf>) -> Self {
@@ -264,6 +259,7 @@ impl ScriptConfig {
 }
 
 /// Type of output line from script
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum LineType {
     Info,
@@ -276,6 +272,7 @@ pub enum LineType {
 }
 
 /// A parsed line of script output
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone)]
 pub struct OutputLine {
     pub content: String,
@@ -284,6 +281,7 @@ pub struct OutputLine {
 }
 
 /// Summary extracted from script output
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, Default)]
 pub struct ScriptSummary {
     pub passed: u32,
@@ -292,6 +290,7 @@ pub struct ScriptSummary {
 }
 
 /// Parsed script output with structured data
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone)]
 pub struct ParsedScriptOutput {
     pub lines: Vec<OutputLine>,
@@ -299,6 +298,7 @@ pub struct ParsedScriptOutput {
     pub structured_data: Option<serde_json::Value>,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl ParsedScriptOutput {
     /// Parse raw output into structured format
     pub fn parse(stdout: &str, stderr: &str) -> Self {
@@ -382,6 +382,7 @@ impl ParsedScriptOutput {
 }
 
 /// Result of a script execution
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone)]
 pub struct ScriptResult {
     /// Exit code from the script
@@ -406,6 +407,7 @@ pub struct ScriptResult {
     pub parsed: Option<ParsedScriptOutput>,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl ScriptResult {
     /// Create a successful result
     pub fn success(stdout: String, duration: Duration) -> Self {
@@ -438,6 +440,7 @@ impl ScriptResult {
 }
 
 /// Detailed result for script execution tracking
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone)]
 pub struct ScriptExecutionResult {
     pub script_name: String,
@@ -451,6 +454,7 @@ pub struct ScriptExecutionResult {
     pub requires_reboot: bool,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl ScriptExecutionResult {
     pub fn from_result(
         result: &ScriptResult,
@@ -473,6 +477,7 @@ impl ScriptExecutionResult {
 }
 
 /// Summary of script execution batch
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, Default)]
 pub struct ScriptExecutionSummary {
     pub total: usize,
@@ -484,6 +489,7 @@ pub struct ScriptExecutionSummary {
     pub results: Vec<ScriptExecutionResult>,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl ScriptExecutionSummary {
     pub fn new() -> Self {
         Self::default()
@@ -516,33 +522,8 @@ impl ScriptExecutionSummary {
     }
 }
 
-/// Output stream identifier
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum OutputStream {
-    Stdout,
-    Stderr,
-}
-
-/// Trait for handling script events
-pub trait ScriptEventHandler: Send + Sync {
-    /// Called when script starts executing
-    fn on_start(&self, _script: &str, _phase: ScriptPhase) {}
-
-    /// Called when a line of output is received
-    fn on_output(&self, _line: &str, _stream: OutputStream) {}
-
-    /// Called when script completes
-    fn on_complete(&self, _result: &ScriptResult) {}
-
-    /// Called when an error occurs
-    fn on_error(&self, _error: &ScriptError) {}
-}
-
-/// Default event handler that does nothing
-struct NoOpEventHandler;
-impl ScriptEventHandler for NoOpEventHandler {}
-
 /// Context for script execution
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone)]
 pub struct ScriptContext {
     pub workload_name: String,
@@ -552,6 +533,7 @@ pub struct ScriptContext {
     pub phase: ScriptPhase,
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl ScriptContext {
     pub fn new(workload_name: impl Into<String>, workload_path: impl Into<PathBuf>) -> Self {
         Self {
@@ -576,629 +558,6 @@ impl ScriptContext {
     pub fn with_verbose(mut self, verbose: bool) -> Self {
         self.verbose = verbose;
         self
-    }
-}
-
-/// Script execution provider
-pub struct ScriptProvider {
-    /// Whether to run in dry-run mode
-    dry_run: bool,
-
-    /// Verbose output
-    verbose: bool,
-
-    /// Base path for resolving relative script paths
-    base_path: Option<PathBuf>,
-
-    /// Event handler for script events
-    event_handler: Arc<dyn ScriptEventHandler>,
-
-    /// Cached elevation status
-    is_elevated: Option<bool>,
-}
-
-impl std::fmt::Debug for ScriptProvider {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ScriptProvider")
-            .field("dry_run", &self.dry_run)
-            .field("verbose", &self.verbose)
-            .field("base_path", &self.base_path)
-            .field("is_elevated", &self.is_elevated)
-            .finish()
-    }
-}
-
-impl ScriptProvider {
-    /// Create a new script provider
-    pub fn new() -> Self {
-        Self {
-            dry_run: false,
-            verbose: false,
-            base_path: None,
-            event_handler: Arc::new(NoOpEventHandler),
-            is_elevated: None,
-        }
-    }
-
-    /// Enable dry-run mode
-    pub fn with_dry_run(mut self, dry_run: bool) -> Self {
-        self.dry_run = dry_run;
-        self
-    }
-
-    /// Enable verbose output
-    pub fn with_verbose(mut self, verbose: bool) -> Self {
-        self.verbose = verbose;
-        self
-    }
-
-    /// Set the base path for resolving relative script paths
-    pub fn with_base_path(mut self, path: impl Into<PathBuf>) -> Self {
-        self.base_path = Some(path.into());
-        self
-    }
-
-    /// Set event handler for script events
-    pub fn with_event_handler(mut self, handler: Arc<dyn ScriptEventHandler>) -> Self {
-        self.event_handler = handler;
-        self
-    }
-
-    /// Resolve a script path, making it absolute if necessary
-    fn resolve_path(&self, path: &Path) -> PathBuf {
-        if path.is_absolute() {
-            path.to_path_buf()
-        } else if let Some(base) = &self.base_path {
-            base.join(path)
-        } else {
-            path.to_path_buf()
-        }
-    }
-
-    /// Check if the current process is running with elevated privileges
-    pub fn is_elevated(&mut self) -> bool {
-        if let Some(elevated) = self.is_elevated {
-            return elevated;
-        }
-
-        let elevated = Self::check_elevation();
-        self.is_elevated = Some(elevated);
-        elevated
-    }
-
-    /// Check elevation status (static helper)
-    fn check_elevation() -> bool {
-        // Use PowerShell to check if running as admin
-        Command::new("powershell.exe")
-            .args([
-                "-NoProfile",
-                "-NonInteractive",
-                "-Command",
-                "([Security.Principal.WindowsPrincipal][Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)",
-            ])
-            .stdout(Stdio::piped())
-            .stderr(Stdio::null())
-            .output()
-            .map(|o| String::from_utf8_lossy(&o.stdout).trim() == "True")
-            .unwrap_or(false)
-    }
-
-    /// Inject environment variables into script config
-    pub fn inject_environment_variables(&self, config: &mut ScriptConfig, context: &ScriptContext) {
-        // Anvil-specific variables
-        config
-            .environment
-            .insert("ANVIL_WORKLOAD".to_string(), context.workload_name.clone());
-        config.environment.insert(
-            "ANVIL_WORKLOAD_PATH".to_string(),
-            context.workload_path.display().to_string(),
-        );
-        config
-            .environment
-            .insert("ANVIL_DRY_RUN".to_string(), context.dry_run.to_string());
-        config
-            .environment
-            .insert("ANVIL_VERBOSE".to_string(), context.verbose.to_string());
-        config
-            .environment
-            .insert("ANVIL_PHASE".to_string(), context.phase.to_string());
-        config.environment.insert(
-            "ANVIL_VERSION".to_string(),
-            env!("CARGO_PKG_VERSION").to_string(),
-        );
-    }
-
-    /// Execute a script with the given configuration
-    pub fn execute(&mut self, config: &ScriptConfig) -> Result<ScriptResult, ScriptError> {
-        let script_path = self.resolve_path(&config.path);
-
-        // Check if script exists
-        if !script_path.exists() {
-            return Err(ScriptError::NotFound(script_path));
-        }
-
-        // Check shell availability
-        if config.shell == Shell::Pwsh && !Shell::Pwsh.is_available() {
-            return Err(ScriptError::PwshNotAvailable);
-        }
-
-        // Check elevation requirements
-        if config.elevated && !self.is_elevated() {
-            return Err(ScriptError::ElevationRequired {
-                path: script_path.clone(),
-            });
-        }
-
-        // In dry-run mode, just report what would be done
-        if self.dry_run {
-            tracing::info!("Would execute script: {}", script_path.display());
-            return Ok(ScriptResult::success(
-                format!("[DRY RUN] Would execute: {}", script_path.display()),
-                Duration::from_secs(0),
-            ));
-        }
-
-        // Execute based on output mode
-        match config.output_mode {
-            OutputMode::Capture => self.execute_captured(config, &script_path),
-            OutputMode::Stream | OutputMode::Both => self.execute_streaming(config, &script_path),
-        }
-    }
-
-    /// Execute script with captured output (no streaming)
-    fn execute_captured(
-        &self,
-        config: &ScriptConfig,
-        script_path: &Path,
-    ) -> Result<ScriptResult, ScriptError> {
-        let mut cmd = self.build_command(config, script_path)?;
-
-        let start = Instant::now();
-        let output = self.execute_with_timeout(&mut cmd, config.timeout, script_path)?;
-        let duration = start.elapsed();
-
-        let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-        let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-        let exit_code = output.status.code().unwrap_or(-1);
-
-        if output.status.success() || exit_code == 3010 {
-            Ok(ScriptResult::success(stdout, duration))
-        } else {
-            Ok(ScriptResult::failure(exit_code, stdout, stderr, duration))
-        }
-    }
-
-    /// Execute script with streaming output
-    fn execute_streaming(
-        &self,
-        config: &ScriptConfig,
-        script_path: &Path,
-    ) -> Result<ScriptResult, ScriptError> {
-        use colored::Colorize;
-
-        let mut cmd = self.build_command_for_streaming(config, script_path)?;
-
-        let start = Instant::now();
-        let mut child = cmd
-            .spawn()
-            .map_err(|e| ScriptError::SpawnFailed(format!("Failed to spawn process: {}", e)))?;
-
-        let stdout = child.stdout.take();
-        let stderr = child.stderr.take();
-
-        let captured_stdout = Arc::new(Mutex::new(String::new()));
-        let captured_stderr = Arc::new(Mutex::new(String::new()));
-
-        let prefix = config.output_prefix.clone().unwrap_or_default();
-        let capture_output = config.output_mode == OutputMode::Both;
-        let event_handler = self.event_handler.clone();
-
-        // Spawn thread for stdout
-        let stdout_captured = captured_stdout.clone();
-        let prefix_stdout = prefix.clone();
-        let stdout_thread = if let Some(stdout) = stdout {
-            let handler = event_handler.clone();
-            Some(thread::spawn(move || {
-                let reader = BufReader::new(stdout);
-                for line in reader.lines().map_while(Result::ok) {
-                    // Stream to console with colored prefix
-                    if !prefix_stdout.is_empty() {
-                        print!("{} ", prefix_stdout.dimmed());
-                    }
-                    println!("{}", line);
-
-                    // Capture if needed
-                    if capture_output {
-                        let mut captured = stdout_captured.lock().unwrap();
-                        captured.push_str(&line);
-                        captured.push('\n');
-                    }
-
-                    // Notify handler
-                    handler.on_output(&line, OutputStream::Stdout);
-                }
-            }))
-        } else {
-            None
-        };
-
-        // Spawn thread for stderr
-        let stderr_captured = captured_stderr.clone();
-        let prefix_stderr = prefix;
-        let stderr_thread = if let Some(stderr) = stderr {
-            let handler = event_handler;
-            Some(thread::spawn(move || {
-                let reader = BufReader::new(stderr);
-                for line in reader.lines().map_while(Result::ok) {
-                    // Stream to console with colored prefix
-                    if !prefix_stderr.is_empty() {
-                        eprint!("{} ", prefix_stderr.yellow());
-                    }
-                    eprintln!("{}", line.yellow());
-
-                    // Capture if needed
-                    if capture_output {
-                        let mut captured = stderr_captured.lock().unwrap();
-                        captured.push_str(&line);
-                        captured.push('\n');
-                    }
-
-                    // Notify handler
-                    handler.on_output(&line, OutputStream::Stderr);
-                }
-            }))
-        } else {
-            None
-        };
-
-        // Wait for process with timeout
-        let (tx, rx): (Sender<i32>, Receiver<i32>) = mpsc::channel();
-        let child_arc = Arc::new(Mutex::new(child));
-        let child_for_thread = child_arc.clone();
-
-        let wait_thread = thread::spawn(move || {
-            let mut child = child_for_thread.lock().unwrap();
-            match child.wait() {
-                Ok(status) => {
-                    let _ = tx.send(status.code().unwrap_or(-1));
-                }
-                Err(_) => {
-                    let _ = tx.send(-1);
-                }
-            }
-        });
-
-        let exit_code = match rx.recv_timeout(config.timeout) {
-            Ok(code) => code,
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                // Kill the process
-                if let Ok(mut child) = child_arc.lock() {
-                    let _ = child.kill();
-                }
-                return Err(ScriptError::Timeout {
-                    path: script_path.to_path_buf(),
-                    timeout_seconds: config.timeout.as_secs(),
-                });
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => -1,
-        };
-
-        // Wait for threads to finish
-        let _ = wait_thread.join();
-        if let Some(t) = stdout_thread {
-            let _ = t.join();
-        }
-        if let Some(t) = stderr_thread {
-            let _ = t.join();
-        }
-
-        let duration = start.elapsed();
-        let stdout = captured_stdout.lock().unwrap().clone();
-        let stderr = captured_stderr.lock().unwrap().clone();
-
-        if exit_code == 0 || exit_code == 3010 {
-            Ok(ScriptResult::success(stdout, duration))
-        } else {
-            Ok(ScriptResult::failure(exit_code, stdout, stderr, duration))
-        }
-    }
-
-    /// Build the command for script execution (captured mode)
-    fn build_command(
-        &self,
-        config: &ScriptConfig,
-        script_path: &Path,
-    ) -> Result<Command, ScriptError> {
-        let mut cmd = match config.shell {
-            Shell::PowerShell => {
-                let mut c = Command::new("powershell.exe");
-                c.args([
-                    "-NoProfile",
-                    "-NonInteractive",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                ]);
-                c.arg(script_path);
-                c
-            }
-            Shell::Pwsh => {
-                let mut c = Command::new("pwsh.exe");
-                c.args([
-                    "-NoProfile",
-                    "-NonInteractive",
-                    "-ExecutionPolicy",
-                    "Bypass",
-                    "-File",
-                ]);
-                c.arg(script_path);
-                c
-            }
-            Shell::Cmd => {
-                let mut c = Command::new("cmd.exe");
-                c.args(["/c"]);
-                c.arg(script_path);
-                c
-            }
-            Shell::Bash => {
-                let mut c = Command::new("bash");
-                c.arg(script_path);
-                c
-            }
-        };
-
-        // Add script arguments
-        for arg in &config.arguments {
-            cmd.arg(arg);
-        }
-
-        // Set working directory
-        if let Some(working_dir) = &config.working_dir {
-            cmd.current_dir(working_dir);
-        } else if let Some(base_path) = &self.base_path {
-            // Default to base path (workload scripts directory)
-            cmd.current_dir(base_path);
-        }
-
-        // Add environment variables
-        for (key, value) in &config.environment {
-            cmd.env(key, value);
-        }
-
-        // Configure stdio
-        cmd.stdout(Stdio::piped());
-        cmd.stderr(Stdio::piped());
-
-        Ok(cmd)
-    }
-
-    /// Build command for streaming mode
-    fn build_command_for_streaming(
-        &self,
-        config: &ScriptConfig,
-        script_path: &Path,
-    ) -> Result<Command, ScriptError> {
-        // Same as regular command but with piped stdout/stderr for reading
-        self.build_command(config, script_path)
-    }
-
-    /// Execute a command with timeout
-    fn execute_with_timeout(
-        &self,
-        cmd: &mut Command,
-        timeout: Duration,
-        script_path: &Path,
-    ) -> Result<Output, ScriptError> {
-        let child = cmd
-            .spawn()
-            .map_err(|e| ScriptError::SpawnFailed(format!("Failed to spawn process: {}", e)))?;
-
-        let (tx, rx) = mpsc::channel::<Result<Output, std::io::Error>>();
-
-        // We need to move the child into a thread to wait on it
-        let handle = thread::spawn(move || {
-            let result = child.wait_with_output();
-            let _ = tx.send(result);
-        });
-
-        // Wait with timeout
-        match rx.recv_timeout(timeout) {
-            Ok(result) => {
-                let _ = handle.join();
-                result.map_err(ScriptError::from)
-            }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                // Process timed out - we can't kill it from here since child was moved
-                // The thread will eventually complete and be cleaned up
-                // For now, return timeout error
-                Err(ScriptError::Timeout {
-                    path: script_path.to_path_buf(),
-                    timeout_seconds: timeout.as_secs(),
-                })
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => Err(ScriptError::ThreadError),
-        }
-    }
-
-    /// Execute with proper timeout and process killing
-    pub fn execute_with_kill_on_timeout(
-        &self,
-        config: &ScriptConfig,
-        script_path: &Path,
-    ) -> Result<ScriptResult, ScriptError> {
-        let mut cmd = self.build_command(config, script_path)?;
-
-        let start = Instant::now();
-
-        let child = cmd
-            .spawn()
-            .map_err(|e| ScriptError::SpawnFailed(format!("Failed to spawn process: {}", e)))?;
-
-        // Wrap child in Arc<Mutex> so we can kill it from timeout handler
-        let child_arc = Arc::new(Mutex::new(None::<Child>));
-        let child_for_kill = child_arc.clone();
-
-        // Channel for result
-        let (tx, rx) = mpsc::channel();
-
-        // Spawn thread to wait for child
-        let wait_thread = thread::spawn(move || {
-            let result = child.wait_with_output();
-            let _ = tx.send(result);
-        });
-
-        // Wait with timeout
-        match rx.recv_timeout(config.timeout) {
-            Ok(result) => {
-                let _ = wait_thread.join();
-                let output = result?;
-                let duration = start.elapsed();
-
-                let stdout = String::from_utf8_lossy(&output.stdout).to_string();
-                let stderr = String::from_utf8_lossy(&output.stderr).to_string();
-                let exit_code = output.status.code().unwrap_or(-1);
-
-                if output.status.success() || exit_code == 3010 {
-                    Ok(ScriptResult::success(stdout, duration))
-                } else {
-                    Ok(ScriptResult::failure(exit_code, stdout, stderr, duration))
-                }
-            }
-            Err(mpsc::RecvTimeoutError::Timeout) => {
-                // Try to kill the process
-                if let Ok(mut guard) = child_for_kill.lock() {
-                    if let Some(ref mut child) = *guard {
-                        let _ = child.kill();
-                    }
-                }
-
-                Err(ScriptError::Timeout {
-                    path: script_path.to_path_buf(),
-                    timeout_seconds: config.timeout.as_secs(),
-                })
-            }
-            Err(mpsc::RecvTimeoutError::Disconnected) => Err(ScriptError::ThreadError),
-        }
-    }
-
-    /// Validate a script's syntax without executing it
-    pub fn validate_syntax(&self, config: &ScriptConfig) -> Result<(), ScriptError> {
-        let script_path = self.resolve_path(&config.path);
-
-        if !script_path.exists() {
-            return Err(ScriptError::NotFound(script_path));
-        }
-
-        // For PowerShell scripts, use parser to check syntax
-        if config.shell == Shell::PowerShell || config.shell == Shell::Pwsh {
-            let shell_exe = config.shell.executable();
-
-            // Use the script path directly - PowerShell will handle it
-            let path_str = script_path.display().to_string();
-
-            // Build command with proper argument passing (not through shell)
-            let mut cmd = Command::new(shell_exe);
-            cmd.args([
-                "-NoProfile",
-                "-NonInteractive",
-                "-ExecutionPolicy",
-                "Bypass",
-                "-Command",
-            ]);
-
-            // Build the PowerShell command as a single argument
-            // Using & { } to create a script block avoids variable expansion issues
-            let ps_script = format!(
-                r#"& {{ $script = '{}'; $errors = $null; $null = [System.Management.Automation.Language.Parser]::ParseFile($script, [ref]$null, [ref]$errors); if ($errors) {{ foreach ($err in $errors) {{ Write-Host "Line $($err.Extent.StartLineNumber): $($err.Message)" }}; exit 1 }}; exit 0 }}"#,
-                path_str.replace('\'', "''")
-            );
-            cmd.arg(&ps_script);
-
-            let output = cmd.output()?;
-            if !output.status.success() {
-                // Get error message from stdout (where we Write-Host) or stderr
-                let stdout = String::from_utf8_lossy(&output.stdout);
-                let stderr = String::from_utf8_lossy(&output.stderr);
-
-                // Prefer stdout (our Write-Host output) over stderr
-                let message = if !stdout.trim().is_empty() {
-                    stdout.trim().to_string()
-                } else if !stderr.trim().is_empty() {
-                    // Extract meaningful part from stderr
-                    stderr
-                        .lines()
-                        .filter(|l| !l.trim().is_empty())
-                        .take(3)
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                } else {
-                    "Unknown syntax error".to_string()
-                };
-
-                return Err(ScriptError::SyntaxError {
-                    path: script_path,
-                    message,
-                });
-            }
-        }
-
-        // For other shells, just check if file is readable
-        std::fs::read_to_string(&script_path)?;
-
-        Ok(())
-    }
-
-    /// Check if PowerShell is available on the system
-    pub fn is_powershell_available() -> bool {
-        Shell::PowerShell.is_available()
-    }
-
-    /// Check if PowerShell Core is available
-    pub fn is_pwsh_available() -> bool {
-        Shell::Pwsh.is_available()
-    }
-
-    /// Get the preferred shell (pwsh if available, otherwise powershell)
-    pub fn preferred_powershell() -> Shell {
-        if Shell::Pwsh.is_available() {
-            Shell::Pwsh
-        } else {
-            Shell::PowerShell
-        }
-    }
-}
-
-impl Default for ScriptProvider {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl super::ProviderStatus for ScriptProvider {
-    fn is_available(&self) -> bool {
-        Self::is_powershell_available()
-    }
-
-    fn name(&self) -> &'static str {
-        "script"
-    }
-
-    fn version(&self) -> Option<String> {
-        // Get PowerShell version
-        let output = Command::new("powershell.exe")
-            .args([
-                "-NoProfile",
-                "-Command",
-                "$PSVersionTable.PSVersion.ToString()",
-            ])
-            .output()
-            .ok()?;
-
-        if output.status.success() {
-            Some(String::from_utf8_lossy(&output.stdout).trim().to_string())
-        } else {
-            None
-        }
     }
 }
 

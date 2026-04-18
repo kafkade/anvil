@@ -2,7 +2,6 @@
 //!
 //! This module provides an interface to the Windows Package Manager (winget)
 //! for package installation, removal, and verification.
-
 use std::process::{Command, Stdio};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -21,9 +20,6 @@ use crate::config::workload::WingetPackage;
 pub mod exit_codes {
     /// Success
     pub const SUCCESS: i32 = 0;
-    /// Generic error
-    #[allow(dead_code)]
-    pub const GENERIC_ERROR: i32 = 1;
     /// Package already installed (0x8A150011)
     pub const ALREADY_INSTALLED: i32 = -1978335215;
     /// No applicable installer (0x8A15002B) - HRESULT version
@@ -54,8 +50,8 @@ pub mod exit_codes {
 }
 
 /// Errors that can occur when interacting with winget
-#[allow(dead_code)]
 #[derive(Error, Debug)]
+#[allow(dead_code)] // Variants cover all expected error conditions
 pub enum WingetError {
     /// Package was not found in any source
     #[error("Package not found: {0}")]
@@ -178,12 +174,12 @@ impl WingetError {
 }
 
 /// Information about an installed package
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct InstalledPackage {
     /// Package ID
     pub id: String,
     /// Display name
+    #[allow(dead_code)] // Part of data structure API
     pub name: String,
     /// Installed version
     pub version: String,
@@ -194,7 +190,6 @@ pub struct InstalledPackage {
 }
 
 /// Result of a package installation
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct InstallResult {
     /// Package that was installed
@@ -208,23 +203,21 @@ pub struct InstallResult {
     /// Whether a reboot is required
     pub reboot_required: bool,
     /// Duration of installation
+    #[allow(dead_code)] // Part of data structure API
     pub duration: Duration,
     /// Exit code from winget
     pub exit_code: i32,
 }
 
 /// Progress callback type for installation operations
-#[allow(dead_code)]
 pub type ProgressCallback = Arc<dyn Fn(ProgressEvent) + Send + Sync>;
 
 /// Progress events during package operations
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
+#[allow(dead_code)] // Part of data structure API
 pub enum ProgressEvent {
     /// Starting a package operation
     Starting { package_id: String },
-    /// Download progress (if available)
-    Downloading { package_id: String, message: String },
     /// Installation in progress
     Installing { package_id: String, message: String },
     /// Operation completed
@@ -243,17 +236,15 @@ pub enum ProgressEvent {
 }
 
 /// Winget provider for package management
-#[allow(dead_code)]
 pub struct WingetProvider {
     /// Provider configuration
     config: ProviderConfig,
     /// Cached version of winget
+    #[allow(dead_code)] // Part of data structure API
     cached_version: Option<String>,
     /// Progress callback
     progress_callback: Option<ProgressCallback>,
 }
-
-#[allow(dead_code)]
 impl WingetProvider {
     /// Create a new winget provider with default configuration
     pub fn new() -> Self {
@@ -265,6 +256,7 @@ impl WingetProvider {
     }
 
     /// Create a new winget provider with custom configuration
+    #[allow(dead_code)] // Called inside #[cfg(target_os = "windows")] blocks
     pub fn with_config(config: ProviderConfig) -> Self {
         Self {
             config,
@@ -273,52 +265,11 @@ impl WingetProvider {
         }
     }
 
-    /// Set the progress callback
-    pub fn with_progress_callback(mut self, callback: ProgressCallback) -> Self {
-        self.progress_callback = Some(callback);
-        self
-    }
-
     /// Emit a progress event if a callback is set
     fn emit_progress(&self, event: ProgressEvent) {
         if let Some(ref callback) = self.progress_callback {
             callback(event);
         }
-    }
-
-    /// Check if winget is available on the system
-    pub fn check_availability(&mut self) -> Result<WingetInfo, WingetError> {
-        let output = Command::new("winget")
-            .arg("--version")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()
-            .map_err(|e| {
-                WingetError::NotAvailable(format!(
-                    "Failed to execute winget: {}. {}",
-                    e,
-                    Self::get_installation_instructions()
-                ))
-            })?;
-
-        if !output.status.success() {
-            return Err(WingetError::NotAvailable(
-                "winget command failed".to_string(),
-            ));
-        }
-
-        let version = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        self.cached_version = Some(version.clone());
-
-        // Parse version to check if it meets minimum requirements
-        let min_version = "1.6";
-        let version_num = version.trim_start_matches('v');
-
-        Ok(WingetInfo {
-            version: version.clone(),
-            meets_minimum: version_num >= min_version,
-            minimum_version: min_version.to_string(),
-        })
     }
 
     /// Get installation instructions for winget
@@ -666,51 +617,6 @@ https://github.com/microsoft/winget-cli/releases
         })
     }
 
-    /// Uninstall a package
-    pub fn uninstall(&self, package_id: &str) -> Result<(), WingetError> {
-        if self.config.dry_run {
-            tracing::info!("Dry run - would uninstall: {}", package_id);
-            return Ok(());
-        }
-
-        let output = Command::new("winget")
-            .arg("uninstall")
-            .arg("--id")
-            .arg(package_id)
-            .arg("--exact")
-            .arg("--silent")
-            .arg("--disable-interactivity")
-            .arg("--accept-source-agreements")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        let exit_code = output.status.code().unwrap_or(-1);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-
-        self.map_exit_code(exit_code, package_id, &stdout, &stderr)
-    }
-
-    /// Check if a package is installed
-    pub fn is_installed(&self, package_id: &str) -> Result<bool, WingetError> {
-        let output = Command::new("winget")
-            .arg("list")
-            .arg("--id")
-            .arg(package_id)
-            .arg("--exact")
-            .arg("--accept-source-agreements")
-            .arg("--disable-interactivity")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-
-        // Check if the package ID appears in the output (case-insensitive)
-        Ok(stdout.to_lowercase().contains(&package_id.to_lowercase()))
-    }
-
     /// Get the installed version of a package
     pub fn get_installed_version(&self, package_id: &str) -> Result<Option<String>, WingetError> {
         let output = Command::new("winget")
@@ -732,89 +638,10 @@ https://github.com/microsoft/winget-cli/releases
         parse_installed_version(&stdout, package_id)
     }
 
-    /// Get detailed information about an installed package
-    pub fn get_package_info(
-        &self,
-        package_id: &str,
-    ) -> Result<Option<InstalledPackage>, WingetError> {
-        let output = Command::new("winget")
-            .arg("list")
-            .arg("--id")
-            .arg(package_id)
-            .arg("--exact")
-            .arg("--accept-source-agreements")
-            .arg("--disable-interactivity")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-
-        if !stdout.to_lowercase().contains(&package_id.to_lowercase()) {
-            return Ok(None);
-        }
-
-        let version = parse_installed_version(&stdout, package_id)?;
-        let available = self.get_available_upgrade(package_id)?;
-
-        Ok(Some(InstalledPackage {
-            id: package_id.to_string(),
-            name: package_id.to_string(), // Could parse from show command
-            version: version.unwrap_or_else(|| "unknown".to_string()),
-            available_version: available,
-            source: Some("winget".to_string()),
-        }))
-    }
-
-    /// Check if an upgrade is available for a package
-    pub fn get_available_upgrade(&self, package_id: &str) -> Result<Option<String>, WingetError> {
-        let output = Command::new("winget")
-            .arg("upgrade")
-            .arg("--id")
-            .arg(package_id)
-            .arg("--exact")
-            .arg("--accept-source-agreements")
-            .arg("--disable-interactivity")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-
-        // If the package appears in upgrade list, parse the available version
-        if stdout.to_lowercase().contains(&package_id.to_lowercase()) {
-            return parse_upgrade_version(&stdout, package_id);
-        }
-
-        Ok(None)
-    }
-
     /// List all installed packages
     pub fn list_installed(&self) -> Result<Vec<InstalledPackage>, WingetError> {
         let output = Command::new("winget")
             .arg("list")
-            .arg("--accept-source-agreements")
-            .arg("--disable-interactivity")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        if !output.status.success() {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            return Err(WingetError::ParseError(stderr.to_string()));
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let packages = parse_winget_list_output(&stdout)?;
-
-        Ok(packages)
-    }
-
-    /// Search for packages
-    pub fn search(&self, query: &str) -> Result<Vec<InstalledPackage>, WingetError> {
-        let output = Command::new("winget")
-            .arg("search")
-            .arg(query)
             .arg("--accept-source-agreements")
             .arg("--disable-interactivity")
             .stdout(Stdio::piped())
@@ -906,92 +733,6 @@ https://github.com/microsoft/winget-cli/releases
             exit_code,
         })
     }
-
-    /// Upgrade all packages in a list
-    pub fn upgrade_all(&self, package_ids: &[String]) -> Vec<Result<InstallResult, WingetError>> {
-        package_ids.iter().map(|id| self.upgrade(id)).collect()
-    }
-
-    /// Export installed packages to a file
-    pub fn export(&self, output_path: &std::path::Path) -> Result<(), WingetError> {
-        let output = Command::new("winget")
-            .arg("export")
-            .arg("-o")
-            .arg(output_path)
-            .arg("--accept-source-agreements")
-            .arg("--disable-interactivity")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        let exit_code = output.status.code().unwrap_or(-1);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-
-        self.map_exit_code(exit_code, "export", &stdout, &stderr)
-    }
-
-    /// Import packages from a file
-    pub fn import(&self, input_path: &std::path::Path) -> Result<(), WingetError> {
-        if self.config.dry_run {
-            tracing::info!("Dry run - would import from: {}", input_path.display());
-            return Ok(());
-        }
-
-        let output = Command::new("winget")
-            .arg("import")
-            .arg("-i")
-            .arg(input_path)
-            .arg("--accept-package-agreements")
-            .arg("--accept-source-agreements")
-            .arg("--disable-interactivity")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        let exit_code = output.status.code().unwrap_or(-1);
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let stderr = String::from_utf8_lossy(&output.stderr);
-
-        self.map_exit_code(exit_code, "import", &stdout, &stderr)
-    }
-
-    /// Get available versions for a package
-    pub fn get_available_versions(&self, package_id: &str) -> Result<Vec<String>, WingetError> {
-        let output = Command::new("winget")
-            .arg("show")
-            .arg("--id")
-            .arg(package_id)
-            .arg("--versions")
-            .arg("--accept-source-agreements")
-            .arg("--disable-interactivity")
-            .stdout(Stdio::piped())
-            .stderr(Stdio::piped())
-            .output()?;
-
-        if !output.status.success() {
-            return Err(WingetError::PackageNotFound(package_id.to_string()));
-        }
-
-        let stdout = String::from_utf8_lossy(&output.stdout);
-        let mut versions = Vec::new();
-
-        let mut in_versions = false;
-        for line in stdout.lines() {
-            if line.starts_with("Version") {
-                in_versions = true;
-                continue;
-            }
-            if line.starts_with("---") {
-                continue;
-            }
-            if in_versions && !line.trim().is_empty() {
-                versions.push(line.trim().to_string());
-            }
-        }
-
-        Ok(versions)
-    }
 }
 
 impl Default for WingetProvider {
@@ -1000,6 +741,7 @@ impl Default for WingetProvider {
     }
 }
 
+#[allow(dead_code)] // Test-only: used in module tests
 impl ProviderStatus for WingetProvider {
     fn is_available(&self) -> bool {
         Command::new("winget")
@@ -1032,12 +774,16 @@ impl PackageManager for WingetProvider {
     }
 
     fn is_available(&self) -> bool {
-        <Self as ProviderStatus>::is_available(self)
+        Command::new("winget")
+            .arg("--version")
+            .stdout(Stdio::null())
+            .stderr(Stdio::null())
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false)
     }
 
     fn check_availability(&self) -> Result<super::ProviderInfo, ProviderError> {
-        // We need &mut self for the inherent method but the trait takes &self.
-        // Perform the version check directly (same logic as inherent check_availability).
         let output = Command::new("winget")
             .arg("--version")
             .stdout(Stdio::piped())
@@ -1137,18 +883,6 @@ impl PackageManager for WingetProvider {
     }
 }
 
-/// Information about the winget installation
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub struct WingetInfo {
-    /// Winget version string
-    pub version: String,
-    /// Whether the version meets minimum requirements
-    pub meets_minimum: bool,
-    /// Minimum recommended version
-    pub minimum_version: String,
-}
-
 /// Parse installed version from winget list output
 fn parse_installed_version(output: &str, package_id: &str) -> Result<Option<String>, WingetError> {
     // Clean the output first to remove progress indicators (same as parse_winget_list_output)
@@ -1200,52 +934,6 @@ fn parse_installed_version(output: &str, package_id: &str) -> Result<Option<Stri
 
                 if let Some(v) = version {
                     // Validate it looks like a version
-                    if v.chars().any(|c| c.is_ascii_digit()) {
-                        return Ok(Some(v.to_string()));
-                    }
-                }
-            }
-        }
-    }
-
-    Ok(None)
-}
-
-/// Parse upgrade version from winget upgrade output
-fn parse_upgrade_version(output: &str, package_id: &str) -> Result<Option<String>, WingetError> {
-    let lines: Vec<&str> = output.lines().collect();
-
-    // Find the header line
-    let header_idx = lines
-        .iter()
-        .position(|line| line.contains("Name") && line.contains("Available"));
-
-    if header_idx.is_none() {
-        return Ok(None);
-    }
-
-    let header_line = lines[header_idx.unwrap()];
-    let available_pos = header_line.find("Available");
-
-    if available_pos.is_none() {
-        return Ok(None);
-    }
-
-    let available_pos = available_pos.unwrap();
-
-    // Find the line containing our package
-    for line in lines.iter().skip(header_idx.unwrap() + 2) {
-        let line_lower = line.to_lowercase();
-        let package_lower = package_id.to_lowercase();
-
-        if line_lower.contains(&package_lower) {
-            let chars: Vec<char> = line.chars().collect();
-
-            if available_pos < chars.len() {
-                let version_str: String = chars[available_pos..].iter().collect();
-                let version = version_str.split_whitespace().next();
-
-                if let Some(v) = version {
                     if v.chars().any(|c| c.is_ascii_digit()) {
                         return Ok(Some(v.to_string()));
                     }
@@ -1356,7 +1044,6 @@ fn clean_winget_output(output: &str) -> String {
 }
 
 /// Parse winget list/search output into structured data
-#[allow(dead_code)]
 fn parse_winget_list_output(output: &str) -> Result<Vec<InstalledPackage>, WingetError> {
     let mut packages = Vec::new();
 
@@ -1524,12 +1211,6 @@ pub mod version {
     /// Check if version meets minimum requirement
     pub fn meets_minimum(version: &str, minimum: &str) -> bool {
         compare(version, minimum) != Ordering::Less
-    }
-
-    /// Check if version is in range [min, max)
-    #[allow(dead_code)]
-    pub fn in_range(version: &str, min: &str, max: &str) -> bool {
-        compare(version, min) != Ordering::Less && compare(version, max) == Ordering::Less
     }
 
     /// Check if version matches a constraint (e.g., ">=1.0.0", ">=1.0.0,<2.0.0", "1.2.3")

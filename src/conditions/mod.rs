@@ -3,7 +3,6 @@
 //! Provides a composable, serde-tagged condition system for evaluating
 //! system state: command existence, file/dir checks, environment variables,
 //! PATH contents, Windows registry values, and arbitrary shell commands.
-
 use std::path::Path;
 use std::process::Command;
 
@@ -18,7 +17,7 @@ use crate::config::expand_variables;
 
 /// Errors that can occur during condition evaluation.
 #[derive(Debug, Error)]
-#[allow(dead_code)]
+#[allow(dead_code)] // Variants needed for exhaustive condition error coverage
 pub enum ConditionError {
     #[error("Failed to execute command: {0}")]
     CommandExecution(String),
@@ -36,7 +35,6 @@ pub enum ConditionError {
 
 /// Structured result of evaluating a single [`Condition`].
 #[derive(Debug, Clone, Serialize, Deserialize)]
-#[allow(dead_code)]
 pub struct ConditionResult {
     /// Which condition variant was evaluated (e.g. `"command_exists"`).
     pub condition_type: String,
@@ -62,7 +60,6 @@ pub struct ConditionResult {
 /// use a `type` discriminator field.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-#[allow(dead_code)]
 pub enum Condition {
     /// Check whether a command is available on `PATH`.
     CommandExists { command: String },
@@ -115,7 +112,6 @@ pub enum Condition {
 // ---------------------------------------------------------------------------
 
 /// Evaluate a [`Condition`] and return a structured [`ConditionResult`].
-#[allow(dead_code)]
 pub fn evaluate(condition: &Condition) -> ConditionResult {
     match condition {
         Condition::CommandExists { command } => eval_command_exists(command),

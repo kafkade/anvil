@@ -2,7 +2,6 @@
 //!
 //! This module provides caching for winget query results to avoid
 //! repeated expensive operations when checking package status.
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -16,7 +15,6 @@ use super::get_cache_dir;
 const DEFAULT_CACHE_TTL_MINUTES: i64 = 5;
 
 /// Information about a cached package
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CachedPackageInfo {
     /// Package ID
@@ -108,8 +106,6 @@ impl Default for PackageCache {
         Self::new()
     }
 }
-
-#[allow(dead_code)]
 impl PackageCache {
     /// Create a new empty package cache
     pub fn new() -> Self {
@@ -120,13 +116,6 @@ impl PackageCache {
             created_at: now,
             ttl_minutes: DEFAULT_CACHE_TTL_MINUTES,
         }
-    }
-
-    /// Create a new package cache with custom TTL
-    pub fn with_ttl(ttl_minutes: i64) -> Self {
-        let mut cache = Self::new();
-        cache.ttl_minutes = ttl_minutes;
-        cache
     }
 
     /// Load the package cache from disk
@@ -213,18 +202,6 @@ impl PackageCache {
         self.get(package_id)
     }
 
-    /// Check if a package is cached and the entry is valid
-    pub fn contains(&self, package_id: &str) -> bool {
-        self.get(package_id).is_some()
-    }
-
-    /// Set cached info for a package (legacy unscoped key)
-    pub fn set(&mut self, info: CachedPackageInfo) {
-        let key = info.id.to_lowercase();
-        self.packages.insert(key, info);
-        self.last_updated = Utc::now();
-    }
-
     /// Set cached info for a package using a provider-scoped key
     pub fn set_scoped(&mut self, provider: &str, info: CachedPackageInfo) {
         let key = crate::providers::cache_key(provider, &info.id);
@@ -232,60 +209,10 @@ impl PackageCache {
         self.last_updated = Utc::now();
     }
 
-    /// Remove a package from the cache
-    pub fn remove(&mut self, package_id: &str) {
-        let key = package_id.to_lowercase();
-        self.packages.remove(&key);
-        self.last_updated = Utc::now();
-    }
-
-    /// Invalidate all entries (remove expired entries)
-    pub fn invalidate_expired(&mut self) {
-        let ttl = self.ttl_minutes;
-        self.packages.retain(|_, info| info.is_valid(ttl));
-        self.last_updated = Utc::now();
-    }
-
-    /// Get the number of cached entries
-    pub fn len(&self) -> usize {
-        self.packages.len()
-    }
-
-    /// Check if the cache is empty
-    pub fn is_empty(&self) -> bool {
-        self.packages.is_empty()
-    }
-
-    /// Get all cached packages
-    pub fn all_packages(&self) -> impl Iterator<Item = &CachedPackageInfo> {
-        self.packages.values()
-    }
-
     /// Get all valid cached packages (not expired)
     pub fn valid_packages(&self) -> impl Iterator<Item = &CachedPackageInfo> {
         let ttl = self.ttl_minutes;
         self.packages.values().filter(move |p| p.is_valid(ttl))
-    }
-
-    /// Bulk update cache from a list of installed packages
-    pub fn update_from_installed(&mut self, packages: Vec<CachedPackageInfo>) {
-        for pkg in packages {
-            self.set(pkg);
-        }
-    }
-
-    /// Mark a package as installed (update or create entry) — legacy unscoped
-    pub fn mark_installed(&mut self, package_id: &str, version: &str, source: Option<String>) {
-        let key = package_id.to_lowercase();
-
-        if let Some(existing) = self.packages.get_mut(&key) {
-            existing.is_installed = true;
-            existing.installed_version = Some(version.to_string());
-            existing.source = source;
-            existing.cached_at = Utc::now();
-        } else {
-            self.set(CachedPackageInfo::installed(package_id, version, source));
-        }
     }
 
     /// Mark a package as installed using a provider-scoped cache key
@@ -308,19 +235,6 @@ impl PackageCache {
                 provider,
                 CachedPackageInfo::installed(package_id, version, source),
             );
-        }
-    }
-
-    /// Mark a package as not installed — legacy unscoped
-    pub fn mark_not_installed(&mut self, package_id: &str) {
-        let key = package_id.to_lowercase();
-
-        if let Some(existing) = self.packages.get_mut(&key) {
-            existing.is_installed = false;
-            existing.installed_version = None;
-            existing.cached_at = Utc::now();
-        } else {
-            self.set(CachedPackageInfo::not_installed(package_id));
         }
     }
 
@@ -384,6 +298,55 @@ pub struct CacheStats {
     pub ttl_minutes: i64,
     /// When the cache was last updated
     pub last_updated: DateTime<Utc>,
+}
+
+#[cfg(test)]
+impl PackageCache {
+    /// Check if a package is cached and the entry is valid
+    pub fn contains(&self, package_id: &str) -> bool {
+        self.get(package_id).is_some()
+    }
+
+    /// Set cached info for a package (legacy unscoped key)
+    pub fn set(&mut self, info: CachedPackageInfo) {
+        let key = info.id.to_lowercase();
+        self.packages.insert(key, info);
+        self.last_updated = Utc::now();
+    }
+
+    /// Remove a package from the cache
+    pub fn remove(&mut self, package_id: &str) {
+        let key = package_id.to_lowercase();
+        self.packages.remove(&key);
+        self.last_updated = Utc::now();
+    }
+
+    /// Mark a package as installed (update or create entry) — legacy unscoped
+    pub fn mark_installed(&mut self, package_id: &str, version: &str, source: Option<String>) {
+        let key = package_id.to_lowercase();
+
+        if let Some(existing) = self.packages.get_mut(&key) {
+            existing.is_installed = true;
+            existing.installed_version = Some(version.to_string());
+            existing.source = source;
+            existing.cached_at = Utc::now();
+        } else {
+            self.set(CachedPackageInfo::installed(package_id, version, source));
+        }
+    }
+
+    /// Mark a package as not installed
+    pub fn mark_not_installed(&mut self, package_id: &str) {
+        let key = package_id.to_lowercase();
+
+        if let Some(existing) = self.packages.get_mut(&key) {
+            existing.is_installed = false;
+            existing.installed_version = None;
+            existing.cached_at = Utc::now();
+        } else {
+            self.set(CachedPackageInfo::not_installed(package_id));
+        }
+    }
 }
 
 #[cfg(test)]

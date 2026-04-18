@@ -2,7 +2,6 @@
 //!
 //! Evaluates named assertions (backed by the condition engine) and produces
 //! structured results suitable for health reporting.
-
 use std::time::Instant;
 
 use serde::Serialize;
@@ -16,16 +15,15 @@ use crate::conditions;
 
 /// Status of an evaluated assertion.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize)]
-#[allow(dead_code)]
 pub enum AssertionStatus {
     Pass,
     Fail,
+    #[allow(dead_code)] // Completes the Pass/Fail/Skip triad; used in match patterns
     Skip,
 }
 
 /// Result of evaluating a single assertion.
 #[derive(Debug, Clone, Serialize)]
-#[allow(dead_code)]
 pub struct AssertionResult {
     /// Display name of the assertion.
     pub name: String,
@@ -46,7 +44,6 @@ pub struct AssertionResult {
 /// Each assertion is a `(name, condition)` tuple. The condition is evaluated
 /// via [`conditions::evaluate`] and the outcome is wrapped in an
 /// [`AssertionResult`] with timing information.
-#[allow(dead_code)]
 pub fn evaluate_assertions(assertions: &[(String, conditions::Condition)]) -> Vec<AssertionResult> {
     assertions
         .iter()
@@ -86,7 +83,6 @@ pub fn evaluate_assertions(assertions: &[(String, conditions::Condition)]) -> Ve
 // ---------------------------------------------------------------------------
 
 /// Convert assertion results to [`CheckResult`]s for health reporting.
-#[allow(dead_code)]
 pub fn to_check_results(results: &[AssertionResult]) -> Vec<CheckResult> {
     results
         .iter()

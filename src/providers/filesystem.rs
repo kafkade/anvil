@@ -8,7 +8,6 @@
 //! - Atomic file writes (write to temp, then rename)
 //! - Directory copy with glob pattern support
 //! - Rollback capability for failed operations
-
 use std::fs;
 use std::io::{self, Read, Write};
 use std::path::{Path, PathBuf};
@@ -19,11 +18,11 @@ use tempfile::NamedTempFile;
 use thiserror::Error;
 use walkdir::WalkDir;
 
-use super::{ProviderConfig, ProviderStatus};
+use super::ProviderConfig;
 
 /// Errors that can occur during filesystem operations
-#[allow(dead_code)]
 #[derive(Error, Debug)]
+#[allow(dead_code)] // Variants cover all expected error conditions
 pub enum FilesystemError {
     /// File not found
     #[error("File not found: {0}")]
@@ -108,7 +107,7 @@ pub enum FilesystemError {
 }
 
 /// Result of a file comparison
-#[allow(dead_code)]
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileCompareResult {
     /// Files are identical
@@ -125,26 +124,28 @@ pub enum FileCompareResult {
 }
 
 /// Information about a backup file
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct BackupInfo {
     /// Original file path
+    #[allow(dead_code)] // Part of data structure API
     pub original_path: PathBuf,
     /// Backup file path
     pub backup_path: PathBuf,
     /// Timestamp of the backup
+    #[allow(dead_code)] // Part of data structure API
     pub timestamp: chrono::DateTime<chrono::Utc>,
     /// Hash of the backed up file
     pub hash: String,
 }
 
 /// Result of a file copy operation
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct CopyResult {
     /// Source path
+    #[allow(dead_code)] // Part of data structure API
     pub source: PathBuf,
     /// Destination path
+    #[allow(dead_code)] // Part of data structure API
     pub destination: PathBuf,
     /// Hash of the copied file
     pub hash: String,
@@ -157,21 +158,23 @@ pub struct CopyResult {
 }
 
 /// A recorded file operation for rollback
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct FileOperation {
     /// Type of operation
+    #[allow(dead_code)] // Part of data structure API
     pub op_type: FileOperationType,
     /// Path affected
+    #[allow(dead_code)] // Part of data structure API
     pub path: PathBuf,
     /// Backup path (if applicable)
+    #[allow(dead_code)] // Part of data structure API
     pub backup_path: Option<PathBuf>,
     /// Timestamp
+    #[allow(dead_code)] // Part of data structure API
     pub timestamp: chrono::DateTime<chrono::Utc>,
 }
 
 /// Type of file operation
-#[allow(dead_code)]
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum FileOperationType {
     /// File was created (new)
@@ -183,7 +186,6 @@ pub enum FileOperationType {
 }
 
 /// Options for file copy operations
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct CopyOptions {
     /// Create backup of existing files
@@ -193,6 +195,7 @@ pub struct CopyOptions {
     /// Use atomic writes
     pub atomic: bool,
     /// Overwrite existing files
+    #[allow(dead_code)] // Part of data structure API
     pub overwrite: bool,
     /// Preserve file attributes
     pub preserve_attributes: bool,
@@ -211,7 +214,7 @@ impl Default for CopyOptions {
 }
 
 /// Options for directory copy operations
-#[allow(dead_code)]
+#[allow(dead_code)] // Test-only: used in module tests
 #[derive(Debug, Clone, Default)]
 pub struct DirectoryCopyOptions {
     /// Base copy options
@@ -224,7 +227,7 @@ pub struct DirectoryCopyOptions {
     pub recursive: bool,
 }
 
-#[allow(dead_code)]
+#[allow(dead_code)] // Test-only: used in module tests
 impl DirectoryCopyOptions {
     /// Create new directory copy options with default settings
     pub fn new() -> Self {
@@ -259,8 +262,6 @@ pub struct FilesystemProvider {
     /// Recorded operations for potential rollback
     operations: Vec<FileOperation>,
 }
-
-#[allow(dead_code)]
 impl FilesystemProvider {
     /// Create a new filesystem provider with default configuration
     pub fn new() -> Self {
@@ -284,17 +285,20 @@ impl FilesystemProvider {
     }
 
     /// Set the backup directory
+    #[allow(dead_code)]
     pub fn with_backup_dir(mut self, path: impl Into<PathBuf>) -> Self {
         self.backup_dir = path.into();
         self
     }
 
     /// Get the backup directory
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn backup_dir(&self) -> &Path {
         &self.backup_dir
     }
 
     /// Check if in dry-run mode
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn is_dry_run(&self) -> bool {
         self.config.dry_run
     }
@@ -447,6 +451,7 @@ impl FilesystemProvider {
     }
 
     /// Copy a file from source to destination (simplified interface)
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn copy_file(
         &mut self,
         source: &Path,
@@ -529,6 +534,7 @@ impl FilesystemProvider {
     }
 
     /// Copy a directory recursively with options
+    #[allow(dead_code)]
     pub fn copy_directory(
         &mut self,
         source: &Path,
@@ -616,6 +622,7 @@ impl FilesystemProvider {
     }
 
     /// Expand glob patterns in a source path and return matching files
+    #[allow(dead_code)]
     pub fn expand_glob(
         &self,
         pattern: &str,
@@ -686,6 +693,7 @@ impl FilesystemProvider {
     }
 
     /// Restore a file from backup
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn restore_file(&self, backup: &BackupInfo) -> Result<(), FilesystemError> {
         if !backup.backup_path.exists() {
             return Err(FilesystemError::NotFound(backup.backup_path.clone()));
@@ -723,6 +731,7 @@ impl FilesystemProvider {
     }
 
     /// Rollback all operations recorded in this session
+    #[allow(dead_code)]
     pub fn rollback(&mut self) -> Result<RollbackResult, FilesystemError> {
         let mut result = RollbackResult::default();
 
@@ -781,11 +790,13 @@ impl FilesystemProvider {
     }
 
     /// Clear the operations log without rolling back
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn clear_operations(&mut self) {
         self.operations.clear();
     }
 
     /// Get the current operations log
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn operations(&self) -> &[FileOperation] {
         &self.operations
     }
@@ -826,6 +837,7 @@ impl FilesystemProvider {
     }
 
     /// Compare two files by their content hash
+    #[allow(dead_code)]
     pub fn compare_files(
         &self,
         source: &Path,
@@ -855,16 +867,19 @@ impl FilesystemProvider {
     }
 
     /// Check if a file exists
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn exists(&self, path: &Path) -> bool {
         path.exists()
     }
 
     /// Check if a path is a file
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn is_file(&self, path: &Path) -> bool {
         path.is_file()
     }
 
     /// Check if a path is a directory
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn is_directory(&self, path: &Path) -> bool {
         path.is_dir()
     }
@@ -887,6 +902,7 @@ impl FilesystemProvider {
     }
 
     /// Read a file's contents to a string
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn read_to_string(&self, path: &Path) -> Result<String, FilesystemError> {
         fs::read_to_string(path).map_err(|e| {
             if e.kind() == io::ErrorKind::NotFound {
@@ -946,6 +962,7 @@ impl FilesystemProvider {
     }
 
     /// Write content to a file without atomic write
+    #[allow(dead_code)] // Module API: used in tests and future CLI integration
     pub fn write_direct(&self, path: &Path, content: &str) -> Result<(), FilesystemError> {
         // Create parent directory if needed
         if let Some(parent) = path.parent() {
@@ -972,23 +989,8 @@ impl Default for FilesystemProvider {
     }
 }
 
-impl ProviderStatus for FilesystemProvider {
-    fn is_available(&self) -> bool {
-        // Filesystem is always available
-        true
-    }
-
-    fn name(&self) -> &'static str {
-        "Filesystem"
-    }
-
-    fn version(&self) -> Option<String> {
-        None
-    }
-}
-
 /// Result of a rollback operation
-#[allow(dead_code)]
+#[allow(dead_code)] // Part of data structure API
 #[derive(Debug, Default)]
 pub struct RollbackResult {
     /// Number of files removed (created during session)
@@ -998,8 +1000,7 @@ pub struct RollbackResult {
     /// Number of directories removed
     pub directories_removed: usize,
 }
-
-#[allow(dead_code)]
+#[allow(dead_code)] // Part of data structure API
 impl RollbackResult {
     /// Total number of changes reverted
     pub fn total(&self) -> usize {

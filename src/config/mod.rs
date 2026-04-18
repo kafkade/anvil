@@ -2,7 +2,6 @@
 //!
 //! This module handles parsing and validation of workload definitions,
 //! including support for workload inheritance and variable expansion.
-
 pub mod global;
 pub mod inheritance;
 pub mod schema;
@@ -85,7 +84,7 @@ impl ConfigManager {
     }
 
     /// Create a configuration manager with custom search paths
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn with_paths(paths: Vec<PathBuf>) -> Self {
         Self {
             search_paths: paths,
@@ -94,7 +93,7 @@ impl ConfigManager {
     }
 
     /// Get the current search paths (user-configured + defaults)
-    #[allow(dead_code)]
+    #[cfg(test)]
     pub fn search_paths(&self) -> &[PathBuf] {
         &self.search_paths
     }
@@ -314,7 +313,6 @@ impl Default for ConfigManager {
 }
 
 /// Basic workload information for listing
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct WorkloadInfo {
     /// Workload name
@@ -496,7 +494,7 @@ pub fn expand_variables_with_context(
 }
 
 /// Get all available variables and their current values
-#[allow(dead_code)]
+#[cfg(test)]
 pub fn get_available_variables(workload_name: Option<&str>) -> HashMap<String, String> {
     let mut vars = HashMap::new();
 
@@ -564,83 +562,6 @@ pub fn get_available_variables(workload_name: Option<&str>) -> HashMap<String, S
     );
 
     vars
-}
-
-/// Validate that all path variables in a workload can be expanded
-#[allow(dead_code)]
-pub fn validate_path_variables(workload: &Workload) -> Vec<PathValidationWarning> {
-    let mut warnings = Vec::new();
-
-    // Check file destinations
-    if let Some(files) = &workload.files {
-        for file in files {
-            let expanded = expand_variables(&file.destination, Some(&workload.name));
-
-            // Check if any variables were not expanded
-            if expanded.contains("${") {
-                warnings.push(PathValidationWarning {
-                    path: file.destination.clone(),
-                    message: format!(
-                        "Unexpanded variable in path: {}",
-                        extract_unexpanded_var(&expanded)
-                    ),
-                    severity: WarningSeverity::Warning,
-                });
-            }
-
-            // Check if parent directory exists
-            let expanded_path = Path::new(&expanded);
-            if let Some(parent) = expanded_path.parent() {
-                if !parent.to_string_lossy().is_empty()
-                    && !parent.exists()
-                    && !parent.to_string_lossy().starts_with('~')
-                {
-                    warnings.push(PathValidationWarning {
-                        path: file.destination.clone(),
-                        message: format!("Parent directory does not exist: {}", parent.display()),
-                        severity: WarningSeverity::Info,
-                    });
-                }
-            }
-        }
-    }
-
-    warnings
-}
-
-/// Extract the first unexpanded variable from a string
-#[allow(dead_code)]
-fn extract_unexpanded_var(s: &str) -> String {
-    if let Some(start) = s.find("${") {
-        if let Some(end) = s[start..].find('}') {
-            return s[start..start + end + 1].to_string();
-        }
-    }
-    "unknown".to_string()
-}
-
-/// Warning from path validation
-#[allow(dead_code)]
-#[derive(Debug, Clone)]
-pub struct PathValidationWarning {
-    /// The path that triggered the warning
-    pub path: String,
-    /// Warning message
-    pub message: String,
-    /// Severity of the warning
-    pub severity: WarningSeverity,
-}
-
-/// Severity level for path validation warnings
-#[allow(dead_code)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum WarningSeverity {
-    /// Informational message
-    Info,
-    /// Warning that might cause issues
-    Warning,
-    /// Error that will likely cause failure
-    Error,
 }
 
 #[cfg(test)]

@@ -4,7 +4,6 @@
 //! - `winget`: Windows Package Manager for package installation
 //! - `filesystem`: File operations with backup and hashing
 //! - `script`: PowerShell script execution
-
 pub mod backup;
 pub mod filesystem;
 pub mod script;
@@ -20,8 +19,8 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 /// Errors that can occur in providers
-#[allow(dead_code)]
 #[derive(Error, Debug)]
+#[allow(dead_code)] // Variants cover all expected error conditions
 pub enum ProviderError {
     /// Package-related errors from winget
     #[error("Winget error: {0}")]
@@ -56,12 +55,8 @@ pub enum ProviderError {
     Timeout(u64),
 }
 
-/// Result type alias for provider operations
-#[allow(dead_code)]
-pub type ProviderResult<T> = Result<T, ProviderError>;
-
 /// Trait for providers that can report their status
-#[allow(dead_code)]
+#[allow(dead_code)] // Test-only: used in module tests
 pub trait ProviderStatus {
     /// Check if the provider is available and functional
     fn is_available(&self) -> bool;
@@ -74,7 +69,6 @@ pub trait ProviderStatus {
 }
 
 /// Common configuration for providers
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct ProviderConfig {
     /// Enable verbose output
@@ -82,9 +76,6 @@ pub struct ProviderConfig {
 
     /// Dry run mode - don't make actual changes
     pub dry_run: bool,
-
-    /// Default timeout in seconds for operations
-    pub timeout_seconds: u64,
 
     /// Number of retry attempts for transient failures
     pub retry_count: u32,
@@ -95,50 +86,16 @@ impl Default for ProviderConfig {
         Self {
             verbose: false,
             dry_run: false,
-            timeout_seconds: 300,
             retry_count: 3,
         }
     }
 }
-
-#[allow(dead_code)]
-impl ProviderConfig {
-    /// Create a new provider configuration with verbose output
-    pub fn verbose() -> Self {
-        Self {
-            verbose: true,
-            ..Default::default()
-        }
-    }
-
-    /// Create a new provider configuration for dry run
-    pub fn dry_run() -> Self {
-        Self {
-            dry_run: true,
-            ..Default::default()
-        }
-    }
-
-    /// Set the timeout in seconds
-    pub fn with_timeout(mut self, seconds: u64) -> Self {
-        self.timeout_seconds = seconds;
-        self
-    }
-
-    /// Set the retry count
-    pub fn with_retries(mut self, count: u32) -> Self {
-        self.retry_count = count;
-        self
-    }
-}
-
 // ---------------------------------------------------------------------------
 // Package-manager abstraction layer
 // ---------------------------------------------------------------------------
 
 /// A package specification that is manager-agnostic.
 /// Each package manager can interpret these fields as needed.
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PackageSpec {
     /// Package identifier (e.g. "Git.Git" for winget, "git" for brew)
@@ -155,14 +112,15 @@ pub struct PackageSpec {
 }
 
 /// Result of installing a package
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PackageInstallResult {
     /// Package that was installed
+    #[allow(dead_code)] // Test-only: used in module tests
     pub package_id: String,
     /// Whether the installation succeeded
     pub success: bool,
     /// Whether the package was already installed (no-op)
+    #[allow(dead_code)] // Test-only: used in module tests
     pub already_installed: bool,
     /// Version that was installed
     pub installed_version: Option<String>,
@@ -173,7 +131,6 @@ pub struct PackageInstallResult {
 }
 
 /// Information about an installed package
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize)]
 pub struct InstalledPackage {
     /// Package identifier
@@ -200,12 +157,12 @@ pub struct ProviderInfo {
 /// Implementations provide package installation, querying, and listing
 /// capabilities. Only `winget` is implemented today; `brew` and `apt`
 /// are planned for future cross-platform support.
-#[allow(dead_code)]
 pub trait PackageManager: Send + Sync {
     /// Return the manager's human-readable name (e.g., "winget", "brew", "apt")
     fn name(&self) -> &str;
 
     /// Check whether the manager binary is available on this system
+    #[allow(dead_code)] // Test-only: used in module tests
     fn is_available(&self) -> bool;
 
     /// Check availability and return version / compatibility info
@@ -226,12 +183,9 @@ pub trait PackageManager: Send + Sync {
 
 /// Registry of available package managers.
 /// At runtime, managers are detected and only available ones are used.
-#[allow(dead_code)]
 pub struct PackageManagerRegistry {
     managers: Vec<Box<dyn PackageManager>>,
 }
-
-#[allow(dead_code)]
 impl PackageManagerRegistry {
     /// Create a new registry with no managers
     pub fn new() -> Self {
@@ -241,6 +195,7 @@ impl PackageManagerRegistry {
     }
 
     /// Register a package manager
+    #[allow(dead_code)] // Called inside #[cfg(target_os)] blocks and tests
     pub fn register(&mut self, manager: Box<dyn PackageManager>) {
         self.managers.push(manager);
     }
@@ -254,6 +209,7 @@ impl PackageManagerRegistry {
     }
 
     /// Get all available managers (those whose is_available() returns true)
+    #[allow(dead_code)] // Test-only: used in module tests
     pub fn available(&self) -> Vec<&dyn PackageManager> {
         self.managers
             .iter()
@@ -263,6 +219,7 @@ impl PackageManagerRegistry {
     }
 
     /// Get all registered manager names
+    #[allow(dead_code)] // Test-only: used in module tests
     pub fn registered_names(&self) -> Vec<&str> {
         self.managers.iter().map(|m| m.name()).collect()
     }

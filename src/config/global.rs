@@ -2,7 +2,6 @@
 //!
 //! This module handles the global configuration file at `~/.anvil/config.yaml`
 //! which stores user preferences and default settings.
-
 use std::path::PathBuf;
 
 use anyhow::{Context, Result};
@@ -248,15 +247,16 @@ impl GlobalConfig {
 
         items
     }
+}
 
+#[cfg(test)]
+impl GlobalConfig {
     /// Reset configuration to defaults
-    #[allow(dead_code)]
     pub fn reset(&mut self) {
         *self = Self::default();
     }
 
     /// Add a workload search path
-    #[allow(dead_code)]
     pub fn add_workload_path(&mut self, path: impl Into<String>) {
         let path_str = path.into();
         if !self.workloads.paths.contains(&path_str) {
@@ -265,7 +265,6 @@ impl GlobalConfig {
     }
 
     /// Remove a workload search path
-    #[allow(dead_code)]
     pub fn remove_workload_path(&mut self, path: &str) -> bool {
         if let Some(pos) = self.workloads.paths.iter().position(|p| p == path) {
             self.workloads.paths.remove(pos);
