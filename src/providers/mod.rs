@@ -13,6 +13,7 @@ pub mod winget;
 
 // Re-export commonly used types
 pub use filesystem::FilesystemProvider;
+#[cfg(target_os = "windows")]
 pub use winget::WingetProvider;
 
 use serde::{Deserialize, Serialize};
@@ -297,12 +298,13 @@ impl From<&crate::config::workload::WingetPackage> for PackageSpec {
 
 /// Build a [`PackageManagerRegistry`] with all providers appropriate
 /// for the current platform, configured with the given settings.
-pub fn create_registry(config: &ProviderConfig) -> PackageManagerRegistry {
+pub fn create_registry(_config: &ProviderConfig) -> PackageManagerRegistry {
+    #[allow(unused_mut)]
     let mut registry = PackageManagerRegistry::new();
 
     #[cfg(target_os = "windows")]
     {
-        registry.register(Box::new(WingetProvider::with_config(config.clone())));
+        registry.register(Box::new(WingetProvider::with_config(_config.clone())));
     }
 
     // Future: register Homebrew / APT providers on their respective platforms
