@@ -184,7 +184,9 @@ impl PackageCache {
         Ok(cache_dir.join("packages.json"))
     }
 
-    /// Get cached info for a package
+    /// Get cached info for a package using a provider-scoped key.
+    /// Falls back to unscoped (legacy) key if the scoped key is not found,
+    /// ensuring backward compatibility with existing cache files.
     pub fn get(&self, package_id: &str) -> Option<&CachedPackageInfo> {
         let key = package_id.to_lowercase();
         let info = self.packages.get(&key)?;
@@ -197,14 +199,35 @@ impl PackageCache {
         }
     }
 
+    /// Get cached info for a package using a provider-scoped key.
+    /// Tries the scoped key `provider:id` first, then falls back to the
+    /// legacy unscoped key `id` for backward compatibility.
+    pub fn get_scoped(&self, provider: &str, package_id: &str) -> Option<&CachedPackageInfo> {
+        let scoped_key = crate::providers::cache_key(provider, package_id);
+        if let Some(info) = self.packages.get(&scoped_key) {
+            if info.is_valid(self.ttl_minutes) {
+                return Some(info);
+            }
+        }
+        // Fallback to legacy unscoped key
+        self.get(package_id)
+    }
+
     /// Check if a package is cached and the entry is valid
     pub fn contains(&self, package_id: &str) -> bool {
         self.get(package_id).is_some()
     }
 
-    /// Set cached info for a package
+    /// Set cached info for a package (legacy unscoped key)
     pub fn set(&mut self, info: CachedPackageInfo) {
         let key = info.id.to_lowercase();
+        self.packages.insert(key, info);
+        self.last_updated = Utc::now();
+    }
+
+    /// Set cached info for a package using a provider-scoped key
+    pub fn set_scoped(&mut self, provider: &str, info: CachedPackageInfo) {
+        let key = crate::providers::cache_key(provider, &info.id);
         self.packages.insert(key, info);
         self.last_updated = Utc::now();
     }
@@ -251,7 +274,7 @@ impl PackageCache {
         }
     }
 
-    /// Mark a package as installed (update or create entry)
+    /// Mark a package as installed (update or create entry) — legacy unscoped
     pub fn mark_installed(&mut self, package_id: &str, version: &str, source: Option<String>) {
         let key = package_id.to_lowercase();
 
@@ -265,7 +288,30 @@ impl PackageCache {
         }
     }
 
-    /// Mark a package as not installed
+    /// Mark a package as installed using a provider-scoped cache key
+    pub fn mark_installed_scoped(
+        &mut self,
+        provider: &str,
+        package_id: &str,
+        version: &str,
+        source: Option<String>,
+    ) {
+        let key = crate::providers::cache_key(provider, package_id);
+
+        if let Some(existing) = self.packages.get_mut(&key) {
+            existing.is_installed = true;
+            existing.installed_version = Some(version.to_string());
+            existing.source = source;
+            existing.cached_at = Utc::now();
+        } else {
+            self.set_scoped(
+                provider,
+                CachedPackageInfo::installed(package_id, version, source),
+            );
+        }
+    }
+
+    /// Mark a package as not installed — legacy unscoped
     pub fn mark_not_installed(&mut self, package_id: &str) {
         let key = package_id.to_lowercase();
 
@@ -275,6 +321,19 @@ impl PackageCache {
             existing.cached_at = Utc::now();
         } else {
             self.set(CachedPackageInfo::not_installed(package_id));
+        }
+    }
+
+    /// Mark a package as not installed using a provider-scoped cache key
+    pub fn mark_not_installed_scoped(&mut self, provider: &str, package_id: &str) {
+        let key = crate::providers::cache_key(provider, package_id);
+
+        if let Some(existing) = self.packages.get_mut(&key) {
+            existing.is_installed = false;
+            existing.installed_version = None;
+            existing.cached_at = Utc::now();
+        } else {
+            self.set_scoped(provider, CachedPackageInfo::not_installed(package_id));
         }
     }
 

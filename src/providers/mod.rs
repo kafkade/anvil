@@ -148,6 +148,9 @@ pub struct PackageSpec {
     /// Package source or tap
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<String>,
+    /// Override arguments passed to the installer (e.g. `--override "/VERYSILENT"`)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub override_args: Option<Vec<String>>,
 }
 
 /// Result of installing a package
@@ -182,6 +185,15 @@ pub struct InstalledPackage {
     pub source: Option<String>,
 }
 
+/// Information about a package manager provider (version and compatibility)
+#[derive(Debug, Clone)]
+pub struct ProviderInfo {
+    /// Provider version string (e.g. "v1.7.10")
+    pub version: String,
+    /// Whether the version meets the minimum requirements
+    pub meets_minimum: bool,
+}
+
 /// Trait abstracting a system package manager (winget, brew, apt, etc.)
 ///
 /// Implementations provide package installation, querying, and listing
@@ -195,8 +207,14 @@ pub trait PackageManager: Send + Sync {
     /// Check whether the manager binary is available on this system
     fn is_available(&self) -> bool;
 
+    /// Check availability and return version / compatibility info
+    fn check_availability(&self) -> Result<ProviderInfo, ProviderError>;
+
     /// Install a package from a specification
     fn install(&self, package: &PackageSpec) -> Result<PackageInstallResult, ProviderError>;
+
+    /// Upgrade an already-installed package to its latest version
+    fn upgrade(&self, package_id: &str) -> Result<PackageInstallResult, ProviderError>;
 
     /// Check whether a package is installed, returning its version if so
     fn is_installed(&self, package_id: &str) -> Result<Option<String>, ProviderError>;
@@ -249,6 +267,55 @@ impl PackageManagerRegistry {
     }
 }
 
+// ---------------------------------------------------------------------------
+// Conversion: WingetPackage → PackageSpec (lossless)
+// ---------------------------------------------------------------------------
+
+impl From<&crate::config::workload::WingetPackage> for PackageSpec {
+    fn from(wp: &crate::config::workload::WingetPackage) -> Self {
+        // Merge override_args and override_str into a single list
+        let mut args: Vec<String> = Vec::new();
+        if let Some(ref oa) = wp.override_args {
+            args.extend(oa.iter().cloned());
+        }
+        if let Some(ref os) = wp.override_str {
+            args.extend(os.iter().cloned());
+        }
+
+        PackageSpec {
+            id: wp.id.clone(),
+            version: wp.version.clone(),
+            source: wp.source.clone(),
+            override_args: if args.is_empty() { None } else { Some(args) },
+        }
+    }
+}
+
+// ---------------------------------------------------------------------------
+// Factory: config-aware registry
+// ---------------------------------------------------------------------------
+
+/// Build a [`PackageManagerRegistry`] with all providers appropriate
+/// for the current platform, configured with the given settings.
+pub fn create_registry(config: &ProviderConfig) -> PackageManagerRegistry {
+    let mut registry = PackageManagerRegistry::new();
+
+    #[cfg(target_os = "windows")]
+    {
+        registry.register(Box::new(WingetProvider::with_config(config.clone())));
+    }
+
+    // Future: register Homebrew / APT providers on their respective platforms
+
+    registry
+}
+
+/// Generate a provider-scoped cache key to prevent collisions across
+/// package managers (e.g. `winget:git.git` vs `brew:git`).
+pub fn cache_key(provider: &str, package_id: &str) -> String {
+    format!("{}:{}", provider, package_id.to_lowercase())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -289,6 +356,20 @@ mod tests {
             self.available
         }
 
+        fn check_availability(&self) -> Result<ProviderInfo, ProviderError> {
+            if self.available {
+                Ok(ProviderInfo {
+                    version: "1.0.0".to_string(),
+                    meets_minimum: true,
+                })
+            } else {
+                Err(ProviderError::Io(std::io::Error::new(
+                    std::io::ErrorKind::NotFound,
+                    "not available",
+                )))
+            }
+        }
+
         fn install(&self, package: &PackageSpec) -> Result<PackageInstallResult, ProviderError> {
             Ok(PackageInstallResult {
                 package_id: package.id.clone(),
@@ -297,6 +378,17 @@ mod tests {
                 installed_version: package.version.clone(),
                 needs_reboot: false,
                 message: format!("Installed {}", package.id),
+            })
+        }
+
+        fn upgrade(&self, package_id: &str) -> Result<PackageInstallResult, ProviderError> {
+            Ok(PackageInstallResult {
+                package_id: package_id.to_string(),
+                success: true,
+                already_installed: false,
+                installed_version: None,
+                needs_reboot: false,
+                message: format!("Upgraded {}", package_id),
             })
         }
 
@@ -321,10 +413,12 @@ mod tests {
             id: "Git.Git".to_string(),
             version: Some("2.42.0".to_string()),
             source: None,
+            override_args: None,
         };
         assert_eq!(spec.id, "Git.Git");
         assert_eq!(spec.version.as_deref(), Some("2.42.0"));
         assert!(spec.source.is_none());
+        assert!(spec.override_args.is_none());
     }
 
     #[test]
@@ -333,6 +427,7 @@ mod tests {
             id: "Git.Git".to_string(),
             version: Some("2.42.0".to_string()),
             source: Some("winget".to_string()),
+            override_args: None,
         };
         let json = serde_json::to_string(&spec).unwrap();
         let deserialized: PackageSpec = serde_json::from_str(&json).unwrap();
@@ -411,6 +506,7 @@ mod tests {
             id: "Pkg.Test".to_string(),
             version: Some("1.0.0".to_string()),
             source: None,
+            override_args: None,
         };
         let result = manager.install(&spec).unwrap();
         assert!(result.success);

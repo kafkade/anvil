@@ -19,7 +19,8 @@ use crate::providers::backup::compute_file_hash;
 use crate::providers::script::{
     OutputMode, ScriptConfig, ScriptContext, ScriptPhase, ScriptProvider,
 };
-use crate::providers::winget::{version, WingetProvider};
+use crate::providers::winget::version;
+use crate::providers::{create_registry, ProviderConfig};
 use crate::state::{CachedPackageInfo, FileStateManager, PackageCache};
 
 use super::resolve_workload_path;
@@ -166,7 +167,12 @@ fn check_packages(
     let mut packages_to_fix = Vec::new();
     let mut packages_to_update = Vec::new();
 
-    let provider = WingetProvider::new();
+    let registry = create_registry(&ProviderConfig::default());
+    let provider = match registry.get("winget") {
+        Some(p) => p,
+        None => return Ok((results, packages_to_fix, packages_to_update)),
+    };
+    let provider_name = provider.name();
 
     // Load cache
     let mut cache = PackageCache::load().unwrap_or_default();
@@ -187,7 +193,7 @@ fn check_packages(
     let mut uncached_package_ids: Vec<&str> = Vec::new();
 
     for package in packages {
-        let cached = cache.get(&package.id);
+        let cached = cache.get_scoped(provider_name, &package.id);
         if let Some(cached_info) = cached {
             cached_packages.insert(
                 package.id.to_lowercase(),
@@ -212,13 +218,13 @@ fn check_packages(
             );
         }
 
-        // Get all installed packages in one call
+        // Get all installed packages in one call via trait
         match provider.list_installed() {
             Ok(installed_list) => {
                 // Build a lookup map of installed packages (lowercase ID -> version)
                 let installed_map: HashMap<String, String> = installed_list
                     .into_iter()
-                    .map(|p| (p.id.to_lowercase(), p.version))
+                    .filter_map(|p| p.version.map(|v| (p.id.to_lowercase(), v)))
                     .collect();
 
                 // Check each uncached package against the installed list
@@ -227,13 +233,13 @@ fn check_packages(
                     let pkg_id_lower = pkg_id.to_lowercase();
                     if let Some(version) = installed_map.get(&pkg_id_lower) {
                         batch_installed.insert(pkg_id_lower.clone(), Some(version.clone()));
-                        // Update cache
+                        // Update cache with scoped key
                         let info = CachedPackageInfo::installed(
                             *pkg_id,
                             version.clone(),
                             Some("winget".to_string()),
                         );
-                        cache.set(info);
+                        cache.set_scoped(provider_name, info);
                     } else {
                         // Package not found in batch query, will check individually
                         not_found_in_batch.push(*pkg_id);
@@ -251,7 +257,7 @@ fn check_packages(
                             pkg_id
                         );
                     }
-                    match provider.get_installed_version(pkg_id) {
+                    match provider.is_installed(pkg_id) {
                         Ok(Some(version)) => {
                             batch_installed.insert(pkg_id_lower.clone(), Some(version.clone()));
                             let info = CachedPackageInfo::installed(
@@ -259,11 +265,14 @@ fn check_packages(
                                 version,
                                 Some("winget".to_string()),
                             );
-                            cache.set(info);
+                            cache.set_scoped(provider_name, info);
                         }
                         Ok(None) | Err(_) => {
                             batch_installed.insert(pkg_id_lower.clone(), None);
-                            cache.set(CachedPackageInfo::not_installed(pkg_id));
+                            cache.set_scoped(
+                                provider_name,
+                                CachedPackageInfo::not_installed(pkg_id),
+                            );
                         }
                     }
                 }

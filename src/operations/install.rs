@@ -26,7 +26,7 @@ use crate::providers::script::{
     ScriptPhase, ScriptProvider,
 };
 use crate::providers::template::TemplateProcessor;
-use crate::providers::{FilesystemProvider, ProviderConfig, WingetProvider};
+use crate::providers::{create_registry, FilesystemProvider, PackageSpec, ProviderConfig};
 use crate::state::{FileState, FileStateManager, InstallationState, PackageCache};
 
 use super::{resolve_workload_path, OperationContext};
@@ -288,7 +288,11 @@ fn check_winget_availability(context: &OperationContext) -> Result<()> {
         None
     };
 
-    let mut provider = WingetProvider::new();
+    let registry = create_registry(&ProviderConfig::default());
+    let provider = registry
+        .get("winget")
+        .ok_or_else(|| anyhow::anyhow!("Winget provider not registered on this platform"))?;
+
     match provider.check_availability() {
         Ok(info) => {
             if let Some(s) = spinner {
@@ -301,8 +305,8 @@ fn check_winget_availability(context: &OperationContext) -> Result<()> {
 
             if !info.meets_minimum {
                 print_warning(&format!(
-                    "Winget version {} is below recommended minimum {}. Some features may not work correctly.",
-                    info.version, info.minimum_version
+                    "Winget version {} is below recommended minimum. Some features may not work correctly.",
+                    info.version
                 ));
             }
 
@@ -315,7 +319,10 @@ fn check_winget_availability(context: &OperationContext) -> Result<()> {
 
             print_error("Windows Package Manager (winget) is not available.");
             println!();
-            println!("{}", WingetProvider::get_installation_instructions());
+            println!(
+                "{}",
+                crate::providers::winget::WingetProvider::get_installation_instructions()
+            );
             anyhow::bail!("Winget not available: {}", e);
         }
     }
@@ -342,7 +349,12 @@ fn generate_installation_plan(
         None
     };
 
-    let provider = WingetProvider::new();
+    let registry = create_registry(&ProviderConfig::default());
+    let provider = registry
+        .get("winget")
+        .ok_or_else(|| anyhow::anyhow!("Winget provider not registered"))?;
+    let provider_name = provider.name();
+
     let mut cache = PackageCache::load().unwrap_or_default();
     let mut plan = Vec::with_capacity(packages.len());
 
@@ -354,24 +366,27 @@ fn generate_installation_plan(
             available_version: None,
         };
 
-        // Check cache first
-        if let Some(cached) = cache.get(&package.id) {
+        // Check cache first (scoped key with legacy fallback)
+        if let Some(cached) = cache.get_scoped(provider_name, &package.id) {
             entry.installed_version = cached.installed_version.clone();
             if cached.is_installed {
                 entry.action = determine_action(package, &entry.installed_version, args);
             }
         } else {
-            // Query winget
+            // Query via trait
             match provider.is_installed(&package.id) {
-                Ok(true) => {
-                    if let Ok(Some(version)) = provider.get_installed_version(&package.id) {
-                        cache.mark_installed(&package.id, &version, Some("winget".to_string()));
-                        entry.installed_version = Some(version);
-                    }
+                Ok(Some(version)) => {
+                    cache.mark_installed_scoped(
+                        provider_name,
+                        &package.id,
+                        &version,
+                        Some("winget".to_string()),
+                    );
+                    entry.installed_version = Some(version);
                     entry.action = determine_action(package, &entry.installed_version, args);
                 }
-                Ok(false) => {
-                    cache.mark_not_installed(&package.id);
+                Ok(None) => {
+                    cache.mark_not_installed_scoped(provider_name, &package.id);
                     entry.action = PackageAction::Install;
                 }
                 Err(e) => {
@@ -847,13 +862,16 @@ fn install_packages_with_progress(
         Arc::new(ProgressManager::quiet())
     };
 
-    // Create provider
-    let provider = WingetProvider::with_config(ProviderConfig {
+    // Create provider via registry
+    let registry = create_registry(&ProviderConfig {
         dry_run: context.dry_run,
         verbose: context.verbosity >= 2,
         retry_count: 3,
         ..Default::default()
     });
+    let provider = registry
+        .get("winget")
+        .ok_or_else(|| anyhow::anyhow!("Winget provider not registered"))?;
 
     let mut summary = InstallationSummary {
         skipped: total_skipped,
@@ -873,9 +891,10 @@ fn install_packages_with_progress(
 
         let start_time = Instant::now();
 
-        // Perform installation based on action
+        // Perform installation based on action using PackageSpec
+        let spec = PackageSpec::from(&entry.package);
         let result = match entry.action {
-            PackageAction::Install | PackageAction::Reinstall => provider.install(&entry.package),
+            PackageAction::Install | PackageAction::Reinstall => provider.install(&spec),
             PackageAction::Upgrade => provider.upgrade(&entry.package.id),
             PackageAction::Skip => unreachable!(),
         };
@@ -915,7 +934,7 @@ fn install_packages_with_progress(
                                 record.mark_upgraded(
                                     install_result.installed_version.clone(),
                                     duration.as_secs_f64(),
-                                    install_result.reboot_required,
+                                    install_result.needs_reboot,
                                 );
                                 summary.upgraded += 1;
                             }
@@ -923,27 +942,26 @@ fn install_packages_with_progress(
                                 record.mark_installed(
                                     install_result.installed_version.clone(),
                                     duration.as_secs_f64(),
-                                    install_result.reboot_required,
+                                    install_result.needs_reboot,
                                 );
                                 summary.installed += 1;
                             }
                         }
                     }
 
-                    if install_result.reboot_required {
+                    if install_result.needs_reboot {
                         summary.reboot_required = true;
                     }
                 } else {
-                    install_progress.fail_package(
-                        idx,
-                        install_result.message.as_deref().unwrap_or("Unknown error"),
-                    );
+                    let fail_msg = if install_result.message.is_empty() {
+                        "Unknown error"
+                    } else {
+                        &install_result.message
+                    };
+                    install_progress.fail_package(idx, fail_msg);
 
                     if let Some(record) = state.get_package_mut(&entry.package.id) {
-                        record.mark_failed(
-                            install_result.message.unwrap_or_default(),
-                            duration.as_secs_f64(),
-                        );
+                        record.mark_failed(&install_result.message, duration.as_secs_f64());
                     }
 
                     summary.failed += 1;
@@ -971,9 +989,11 @@ fn install_packages_with_progress(
                     summary.failed += 1;
                     summary.failed_packages.push(entry.package.id.clone());
 
-                    // Print suggestion if available
-                    if let Some(suggestion) = e.suggestion() {
-                        install_progress.println(&format!("    Hint: {}", suggestion));
+                    // Print suggestion if available (extract from inner WingetError)
+                    if let crate::providers::ProviderError::Winget(ref winget_err) = e {
+                        if let Some(suggestion) = winget_err.suggestion() {
+                            install_progress.println(&format!("    Hint: {}", suggestion));
+                        }
                     }
                 }
             }
