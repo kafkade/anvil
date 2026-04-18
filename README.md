@@ -159,11 +159,11 @@ Global Options:
 
 | Document | Description |
 |----------|-------------|
-| [User Guide](https://anvil.kafkade.com/user-guide.html) | Complete usage instructions |
-| [Workload Authoring](https://anvil.kafkade.com/workload-authoring.html) | Creating custom workloads |
-| [Troubleshooting](https://anvil.kafkade.com/troubleshooting.html) | Common issues and solutions |
-| [Specification](https://anvil.kafkade.com/specification.html) | Technical spec and roadmap |
-| [Architecture](https://anvil.kafkade.com/architecture.html) | Internal code architecture |
+| [User Guide](https://anvil.kafkade.com/docs/user-guide.html) | Complete usage instructions |
+| [Workload Authoring](https://anvil.kafkade.com/docs/workload-authoring.html) | Creating custom workloads |
+| [Troubleshooting](https://anvil.kafkade.com/docs/troubleshooting.html) | Common issues and solutions |
+| [Specification](https://anvil.kafkade.com/docs/specification.html) | Technical spec and roadmap |
+| [Architecture](https://anvil.kafkade.com/docs/architecture.html) | Internal code architecture |
 | [Contributing](CONTRIBUTING.md) | Contribution guidelines |
 | [Changelog](CHANGELOG.md) | Version history |
 
@@ -175,7 +175,7 @@ Global Options:
 - [Windows Package Manager (winget)](https://github.com/microsoft/winget-cli)
 - PowerShell 5.1 or later
 
-> Cross-platform support (macOS via Homebrew, Linux via APT) is on the [roadmap](https://anvil.kafkade.com/specification.html#8-roadmap).
+> Cross-platform support (macOS via Homebrew, Linux via APT) is on the [roadmap](https://anvil.kafkade.com/docs/specification.html#8-roadmap).
 
 ## 🛠️ Building from Source
 

@@ -201,13 +201,13 @@ impl SchemaValidator {
                 if scripts.get("health_check").is_some() {
                     result.add_error(
                         "scripts.health_check",
-                        "scripts.health_check has been removed in v1.0. Use declarative assertions instead. See https://anvil.kafkade.com/workload-authoring.html",
+                        "scripts.health_check has been removed in v1.0. Use declarative assertions instead. See https://anvil.kafkade.com/docs/workload-authoring.html",
                     );
                 }
                 if scripts.get("pre_install").is_some() || scripts.get("post_install").is_some() {
                     result.add_error(
                         "scripts",
-                        "scripts.pre_install and scripts.post_install have been removed in v1.0. Use the commands block instead. See https://anvil.kafkade.com/workload-authoring.html",
+                        "scripts.pre_install and scripts.post_install have been removed in v1.0. Use the commands block instead. See https://anvil.kafkade.com/docs/workload-authoring.html",
                     );
                 }
             }

@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Anvil — Forge Your Perfect Workstation</title>
+  <meta name="description" content="Declarative workstation configuration management. Define your dev environment in YAML, Anvil handles the rest.">
+  <meta name="theme-color" content="#0f172a">
+  <meta property="og:title" content="Anvil — Declarative Workstation Configuration">
+  <meta property="og:description" content="Define your development environment in YAML. Anvil installs packages, copies configs, runs commands, and validates health.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://anvil.kafkade.com">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Space+Grotesk:wght@600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+  <!-- Navigation -->
+  <nav class="nav" id="nav">
+    <div class="nav-inner">
+      <a href="/" class="nav-logo" aria-label="Anvil home">
+        <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+          <defs>
+            <linearGradient id="nav-forge" x1="0%" y1="100%" x2="0%" y2="0%">
+              <stop offset="0%" stop-color="#dc2626"/><stop offset="35%" stop-color="#f97316"/>
+              <stop offset="70%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#fef3c7"/>
+            </linearGradient>
+          </defs>
+          <g transform="translate(32,35)">
+            <path d="M-22 25 L-4-25 Q0-32 4-25 L22 25 L14 25 L8 6 L-8 6 L-14 25Z" fill="url(#nav-forge)"/>
+            <rect x="-10" y="0" width="20" height="6" rx="1" fill="#991b1b"/>
+            <path d="M-5 6 L0-12 L5 6Z" fill="#0f172a"/>
+          </g>
+        </svg>
+        <span>Anvil</span>
+      </a>
+      <input type="checkbox" id="nav-toggle" class="nav-toggle-input" aria-label="Toggle navigation">
+      <label for="nav-toggle" class="nav-toggle" aria-label="Menu">
+        <span></span><span></span><span></span>
+      </label>
+      <div class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#demo">Demo</a>
+        <a href="#install">Install</a>
+        <a href="/docs/" class="nav-docs">Docs</a>
+        <a href="https://github.com/kafkade/anvil" target="_blank" rel="noopener" class="nav-github">
+          <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true">
+            <path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0016 8c0-4.42-3.58-8-8-8z"/>
+          </svg>
+          GitHub
+        </a>
+      </div>
+    </div>
+  </nav>
+
+  <main>
+
+    <!-- Hero -->
+    <section class="hero">
+      <div class="hero-glow" aria-hidden="true"></div>
+      <div class="container">
+        <p class="hero-badge">Open Source · Built with Rust · MIT / Apache-2.0</p>
+
+        <div class="hero-logo" aria-hidden="true">
+          <svg viewBox="0 0 200 200" width="100" height="100">
+            <defs>
+              <linearGradient id="hero-forge" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#dc2626"/><stop offset="35%" stop-color="#f97316"/>
+                <stop offset="70%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#fef3c7"/>
+              </linearGradient>
+              <radialGradient id="hero-glow-g" cx="50%" cy="30%">
+                <stop offset="0%" stop-color="#fef3c7" stop-opacity="0.25"/>
+                <stop offset="100%" stop-color="#fef3c7" stop-opacity="0"/>
+              </radialGradient>
+            </defs>
+            <circle cx="100" cy="90" r="75" fill="url(#hero-glow-g)"/>
+            <g transform="translate(100,105)">
+              <path d="M-56 65 L-10-65 Q0-82 10-65 L56 65 L34 65 L18 16 L-18 16 L-34 65Z" fill="url(#hero-forge)"/>
+              <rect x="-24" y="0" width="48" height="16" rx="2" fill="#991b1b"/>
+              <path d="M-12 16 L0-32 L12 16Z" fill="#0f172a"/>
+            </g>
+          </svg>
+        </div>
+
+        <h1>Forge Your Perfect<br><span class="gradient-text">Workstation</span></h1>
+        <p class="hero-subtitle">
+          Declarative configuration management for developer workstations.<br>
+          Define your environment in YAML — Anvil installs packages, copies configs,<br>
+          runs commands, and validates health.
+        </p>
+
+        <div class="hero-actions">
+          <a href="/docs/user-guide.html" class="btn btn-primary">Get Started →</a>
+          <a href="/docs/" class="btn btn-secondary">Documentation</a>
+        </div>
+
+        <div class="hero-install">
+          <span class="hero-install-prompt">$</span>
+          <code>cargo install anvil-cli</code>
+          <button class="hero-install-copy" aria-label="Copy install command" onclick="navigator.clipboard.writeText('cargo install anvil-cli')">
+            <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor"><path d="M0 6.75C0 5.784.784 5 1.75 5h1.5a.75.75 0 010 1.5h-1.5a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-1.5a.75.75 0 011.5 0v1.5A1.75 1.75 0 019.25 16h-7.5A1.75 1.75 0 010 14.25zM5 1.75C5 .784 5.784 0 6.75 0h7.5C15.216 0 16 .784 16 1.75v7.5A1.75 1.75 0 0114.25 11h-7.5A1.75 1.75 0 015 9.25zm1.75-.25a.25.25 0 00-.25.25v7.5c0 .138.112.25.25.25h7.5a.25.25 0 00.25-.25v-7.5a.25.25 0 00-.25-.25z"/></svg>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- Features -->
+    <section class="features" id="features">
+      <div class="container">
+        <h2 class="section-title">Everything you need to<br><span class="gradient-text">manage your workstation</span></h2>
+        <div class="features-grid">
+
+          <div class="feature-card">
+            <div class="feature-icon">📦</div>
+            <h3>Package Management</h3>
+            <p>Install software via winget with version pinning and custom overrides. Homebrew and APT support on the roadmap.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">📁</div>
+            <h3>File Synchronization</h3>
+            <p>Deploy configuration files and dotfiles with automatic backup, hash verification, and template rendering.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">🧬</div>
+            <h3>Workload Inheritance</h3>
+            <p>Compose configurations using DRY principles. Extend base workloads and override only what differs.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">✅</div>
+            <h3>Health Assertions</h3>
+            <p>Declarative predicates validate your system state — check commands, files, directories, environment, and registry.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">⌨️</div>
+            <h3>Command Execution</h3>
+            <p>Run pre- and post-install commands with conditions, timeouts, elevation control, and error handling.</p>
+          </div>
+
+          <div class="feature-card">
+            <div class="feature-icon">📊</div>
+            <h3>Multiple Formats</h3>
+            <p>Output results as formatted tables, JSON, YAML, or HTML reports. Pipe into other tools or share with your team.</p>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Demo -->
+    <section class="demo" id="demo">
+      <div class="container">
+        <h2 class="section-title">Define Once,<br><span class="gradient-text">Deploy Everywhere</span></h2>
+        <p class="section-subtitle">Write a workload once. Anvil handles installation, configuration, and validation.</p>
+
+        <div class="demo-panels">
+
+          <div class="demo-panel">
+            <div class="demo-header">
+              <span class="demo-dot" style="background:#ef4444"></span>
+              <span class="demo-dot" style="background:#f59e0b"></span>
+              <span class="demo-dot" style="background:#22c55e"></span>
+              <span class="demo-filename">workload.yaml</span>
+            </div>
+            <pre class="demo-code"><code><span class="hl-key">name</span><span class="hl-p">:</span> <span class="hl-str">rust-developer</span>
+<span class="hl-key">version</span><span class="hl-p">:</span> <span class="hl-str">"1.0.0"</span>
+<span class="hl-key">description</span><span class="hl-p">:</span> <span class="hl-str">"Complete Rust development environment"</span>
+
+<span class="hl-key">extends</span><span class="hl-p">:</span>
+  <span class="hl-p">-</span> <span class="hl-str">essentials</span>
+
+<span class="hl-key">packages</span><span class="hl-p">:</span>
+  <span class="hl-key">winget</span><span class="hl-p">:</span>
+    <span class="hl-p">-</span> <span class="hl-key">id</span><span class="hl-p">:</span> <span class="hl-str">Rustlang.Rustup</span>
+    <span class="hl-p">-</span> <span class="hl-key">id</span><span class="hl-p">:</span> <span class="hl-str">LLVM.LLVM</span>
+
+<span class="hl-key">files</span><span class="hl-p">:</span>
+  <span class="hl-p">-</span> <span class="hl-key">source</span><span class="hl-p">:</span> <span class="hl-str">config.toml</span>
+    <span class="hl-key">destination</span><span class="hl-p">:</span> <span class="hl-str">"~/.cargo/config.toml"</span>
+    <span class="hl-key">backup</span><span class="hl-p">:</span> <span class="hl-lit">true</span>
+
+<span class="hl-key">assertions</span><span class="hl-p">:</span>
+  <span class="hl-p">-</span> <span class="hl-key">name</span><span class="hl-p">:</span> <span class="hl-str">"Cargo is available"</span>
+    <span class="hl-key">check</span><span class="hl-p">:</span>
+      <span class="hl-key">type</span><span class="hl-p">:</span> <span class="hl-str">command_exists</span>
+      <span class="hl-key">command</span><span class="hl-p">:</span> <span class="hl-str">cargo</span></code></pre>
+          </div>
+
+          <div class="demo-panel">
+            <div class="demo-header">
+              <span class="demo-dot" style="background:#ef4444"></span>
+              <span class="demo-dot" style="background:#f59e0b"></span>
+              <span class="demo-dot" style="background:#22c55e"></span>
+              <span class="demo-filename">Terminal</span>
+            </div>
+            <pre class="demo-code"><code><span class="hl-prompt">$</span> <span class="hl-cmd">anvil install</span> <span class="hl-str">rust-developer</span>
+
+  <span class="hl-muted">▸ Resolving workload inheritance...</span>
+  <span class="hl-ok">✓</span> Merged: essentials → rust-developer
+
+  <span class="hl-muted">▸ Installing packages...</span>
+  <span class="hl-ok">✓</span> Rustlang.Rustup
+  <span class="hl-ok">✓</span> LLVM.LLVM
+
+  <span class="hl-muted">▸ Deploying configuration files...</span>
+  <span class="hl-ok">✓</span> ~/.cargo/config.toml
+
+  <span class="hl-muted">▸ Running assertions...</span>
+  <span class="hl-ok">✓</span> Cargo is available
+
+  <span class="hl-ok">✓</span> <span class="hl-bold">Workload installed successfully</span></code></pre>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- Install -->
+    <section class="install" id="install">
+      <div class="container">
+        <h2 class="section-title">Install in<br><span class="gradient-text">Seconds</span></h2>
+
+        <div class="install-grid">
+
+          <div class="install-card">
+            <div class="install-card-badge">Recommended</div>
+            <h3>From crates.io</h3>
+            <p>Install with Cargo — Rust 1.75+ required.</p>
+            <pre class="install-code"><code>cargo install anvil-cli</code></pre>
+          </div>
+
+          <div class="install-card">
+            <h3>Pre-built Binary</h3>
+            <p>Download from GitHub Releases for your platform.</p>
+            <pre class="install-code"><code><span class="hl-comment"># Windows (PowerShell)</span>
+Invoke-WebRequest -Uri <span class="hl-str">\
+  "https://github.com/kafkade/anvil/
+releases/latest/download/
+anvil-windows-x64.zip"</span> `
+  -OutFile anvil.zip</code></pre>
+          </div>
+
+          <div class="install-card">
+            <h3>From Source</h3>
+            <p>Clone and build the latest from main.</p>
+            <pre class="install-code"><code>git clone https://github.com/
+  kafkade/anvil.git
+<span class="hl-cmd">cd</span> anvil
+cargo build --release</code></pre>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- CTA -->
+    <section class="cta">
+      <div class="container">
+        <h2 class="section-title">Ready to forge<br><span class="gradient-text">your workstation?</span></h2>
+        <div class="hero-actions">
+          <a href="/docs/user-guide.html" class="btn btn-primary">Get Started →</a>
+          <a href="https://github.com/kafkade/anvil" target="_blank" rel="noopener" class="btn btn-secondary">Star on GitHub</a>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Footer -->
+  <footer class="footer">
+    <div class="container">
+      <div class="footer-inner">
+        <div class="footer-brand">
+          <svg viewBox="0 0 64 64" width="20" height="20" aria-hidden="true">
+            <defs>
+              <linearGradient id="ft-forge" x1="0%" y1="100%" x2="0%" y2="0%">
+                <stop offset="0%" stop-color="#dc2626"/><stop offset="35%" stop-color="#f97316"/>
+                <stop offset="70%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#fef3c7"/>
+              </linearGradient>
+            </defs>
+            <g transform="translate(32,35)">
+              <path d="M-22 25 L-4-25 Q0-32 4-25 L22 25 L14 25 L8 6 L-8 6 L-14 25Z" fill="url(#ft-forge)"/>
+              <rect x="-10" y="0" width="20" height="6" rx="1" fill="#991b1b"/>
+              <path d="M-5 6 L0-12 L5 6Z" fill="#0f172a"/>
+            </g>
+          </svg>
+          <span>Anvil</span>
+        </div>
+        <div class="footer-links">
+          <a href="/docs/">Docs</a>
+          <a href="/docs/user-guide.html">User Guide</a>
+          <a href="/docs/changelog.html">Changelog</a>
+          <a href="https://github.com/kafkade/anvil" target="_blank" rel="noopener">GitHub</a>
+          <a href="https://crates.io/crates/anvil-cli" target="_blank" rel="noopener">crates.io</a>
+        </div>
+        <p class="footer-license">MIT OR Apache-2.0 · Made with ❤️ for developers</p>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>

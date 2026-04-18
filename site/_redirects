@@ -1,0 +1,12 @@
+# Redirects for old docs URLs (before /docs/ subpath migration)
+/introduction.html        /docs/introduction.html        301
+/user-guide.html           /docs/user-guide.html           301
+/workload-authoring.html   /docs/workload-authoring.html   301
+/cookbook.html              /docs/cookbook.html              301
+/troubleshooting.html      /docs/troubleshooting.html      301
+/cli-reference.html        /docs/cli-reference.html        301
+/schema-reference.html     /docs/schema-reference.html     301
+/specification.html        /docs/specification.html        301
+/architecture.html         /docs/architecture.html         301
+/changelog.html            /docs/changelog.html            301
+/contributing.html         /docs/contributing.html         301
