@@ -48,17 +48,35 @@ cargo install anvil-cli
 1. Download the latest release from the [Releases page](https://github.com/kafkade/anvil/releases)
 
 2. Extract the archive:
+
+   **PowerShell (Windows):**
    ```powershell
    Expand-Archive anvil-v0.3.1-windows-x64.zip -DestinationPath C:\Tools\anvil
    ```
 
+   **Bash / Zsh (macOS / Linux):**
+   ```bash
+   tar xzf anvil-v0.3.1-linux-x64.tar.gz -C ~/.local/bin
+   ```
+
 3. Add to your PATH:
+
+   **PowerShell:**
    ```powershell
    # Add to current session
    $env:PATH += ";C:\Tools\anvil"
    
    # Add permanently (User scope)
    [Environment]::SetEnvironmentVariable("PATH", $env:PATH + ";C:\Tools\anvil", "User")
+   ```
+
+   **Bash / Zsh:**
+   ```bash
+   # Add to current session
+   export PATH="$HOME/.local/bin:$PATH"
+
+   # Add permanently
+   echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc   # or ~/.zshrc
    ```
 
 ### Build from Source
@@ -411,15 +429,24 @@ anvil validate <PATH> [OPTIONS]
 | `--scripts-only` | Only validate scripts (skip other validation) |
 
 **Examples:**
-```powershell
+```sh
 # Basic validation
 anvil validate my-workload
 
 # Strict mode (treats warnings as errors)
 anvil validate my-workload --strict
+```
 
-# Validate all bundled workloads
+Validate all bundled workloads:
+
+**PowerShell:**
+```powershell
 anvil list --output json | ConvertFrom-Json | ForEach-Object { anvil validate $_.name }
+```
+
+**Bash / Zsh:**
+```bash
+anvil list --output json | jq -r '.[].name' | xargs -I {} anvil validate {} --strict
 ```
 
 **Common Validation Errors:**
@@ -660,12 +687,18 @@ anvil completions <SHELL>
 - `<SHELL>` - Target shell: powershell, bash, zsh, fish, elvish
 
 **Examples:**
-```powershell
-# Generate PowerShell completions
-anvil completions powershell
 
-# Generate and install bash completions
-anvil completions bash > /etc/bash_completion.d/anvil
+**PowerShell:**
+```powershell
+anvil completions powershell | Out-String | Invoke-Expression
+
+# Or save to a file and source it from $PROFILE
+anvil completions powershell > $HOME\Documents\WindowsPowerShell\anvil.ps1
+```
+
+**Bash:**
+```bash
+anvil completions bash > ~/.local/share/bash-completion/completions/anvil
 ```
 
 ---
@@ -973,6 +1006,7 @@ Generates a styled HTML document with:
 
 **Examples:**
 
+**PowerShell:**
 ```powershell
 # Use custom config file
 $env:ANVIL_CONFIG = "C:\config\anvil.yaml"
@@ -988,6 +1022,25 @@ anvil install rust-developer
 
 # Disable colors
 $env:NO_COLOR = "1"
+anvil list
+```
+
+**Bash / Zsh:**
+```bash
+# Use custom config file
+export ANVIL_CONFIG="$HOME/.config/anvil.yaml"
+anvil list
+
+# Add workload search paths
+export ANVIL_WORKLOADS="$HOME/workloads:$HOME/more-workloads"
+anvil list
+
+# Enable debug logging
+export ANVIL_LOG=debug
+anvil install rust-developer
+
+# Disable colors
+export NO_COLOR=1
 anvil list
 ```
 
@@ -1076,6 +1129,7 @@ packages:
 
 Add validation to your CI/CD pipeline:
 
+**PowerShell:**
 ```powershell
 # Validate all workloads
 Get-ChildItem -Directory | ForEach-Object {
@@ -1083,16 +1137,34 @@ Get-ChildItem -Directory | ForEach-Object {
 }
 ```
 
+**Bash / Zsh:**
+```bash
+# Validate all workloads
+for dir in */; do
+    anvil validate "${dir%/}" --strict
+done
+```
+
 ### Use Verbose Output for Debugging
 
 When things go wrong:
 
-```powershell
+```sh
 # Increase verbosity
 anvil -vvv install my-workload
+```
 
+**PowerShell:**
+```powershell
 # Enable trace logging
 $env:ANVIL_LOG = "trace"
+anvil install my-workload
+```
+
+**Bash / Zsh:**
+```bash
+# Enable trace logging
+export ANVIL_LOG=trace
 anvil install my-workload
 ```
 

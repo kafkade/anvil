@@ -117,3 +117,17 @@ jobs:
             --notes "${{ steps.extract.outputs.release_notes }}" \
             ${{ steps.prerelease.outputs.flag }} \
             artifacts/*
+
+  publish:
+    name: Publish to crates.io
+    needs: release
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - name: Publish crate
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+        run: cargo publish --no-verify

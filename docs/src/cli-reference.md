@@ -365,17 +365,26 @@ anvil status -o json
 
 **Examples:**
 
-```sh
-# PowerShell — add to $PROFILE
+**PowerShell:**
+```powershell
+anvil completions powershell | Out-String | Invoke-Expression
+
+# Or persist to $PROFILE
 anvil completions powershell >> $PROFILE
+```
 
-# Bash
+**Bash:**
+```bash
 anvil completions bash > ~/.local/share/bash-completion/completions/anvil
+```
 
-# Zsh
+**Zsh:**
+```zsh
 anvil completions zsh > ~/.zfunc/_anvil
+```
 
-# Fish
+**Fish:**
+```fish
 anvil completions fish > ~/.config/fish/completions/anvil.fish
 ```
 
