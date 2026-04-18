@@ -421,9 +421,7 @@ mod install_command {
 
     #[test]
     fn install_dry_run_shows_plan() {
-        assert_or_skip_winget!(
-            anvil().args(["install", "./examples/minimal", "--dry-run"])
-        );
+        assert_or_skip_winget!(anvil().args(["install", "./examples/minimal", "--dry-run"]));
     }
 
     #[test]
@@ -449,16 +447,22 @@ mod install_command {
 
     #[test]
     fn install_with_skip_files() {
-        assert_or_skip_winget!(
-            anvil().args(["install", "./examples/minimal", "--dry-run", "--skip-files"])
-        );
+        assert_or_skip_winget!(anvil().args([
+            "install",
+            "./examples/minimal",
+            "--dry-run",
+            "--skip-files"
+        ]));
     }
 
     #[test]
     fn install_with_skip_scripts() {
-        assert_or_skip_winget!(
-            anvil().args(["install", "./examples/minimal", "--dry-run", "--skip-scripts"])
-        );
+        assert_or_skip_winget!(anvil().args([
+            "install",
+            "./examples/minimal",
+            "--dry-run",
+            "--skip-scripts"
+        ]));
         anvil()
             .args([
                 "install",
@@ -487,9 +491,12 @@ mod install_command {
 
     #[test]
     fn install_packages_only() {
-        assert_or_skip_winget!(
-            anvil().args(["install", "./examples/minimal", "--dry-run", "--packages-only"])
-        );
+        assert_or_skip_winget!(anvil().args([
+            "install",
+            "./examples/minimal",
+            "--dry-run",
+            "--packages-only"
+        ]));
     }
 
     #[test]

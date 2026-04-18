@@ -90,7 +90,7 @@ What actually happened.
 
 ### Building
 
-```powershell
+```sh
 # Clone your fork
 git clone https://github.com/YOUR_USERNAME/anvil.git
 cd anvil
@@ -116,7 +116,7 @@ cargo run -- -vvv list
 
 ### Running Tests
 
-```powershell
+```sh
 # Run all tests
 cargo test
 
@@ -429,6 +429,58 @@ scripts:
       name: "Verification"
       description: "Verify installation"
 ```
+
+---
+
+## Releasing
+
+Releases are automated via the `scripts/release.ps1` script and GitHub Actions.
+
+### Cutting a release
+
+```powershell
+# Preview what will happen
+./scripts/release.ps1 minor -DryRun
+
+# Bump version, stamp changelog, commit, tag, and push
+./scripts/release.ps1 minor -Push
+
+# Patch release (0.6.0 → 0.6.1)
+./scripts/release.ps1 patch -Push
+
+# Major release (0.6.0 → 1.0.0)
+./scripts/release.ps1 major -Push
+```
+
+The script validates (clean tree, main branch, tests pass, clippy clean) before making any changes. On push, the release workflow automatically:
+
+1. Builds binaries for 5 platforms (Linux x86_64/aarch64, macOS x86_64/aarch64, Windows x86_64)
+2. Creates a GitHub Release with changelog notes and SHA256 checksums
+3. Publishes to [crates.io](https://crates.io/crates/anvil-cli)
+
+### Required secrets
+
+| Secret | Where to create | Used by |
+|--------|----------------|---------|
+| `CARGO_REGISTRY_TOKEN` | [crates.io/settings/tokens](https://crates.io/settings/tokens) | `cargo publish` |
+
+The `GITHUB_TOKEN` is provided automatically by GitHub Actions.
+
+### Setting up crates.io publishing (one-time)
+
+1. Log in at [crates.io](https://crates.io) with your GitHub account
+2. Go to [Account Settings → API Tokens](https://crates.io/settings/tokens)
+3. Click **New Token**
+4. Name: `anvil-release` (or any descriptive name)
+5. Scopes: select **publish-update** (allows publishing new versions of existing crates)
+6. Click **Create**
+7. Copy the token (it's shown only once)
+8. In the GitHub repo, go to **Settings → Secrets and variables → Actions**
+9. Click **New repository secret**
+10. Name: `CARGO_REGISTRY_TOKEN`, Value: paste the token
+11. Click **Add secret**
+
+For the first publish, you must also run `cargo publish` locally once to claim the crate name on crates.io.
 
 ---
 
