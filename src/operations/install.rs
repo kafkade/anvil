@@ -7,7 +7,6 @@
 //! 3. Installing packages via winget (with progress tracking)
 //! 4. Copying files to target destinations
 //! 5. Running post-install commands
-
 use std::sync::Arc;
 use std::time::Instant;
 
@@ -28,7 +27,6 @@ use crate::state::{FileState, FileStateManager, InstallationState, PackageCache}
 use super::{resolve_workload_path, OperationContext};
 
 /// Package installation plan entry
-#[allow(dead_code)]
 #[derive(Debug, Clone)]
 pub struct PackagePlanEntry {
     /// The package to install
@@ -37,12 +35,9 @@ pub struct PackagePlanEntry {
     pub action: PackageAction,
     /// Currently installed version (if any)
     pub installed_version: Option<String>,
-    /// Available version for upgrade (if any)
-    pub available_version: Option<String>,
 }
 
 /// Action to take for a package
-#[allow(dead_code)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum PackageAction {
     /// Package needs to be installed
@@ -52,6 +47,7 @@ pub enum PackageAction {
     /// Package needs to be upgraded
     Upgrade,
     /// Package needs to be reinstalled
+    #[allow(dead_code)] // Used in match patterns and Display impl
     Reinstall,
 }
 
@@ -89,12 +85,6 @@ impl InstallationSummary {
     /// Check if installation was fully successful
     pub fn is_successful(&self) -> bool {
         self.failed == 0
-    }
-
-    /// Get total packages processed
-    #[allow(dead_code)]
-    pub fn total(&self) -> usize {
-        self.installed + self.skipped + self.upgraded + self.failed
     }
 }
 
@@ -305,7 +295,6 @@ fn generate_installation_plan(
             package: package.clone(),
             action: PackageAction::Install,
             installed_version: None,
-            available_version: None,
         };
 
         // Check cache first (scoped key with legacy fallback)
@@ -650,7 +639,6 @@ fn install_packages_with_progress(
         dry_run: context.dry_run,
         verbose: context.verbosity >= 2,
         retry_count: 3,
-        ..Default::default()
     });
     let provider = registry
         .get("winget")
@@ -807,14 +795,6 @@ pub struct FileCopyResult {
     pub failed: usize,
     /// Failed file names
     pub failed_files: Vec<String>,
-}
-
-impl FileCopyResult {
-    /// Check if all file operations succeeded
-    #[allow(dead_code)]
-    pub fn is_successful(&self) -> bool {
-        self.failed == 0
-    }
 }
 
 /// Copy files to target destinations with comprehensive handling

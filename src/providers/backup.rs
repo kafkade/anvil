@@ -6,7 +6,6 @@
 //! - Backup restoration with integrity checks
 //! - Rotation policies (by count, age, and total size)
 //! - CLI commands support (list, show, restore, clean)
-
 use std::collections::HashMap;
 use std::fs;
 use std::io::{self, Read};
@@ -18,7 +17,6 @@ use sha2::{Digest, Sha256};
 use thiserror::Error;
 
 /// Errors that can occur during backup operations
-#[allow(dead_code)]
 #[derive(Error, Debug)]
 pub enum BackupError {
     /// Backup file not found
@@ -57,30 +55,7 @@ pub enum BackupError {
 /// Result type for backup operations
 pub type BackupResult<T> = Result<T, BackupError>;
 
-/// Configuration for backup rotation
-#[allow(dead_code)]
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct RotationConfig {
-    /// Maximum number of backups per file (default: 5)
-    pub max_backups_per_file: usize,
-    /// Maximum age of backups in days (default: 30)
-    pub max_age_days: u32,
-    /// Maximum total backup size in bytes (default: 1GB)
-    pub max_total_size: u64,
-}
-
-impl Default for RotationConfig {
-    fn default() -> Self {
-        Self {
-            max_backups_per_file: 5,
-            max_age_days: 30,
-            max_total_size: 1024 * 1024 * 1024, // 1GB
-        }
-    }
-}
-
 /// A single backup entry
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BackupEntry {
     /// Unique backup identifier (short hash)
@@ -101,8 +76,6 @@ pub struct BackupEntry {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub description: Option<String>,
 }
-
-#[allow(dead_code)]
 impl BackupEntry {
     /// Generate a short ID from the hash
     pub fn generate_id(hash: &str) -> String {
@@ -118,16 +91,9 @@ impl BackupEntry {
     pub fn formatted_size(&self) -> String {
         format_size(self.size)
     }
-
-    /// Check if this backup is older than the given duration
-    pub fn is_older_than(&self, days: u32) -> bool {
-        let cutoff = Utc::now() - Duration::days(days as i64);
-        self.timestamp < cutoff
-    }
 }
 
 /// The backup index containing all backup entries
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct BackupIndex {
     /// Version of the index format
@@ -137,8 +103,6 @@ pub struct BackupIndex {
     /// When the index was last updated
     pub last_updated: Option<DateTime<Utc>>,
 }
-
-#[allow(dead_code)]
 impl BackupIndex {
     /// Create a new empty index
     pub fn new() -> Self {
@@ -161,52 +125,17 @@ impl BackupIndex {
             .filter(|b| b.workload == workload)
             .collect()
     }
-
-    /// Find all backups for a specific original path
-    pub fn find_by_path(&self, path: &Path) -> Vec<&BackupEntry> {
-        self.backups
-            .iter()
-            .filter(|b| b.original_path == path)
-            .collect()
-    }
-
-    /// Get total size of all backups
-    pub fn total_size(&self) -> u64 {
-        self.backups.iter().map(|b| b.size).sum()
-    }
-
-    /// Get backup count
-    pub fn count(&self) -> usize {
-        self.backups.len()
-    }
-
-    /// Group backups by original path
-    pub fn group_by_path(&self) -> HashMap<PathBuf, Vec<&BackupEntry>> {
-        let mut groups: HashMap<PathBuf, Vec<&BackupEntry>> = HashMap::new();
-        for backup in &self.backups {
-            groups
-                .entry(backup.original_path.clone())
-                .or_default()
-                .push(backup);
-        }
-        groups
-    }
 }
 
 /// Backup manager handles all backup operations
-#[allow(dead_code)]
 pub struct BackupManager {
     /// Directory where backups are stored
     backup_dir: PathBuf,
     /// Path to the index file
     index_file: PathBuf,
-    /// Rotation configuration
-    rotation_config: RotationConfig,
     /// Dry run mode
     dry_run: bool,
 }
-
-#[allow(dead_code)]
 impl BackupManager {
     /// Create a new backup manager with default paths
     pub fn new() -> BackupResult<Self> {
@@ -229,7 +158,6 @@ impl BackupManager {
         Ok(Self {
             backup_dir,
             index_file,
-            rotation_config: RotationConfig::default(),
             dry_run: false,
         })
     }
@@ -244,12 +172,6 @@ impl BackupManager {
     /// Set dry run mode
     pub fn with_dry_run(mut self, dry_run: bool) -> Self {
         self.dry_run = dry_run;
-        self
-    }
-
-    /// Set rotation configuration
-    pub fn with_rotation_config(mut self, config: RotationConfig) -> Self {
-        self.rotation_config = config;
         self
     }
 
@@ -455,89 +377,6 @@ impl BackupManager {
         Ok(())
     }
 
-    /// Apply rotation policy to clean up old backups
-    pub fn apply_rotation(&self) -> BackupResult<RotationResult> {
-        let mut index = self.load_index()?;
-        let mut result = RotationResult::default();
-
-        // Track backups to remove
-        let mut to_remove: Vec<usize> = Vec::new();
-
-        // 1. Remove backups older than max_age_days
-        let cutoff = Utc::now() - Duration::days(self.rotation_config.max_age_days as i64);
-        for (i, backup) in index.backups.iter().enumerate() {
-            if backup.timestamp < cutoff {
-                to_remove.push(i);
-                result.removed_by_age += 1;
-                result.bytes_freed += backup.size;
-            }
-        }
-
-        // 2. Keep only max_backups_per_file for each file
-        let groups = index.group_by_path();
-        for (_path, mut backups) in groups {
-            if backups.len() > self.rotation_config.max_backups_per_file {
-                // Sort by timestamp, newest first
-                backups.sort_by_key(|b| std::cmp::Reverse(b.timestamp));
-
-                // Mark excess backups for removal
-                for backup in backups
-                    .iter()
-                    .skip(self.rotation_config.max_backups_per_file)
-                {
-                    if let Some(i) = index.backups.iter().position(|b| b.id == backup.id) {
-                        if !to_remove.contains(&i) {
-                            to_remove.push(i);
-                            result.removed_by_count += 1;
-                            result.bytes_freed += backup.size;
-                        }
-                    }
-                }
-            }
-        }
-
-        // 3. Check total size limit
-        let mut total_size: u64 = index.backups.iter().map(|b| b.size).sum();
-        if total_size > self.rotation_config.max_total_size {
-            // Sort by timestamp, oldest first
-            let mut sorted_indices: Vec<usize> = (0..index.backups.len()).collect();
-            sorted_indices
-                .sort_by(|&a, &b| index.backups[a].timestamp.cmp(&index.backups[b].timestamp));
-
-            for i in sorted_indices {
-                if total_size <= self.rotation_config.max_total_size {
-                    break;
-                }
-                if !to_remove.contains(&i) {
-                    to_remove.push(i);
-                    result.removed_by_size += 1;
-                    result.bytes_freed += index.backups[i].size;
-                    total_size -= index.backups[i].size;
-                }
-            }
-        }
-
-        // Remove backups (in reverse order to maintain indices)
-        to_remove.sort_by(|a, b| b.cmp(a));
-        for i in to_remove {
-            let backup = &index.backups[i];
-            if self.dry_run {
-                tracing::info!("Would remove backup: {}", backup.backup_path.display());
-            } else {
-                if backup.backup_path.exists() {
-                    fs::remove_file(&backup.backup_path)?;
-                }
-                index.backups.remove(i);
-            }
-        }
-
-        if !self.dry_run {
-            self.save_index(&index)?;
-        }
-
-        Ok(result)
-    }
-
     /// Clean backups older than a specific duration
     pub fn clean_older_than(&self, days: u32) -> BackupResult<CleanResult> {
         let mut index = self.load_index()?;
@@ -640,35 +479,7 @@ impl Default for BackupManager {
     }
 }
 
-/// Result of a rotation operation
-#[allow(dead_code)]
-#[derive(Debug, Default)]
-pub struct RotationResult {
-    /// Backups removed due to age
-    pub removed_by_age: usize,
-    /// Backups removed due to per-file count limit
-    pub removed_by_count: usize,
-    /// Backups removed due to total size limit
-    pub removed_by_size: usize,
-    /// Total bytes freed
-    pub bytes_freed: u64,
-}
-
-#[allow(dead_code)]
-impl RotationResult {
-    /// Total backups removed
-    pub fn total_removed(&self) -> usize {
-        self.removed_by_age + self.removed_by_count + self.removed_by_size
-    }
-
-    /// Format bytes freed for display
-    pub fn formatted_bytes_freed(&self) -> String {
-        format_size(self.bytes_freed)
-    }
-}
-
 /// Result of a clean operation
-#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct CleanResult {
     /// Number of backups removed
@@ -685,7 +496,6 @@ impl CleanResult {
 }
 
 /// Result of a verification operation
-#[allow(dead_code)]
 #[derive(Debug, Default)]
 pub struct VerifyResult {
     /// Total backups checked
@@ -699,10 +509,9 @@ pub struct VerifyResult {
     /// IDs of backups that couldn't be verified due to errors
     pub errors: Vec<String>,
 }
-
-#[allow(dead_code)]
 impl VerifyResult {
     /// Check if all backups are valid
+    #[allow(dead_code)] // Test-only: used in module tests
     pub fn all_valid(&self) -> bool {
         self.missing.is_empty() && self.corrupted.is_empty() && self.errors.is_empty()
     }

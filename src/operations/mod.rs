@@ -3,7 +3,6 @@
 //! This module contains the implementation of each CLI command.
 //! Each submodule corresponds to a command and contains an `execute` function
 //! that performs the actual operation.
-
 pub mod backup;
 pub mod config;
 pub mod health;
@@ -18,79 +17,6 @@ use anyhow::Result;
 use std::path::{Path, PathBuf};
 
 use crate::config::workload::Workload;
-
-/// Represents the result of an operation
-#[allow(dead_code)]
-#[derive(Debug)]
-pub struct OperationResult {
-    /// Whether the operation succeeded
-    pub success: bool,
-    /// Number of items processed
-    pub processed: usize,
-    /// Number of items that failed
-    pub failed: usize,
-    /// Number of items skipped
-    pub skipped: usize,
-    /// Optional message describing the result
-    pub message: Option<String>,
-}
-
-#[allow(dead_code)]
-impl OperationResult {
-    /// Create a successful result
-    pub fn success() -> Self {
-        Self {
-            success: true,
-            processed: 0,
-            failed: 0,
-            skipped: 0,
-            message: None,
-        }
-    }
-
-    /// Create a successful result with counts
-    pub fn success_with_counts(processed: usize, skipped: usize) -> Self {
-        Self {
-            success: true,
-            processed,
-            failed: 0,
-            skipped,
-            message: None,
-        }
-    }
-
-    /// Create a failed result
-    pub fn failure(message: impl Into<String>) -> Self {
-        Self {
-            success: false,
-            processed: 0,
-            failed: 1,
-            skipped: 0,
-            message: Some(message.into()),
-        }
-    }
-
-    /// Create a failed result with counts
-    pub fn failure_with_counts(
-        processed: usize,
-        failed: usize,
-        message: impl Into<String>,
-    ) -> Self {
-        Self {
-            success: false,
-            processed,
-            failed,
-            skipped: 0,
-            message: Some(message.into()),
-        }
-    }
-
-    /// Add a message to the result
-    pub fn with_message(mut self, message: impl Into<String>) -> Self {
-        self.message = Some(message.into());
-        self
-    }
-}
 
 /// Common context for operations
 pub struct OperationContext<'a> {
@@ -131,23 +57,9 @@ impl<'a> OperationContext<'a> {
         }
     }
 
-    /// Log an info message if not in quiet mode
-    #[allow(dead_code)]
-    pub fn info(&self, message: &str) {
-        if self.verbosity >= 1 {
-            tracing::info!("{}", message);
-        }
-    }
-
     /// Log a warning message
     pub fn warn(&self, message: &str) {
         tracing::warn!("{}", message);
-    }
-
-    /// Log an error message
-    #[allow(dead_code)]
-    pub fn error(&self, message: &str) {
-        tracing::error!("{}", message);
     }
 }
 

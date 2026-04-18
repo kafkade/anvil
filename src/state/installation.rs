@@ -2,7 +2,6 @@
 //!
 //! This module tracks the state of package installations for recovery,
 //! status reporting, and avoiding redundant operations.
-
 use std::collections::HashMap;
 use std::path::PathBuf;
 
@@ -287,12 +286,6 @@ impl InstallationState {
         self.packages.get_mut(id)
     }
 
-    /// Get a package record
-    #[allow(dead_code)]
-    pub fn get_package(&self, id: &str) -> Option<&PackageRecord> {
-        self.packages.get(id)
-    }
-
     /// Mark the installation as complete
     pub fn mark_complete(&mut self) {
         self.completed = true;
@@ -318,28 +311,6 @@ impl InstallationState {
             .values()
             .filter(|p| p.reboot_required)
             .collect()
-    }
-
-    /// Check if there are failed packages from a previous run
-    #[allow(dead_code)]
-    pub fn has_failed_packages(&self) -> bool {
-        self.packages
-            .values()
-            .any(|p| p.status == PackageStatus::Failed)
-    }
-
-    /// Reset failed packages to pending (for retry)
-    #[allow(dead_code)]
-    pub fn reset_failed_packages(&mut self) {
-        for record in self.packages.values_mut() {
-            if record.status == PackageStatus::Failed {
-                record.status = PackageStatus::Pending;
-                record.error = None;
-                record.duration_secs = None;
-                record.timestamp = Utc::now();
-            }
-        }
-        self.updated_at = Utc::now();
     }
 }
 

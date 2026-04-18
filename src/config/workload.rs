@@ -2,11 +2,9 @@
 //!
 //! This module defines the data structures for parsing and representing
 //! workload definition files (workload.yaml).
-
 use serde::{Deserialize, Serialize};
 
 /// A complete workload definition
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Workload {
     /// Unique workload identifier
@@ -46,29 +44,7 @@ pub struct Workload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assertions: Option<Vec<Assertion>>,
 }
-
-#[allow(dead_code)]
 impl Workload {
-    /// Create a new minimal workload
-    pub fn new(
-        name: impl Into<String>,
-        version: impl Into<String>,
-        description: impl Into<String>,
-    ) -> Self {
-        Self {
-            name: name.into(),
-            version: version.into(),
-            description: description.into(),
-            extends: None,
-            packages: None,
-            files: None,
-            commands: None,
-            environment: None,
-            health: None,
-            assertions: None,
-        }
-    }
-
     /// Create an empty workload (used as a base for merging)
     pub fn empty() -> Self {
         Self {
@@ -83,22 +59,6 @@ impl Workload {
             health: None,
             assertions: None,
         }
-    }
-
-    /// Check if this workload extends other workloads
-    pub fn has_parents(&self) -> bool {
-        self.extends
-            .as_ref()
-            .map(|e| !e.is_empty())
-            .unwrap_or(false)
-    }
-
-    /// Get the list of parent workload names
-    pub fn parent_names(&self) -> Vec<&str> {
-        self.extends
-            .as_ref()
-            .map(|e| e.iter().map(|s| s.as_str()).collect())
-            .unwrap_or_default()
     }
 
     /// Get the total number of packages across all managers
@@ -130,6 +90,37 @@ impl Workload {
             })
             .unwrap_or(0)
     }
+}
+
+#[cfg(test)]
+impl Workload {
+    /// Create a new minimal workload
+    pub fn new(
+        name: impl Into<String>,
+        version: impl Into<String>,
+        description: impl Into<String>,
+    ) -> Self {
+        Self {
+            name: name.into(),
+            version: version.into(),
+            description: description.into(),
+            extends: None,
+            packages: None,
+            files: None,
+            commands: None,
+            environment: None,
+            health: None,
+            assertions: None,
+        }
+    }
+
+    /// Check if this workload extends other workloads
+    pub fn has_parents(&self) -> bool {
+        self.extends
+            .as_ref()
+            .map(|e| !e.is_empty())
+            .unwrap_or(false)
+    }
 
     /// Get the total number of assertions
     pub fn assertion_count(&self) -> usize {
@@ -137,8 +128,7 @@ impl Workload {
     }
 }
 
-/// A declarative assertionusing the condition engine
-#[allow(dead_code)]
+/// A declarative assertion using the condition engine
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Assertion {
     /// Display name for the assertion
@@ -149,7 +139,6 @@ pub struct Assertion {
 }
 
 /// Package manager definitions
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Packages {
     /// Winget package definitions (Windows)
@@ -166,7 +155,6 @@ pub struct Packages {
 }
 
 /// A single winget package definition
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WingetPackage {
     /// Winget package ID (required)
@@ -189,7 +177,7 @@ pub struct WingetPackage {
     pub override_str: Option<Vec<String>>,
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 impl WingetPackage {
     /// Create a new package with just an ID
     pub fn new(id: impl Into<String>) -> Self {
@@ -215,7 +203,6 @@ impl WingetPackage {
 }
 
 /// A Homebrew package definition (schema-only, not yet implemented)
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BrewPackage {
     /// Package name (e.g., "git", "node")
@@ -229,7 +216,6 @@ pub struct BrewPackage {
 }
 
 /// An APT package definition (schema-only, not yet implemented)
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AptPackage {
     /// Package name (e.g., "git", "build-essential")
@@ -240,7 +226,6 @@ pub struct AptPackage {
 }
 
 /// A file to be copied to the target system
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct FileEntry {
     /// Relative path from workload's files/ directory
@@ -266,7 +251,7 @@ fn default_true() -> bool {
     true
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 impl FileEntry {
     /// Create a new file entry
     pub fn new(source: impl Into<String>, destination: impl Into<String>) -> Self {
@@ -281,7 +266,6 @@ impl FileEntry {
 }
 
 /// Commands block for inline command execution
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct CommandBlock {
     /// Commands to run before package installation
@@ -298,7 +282,6 @@ fn default_timeout() -> u64 {
 }
 
 /// A single command to execute
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CommandEntry {
     /// Shell command string to execute (required)
@@ -326,7 +309,6 @@ pub struct CommandEntry {
 }
 
 /// Environment configuration
-#[allow(dead_code)]
 #[derive(Debug, Clone, Default, Serialize, Deserialize)]
 pub struct Environment {
     /// Environment variables to set
@@ -339,7 +321,6 @@ pub struct Environment {
 }
 
 /// An environment variable to set
-#[allow(dead_code)]
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EnvVariable {
     /// Variable name
@@ -357,7 +338,7 @@ fn default_scope() -> String {
     "user".to_string()
 }
 
-#[allow(dead_code)]
+#[cfg(test)]
 impl EnvVariable {
     /// Create a new user-scoped environment variable
     pub fn new(name: impl Into<String>, value: impl Into<String>) -> Self {
@@ -365,15 +346,6 @@ impl EnvVariable {
             name: name.into(),
             value: value.into(),
             scope: default_scope(),
-        }
-    }
-
-    /// Create a new machine-scoped environment variable
-    pub fn machine(name: impl Into<String>, value: impl Into<String>) -> Self {
-        Self {
-            name: name.into(),
-            value: value.into(),
-            scope: "machine".to_string(),
         }
     }
 }

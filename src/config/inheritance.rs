@@ -3,7 +3,6 @@
 //! This module handles resolving workload inheritance chains,
 //! merging parent workloads with child workloads according to
 //! defined merge strategies.
-
 use anyhow::{Context, Result};
 use std::collections::{HashMap, HashSet};
 use std::path::PathBuf;
@@ -211,24 +210,6 @@ impl InheritanceGraph {
         }
     }
 
-    /// Get the resolution order (parents before children)
-    #[allow(dead_code)]
-    pub fn resolution_order(&self) -> &[String] {
-        &self.resolution_order
-    }
-
-    /// Get all workloads in the graph
-    #[allow(dead_code)]
-    pub fn workloads(&self) -> &HashSet<String> {
-        &self.workloads
-    }
-
-    /// Get the parents of a workload
-    #[allow(dead_code)]
-    pub fn parents(&self, workload: &str) -> Option<&Vec<String>> {
-        self.edges.get(workload)
-    }
-
     /// Get the depth of a workload in the inheritance chain
     pub fn depth(&self, workload: &str) -> usize {
         let parents = self.edges.get(workload);
@@ -237,12 +218,6 @@ impl InheritanceGraph {
             Some(parents) if parents.is_empty() => 0,
             Some(parents) => 1 + parents.iter().map(|p| self.depth(p)).max().unwrap_or(0),
         }
-    }
-
-    /// Check if the graph has any cycles (should always be false after successful build)
-    #[allow(dead_code)]
-    pub fn has_cycle(&self) -> bool {
-        self.resolution_order.len() != self.workloads.len()
     }
 
     /// Get statistics about the inheritance graph
@@ -254,26 +229,20 @@ impl InheritanceGraph {
             .map(|w| self.depth(w))
             .max()
             .unwrap_or(0);
-        let total_edges: usize = self.edges.values().map(|v| v.len()).sum();
-
         InheritanceStats {
             total_workloads,
             max_depth,
-            total_edges,
         }
     }
 }
 
 /// Statistics about an inheritance graph
 #[derive(Debug, Clone)]
-#[allow(dead_code)]
 pub struct InheritanceStats {
     /// Total number of workloads
     pub total_workloads: usize,
     /// Maximum inheritance depth
     pub max_depth: usize,
-    /// Total number of inheritance edges
-    pub total_edges: usize,
 }
 
 /// Error types specific to inheritance resolution
