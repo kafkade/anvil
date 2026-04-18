@@ -190,13 +190,13 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
 
     // Scripts summary
     if let Some(ref scripts) = workload.scripts {
-        let mut has_scripts = false;
+        let mut _has_scripts = false;
 
         if let Some(ref pre) = scripts.pre_install {
             if !pre.is_empty() {
-                if !has_scripts {
+                if !_has_scripts {
                     println!();
-                    has_scripts = true;
+                    _has_scripts = true;
                 }
                 if use_color {
                     println!("{}", "Pre-install Scripts:".bold());
@@ -211,9 +211,9 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
 
         if let Some(ref post) = scripts.post_install {
             if !post.is_empty() {
-                if !has_scripts {
+                if !_has_scripts {
                     println!();
-                    has_scripts = true;
+                    _has_scripts = true;
                 }
                 if use_color {
                     println!("{}", "Post-install Scripts:".bold());
@@ -222,31 +222,6 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
                 }
                 for script in post {
                     print_script_entry(&script.path, script.description.as_deref(), use_color);
-                }
-            }
-        }
-
-        if let Some(ref health) = scripts.health_check {
-            if !health.is_empty() {
-                if !has_scripts {
-                    println!();
-                }
-                if use_color {
-                    println!("{}", "Health Check Scripts:".bold());
-                } else {
-                    println!("Health Check Scripts:");
-                }
-                for script in health {
-                    if use_color {
-                        println!(
-                            "  {} {} ({})",
-                            "•".dimmed(),
-                            script.name.cyan(),
-                            script.path.dimmed()
-                        );
-                    } else {
-                        println!("  - {} ({})", script.name, script.path);
-                    }
                 }
             }
         }
@@ -455,7 +430,7 @@ mod tests {
 
     #[test]
     fn test_script_count_with_scripts() {
-        use crate::config::workload::{HealthCheckScript, ScriptEntry, Scripts};
+        use crate::config::workload::{ScriptEntry, Scripts};
 
         let mut workload = Workload::new("test", "1.0.0", "Test workload");
         workload.scripts = Some(Scripts {
@@ -464,10 +439,9 @@ mod tests {
                 ScriptEntry::new("post1.ps1"),
                 ScriptEntry::new("post2.ps1"),
             ]),
-            health_check: Some(vec![HealthCheckScript::new("health.ps1", "Health Check")]),
         });
 
-        assert_eq!(workload.script_count(), 4);
+        assert_eq!(workload.script_count(), 3);
     }
 
     #[test]

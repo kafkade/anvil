@@ -101,6 +101,9 @@ pub fn execute(args: &ValidateArgs, cli: &Cli) -> Result<()> {
     // Run schema validation
     let mut result = validator.validate(&workload);
 
+    // Check for removed scripts.health_check field in raw YAML
+    SchemaValidator::check_removed_health_check(&content, &mut result);
+
     // Check for files and scripts existence
     let base_dir = workload_file.parent().unwrap_or(Path::new("."));
     let file_result = validate_referenced_files(&workload, base_dir, args.strict);
@@ -327,27 +330,6 @@ fn validate_referenced_files(
                 }
             }
         }
-
-        // Check health check scripts
-        if let Some(health_scripts) = &scripts.health_check {
-            for (i, script) in health_scripts.iter().enumerate() {
-                let script_path = scripts_dir.join(&script.path);
-                if !script_path.exists() {
-                    let msg = format!("Script file not found: {}", script_path.display());
-                    if strict {
-                        result.add_error(format!("scripts.health_check[{}].path", i), msg);
-                    } else {
-                        result.add_warning(format!("scripts.health_check[{}].path", i), msg);
-                    }
-                } else {
-                    check_script_file(
-                        &script_path,
-                        &format!("scripts.health_check[{}]", i),
-                        &mut result,
-                    );
-                }
-            }
-        }
     }
 
     result
@@ -428,11 +410,6 @@ fn validate_script_syntax(
     if let Some(post) = &scripts.post_install {
         for script in post {
             scripts_to_validate.push(("post_install", &script.path, &script.shell));
-        }
-    }
-    if let Some(health) = &scripts.health_check {
-        for script in health {
-            scripts_to_validate.push(("health_check", &script.path, &script.shell));
         }
     }
 
@@ -753,30 +730,7 @@ fn print_json_schema() -> Result<()> {
       "type": "object",
       "properties": {
         "pre_install": { "$ref": "#/definitions/scriptList" },
-        "post_install": { "$ref": "#/definitions/scriptList" },
-        "health_check": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "required": ["path", "name"],
-            "properties": {
-              "path": {
-                "type": "string",
-                "description": "Relative path from workload's scripts/ directory"
-              },
-              "name": {
-                "type": "string",
-                "description": "Display name for the check"
-              },
-              "description": { "type": "string" },
-              "shell": {
-                "type": "string",
-                "default": "powershell",
-                "enum": ["powershell", "pwsh", "cmd", "bash"]
-              }
-            }
-          }
-        }
+        "post_install": { "$ref": "#/definitions/scriptList" }
       }
     },
     "commands": {

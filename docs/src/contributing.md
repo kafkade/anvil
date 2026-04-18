@@ -424,10 +424,15 @@ packages:
     - id: Package.ID
 
 scripts:
-  health_check:
-    - path: scripts/health.ps1
-      name: "Verification"
-      description: "Verify installation"
+  post_install:
+    - path: scripts/setup.ps1
+      description: "Install and configure"
+
+assertions:
+  - name: "Tool is available"
+    check:
+      type: command_exists
+      command: my-tool
 ```
 
 ---

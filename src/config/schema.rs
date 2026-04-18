@@ -210,7 +210,27 @@ impl SchemaValidator {
         let workload: Workload = serde_yaml::from_str(&content)
             .with_context(|| format!("Failed to parse YAML: {}", path.display()))?;
 
-        Ok(self.validate(&workload))
+        let mut result = self.validate(&workload);
+
+        // Check for removed health_check field in raw YAML
+        Self::check_removed_health_check(&content, &mut result);
+
+        Ok(result)
+    }
+
+    /// Check raw YAML content for the removed scripts.health_check field
+    pub fn check_removed_health_check(content: &str, result: &mut ValidationResult) {
+        // Parse as serde_yaml::Value to detect removed fields
+        if let Ok(value) = serde_yaml::from_str::<serde_yaml::Value>(content) {
+            if let Some(scripts) = value.get("scripts") {
+                if scripts.get("health_check").is_some() {
+                    result.add_error(
+                        "scripts.health_check",
+                        "scripts.health_check has been removed in v1.0. Use declarative assertions instead. See https://anvil.kafkade.com/workload-authoring.html",
+                    );
+                }
+            }
+        }
     }
 
     /// Validate workload metadata
@@ -496,38 +516,6 @@ impl SchemaValidator {
                 for (i, script) in post_scripts.iter().enumerate() {
                     let path = format!("scripts.post_install[{}]", i);
                     self.validate_script_entry(&path, script, result);
-                }
-            }
-
-            // Validate health check scripts
-            if let Some(health_scripts) = &scripts.health_check {
-                for (i, script) in health_scripts.iter().enumerate() {
-                    let path = format!("scripts.health_check[{}]", i);
-
-                    // Path is required
-                    if script.path.is_empty() {
-                        result.add_error(format!("{}.path", path), "Script path is required");
-                    }
-
-                    // Health check scripts should have a name
-                    if script.name.is_empty() {
-                        result.add_warning(
-                            format!("{}.name", path),
-                            "Health check scripts should have a display name",
-                        );
-                    }
-
-                    // Validate shell value
-                    let valid_shells = ["powershell", "pwsh", "cmd", "bash"];
-                    if !valid_shells.contains(&script.shell.to_lowercase().as_str()) {
-                        result.add_warning(
-                            format!("{}.shell", path),
-                            format!(
-                                "Unknown shell '{}'. Expected one of: {:?}",
-                                script.shell, valid_shells
-                            ),
-                        );
-                    }
                 }
             }
         }

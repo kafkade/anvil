@@ -154,7 +154,6 @@ pub enum OutputMode {
 pub enum ScriptPhase {
     PreInstall,
     PostInstall,
-    HealthCheck,
     Validation,
 }
 
@@ -163,7 +162,6 @@ impl std::fmt::Display for ScriptPhase {
         match self {
             ScriptPhase::PreInstall => write!(f, "pre_install"),
             ScriptPhase::PostInstall => write!(f, "post_install"),
-            ScriptPhase::HealthCheck => write!(f, "health_check"),
             ScriptPhase::Validation => write!(f, "validation"),
         }
     }
@@ -561,7 +559,7 @@ impl ScriptContext {
             workload_path: workload_path.into(),
             dry_run: false,
             verbose: false,
-            phase: ScriptPhase::HealthCheck,
+            phase: ScriptPhase::Validation,
         }
     }
 

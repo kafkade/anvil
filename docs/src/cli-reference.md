@@ -102,14 +102,12 @@ anvil install essentials --files-only --force-files
 | `--fail-fast` | — | Stop on first failure |
 | `--packages-only` | — | Only check packages |
 | `--files-only` | — | Only check files |
-| `--scripts-only` | — | Only run health check scripts |
 | `--assertions-only` | — | Only evaluate declarative assertions |
 | `-s, --strict` | — | Treat warnings as errors |
 | `--fix` | — | Attempt to install missing packages |
 | `--update` | — | Update packages with available updates |
 | `--no-cache` | — | Skip cache and query winget directly |
 | `--show-diff` | — | Show file differences for modified files |
-| `--script <NAME>` | — | Run only a specific health check script by name |
 
 **Examples:**
 
@@ -125,9 +123,6 @@ anvil health essentials --packages-only --fail-fast
 
 # Auto-fix missing packages
 anvil health essentials --fix
-
-# Run a single health check script
-anvil health essentials --script "Git Configuration"
 
 # Strict mode — warnings become errors
 anvil health essentials --strict
@@ -683,7 +678,7 @@ anvil config path
 | `ANVIL_WORKLOAD_PATH` | Absolute path to the workload directory. | Scripts |
 | `ANVIL_DRY_RUN` | Set to `"true"` or `"false"` during script execution. | Scripts |
 | `ANVIL_VERBOSE` | Verbosity level (`0`–`3`) during script execution. | Scripts |
-| `ANVIL_PHASE` | Current execution phase: `pre_install`, `post_install`, or `health_check`. | Scripts |
+| `ANVIL_PHASE` | Current execution phase: `pre_install`, `post_install`, or `validation`. | Scripts |
 | `ANVIL_VERSION` | Anvil version string. Available in scripts and Handlebars templates. | Scripts, templates |
 | `RUST_LOG` | Controls Rust log output (e.g., `RUST_LOG=debug`). Standard `env_logger` / `tracing` variable. | Debugging |
 | `RUST_BACKTRACE` | Enables Rust backtraces on panic (`1` = short, `full` = complete). | Debugging |

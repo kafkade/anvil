@@ -280,14 +280,12 @@ anvil health <WORKLOAD> [OPTIONS]
 | `--fail-fast` | Stop on first failure |
 | `--packages-only` | Only check packages |
 | `--files-only` | Only check files |
-| `--scripts-only` | Only run health check scripts |
 | `--assertions-only` | Only evaluate declarative assertions |
 | `-s, --strict` | Treat warnings as errors |
 | `--fix` | Attempt to install missing packages |
 | `--update` | Update packages with available updates |
 | `--no-cache` | Skip cache and query winget directly |
 | `--show-diff` | Show file differences for modified files |
-| `--script <NAME>` | Run only a specific health check script by name |
 
 **Examples:**
 ```powershell
@@ -312,9 +310,6 @@ anvil health rust-developer --assertions-only
 # Auto-fix missing packages
 anvil health rust-developer --fix
 
-# Run a specific health check script
-anvil health rust-developer --script "Git Health"
-
 # Show file diffs for modified config files
 anvil health rust-developer --show-diff
 ```
@@ -324,7 +319,6 @@ anvil health rust-developer --show-diff
 Health checks verify:
 - **Packages**: Are required packages installed? Correct versions?
 - **Files**: Do configuration files exist with expected content?
-- **Scripts**: Do health check scripts pass?
 - **Assertions**: Do declarative condition checks pass? (see [Assertion-Based Health Checks](#assertion-based-health-checks))
 
 Status indicators:
@@ -1173,7 +1167,7 @@ anvil install my-workload
 In your workload scripts, handle errors gracefully:
 
 ```powershell
-# health-check.ps1
+# post-install.ps1
 try {
     $rustVersion = rustc --version
     if ($LASTEXITCODE -ne 0) {
@@ -1184,7 +1178,7 @@ try {
     exit 0
 }
 catch {
-    Write-Error "Health check failed: $_"
+    Write-Error "Script failed: $_"
     exit 1
 }
 ```
@@ -1193,7 +1187,7 @@ catch {
 
 ## 11. Assertion-Based Health Checks
 
-In addition to package, file, and script checks, workloads can define **declarative assertions** using a built-in condition engine. Assertions let you express health checks directly in YAML without writing PowerShell scripts.
+In addition to package and file checks, workloads can define **declarative assertions** using a built-in condition engine. Assertions let you express health checks directly in YAML without writing PowerShell scripts.
 
 ### Defining Assertions
 

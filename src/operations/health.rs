@@ -4,7 +4,6 @@
 //! the current system state against a workload definition.
 
 use std::path::Path;
-use std::time::Duration;
 
 use anyhow::{Context, Result};
 
@@ -16,9 +15,6 @@ use crate::cli::progress::SimpleProgress;
 use crate::cli::Cli;
 use crate::config::{expand_variables, ConfigManager};
 use crate::providers::backup::compute_file_hash;
-use crate::providers::script::{
-    OutputMode, ScriptConfig, ScriptContext, ScriptPhase, ScriptProvider,
-};
 use crate::providers::winget::version;
 use crate::providers::{create_registry, ProviderConfig};
 use crate::state::{CachedPackageInfo, FileStateManager, PackageCache};
@@ -49,25 +45,6 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
         tracing::info!("Checking health for workload: {}", workload.name);
     }
 
-    // Deprecation warning: scripts.health_check alongside assertions
-    let has_assertions = workload
-        .assertions
-        .as_ref()
-        .map(|a| !a.is_empty())
-        .unwrap_or(false);
-    let has_health_check_scripts = workload
-        .scripts
-        .as_ref()
-        .and_then(|s| s.health_check.as_ref())
-        .map(|h| !h.is_empty())
-        .unwrap_or(false);
-    if has_assertions && has_health_check_scripts {
-        print_warning(
-            "Deprecation notice: `scripts.health_check` is deprecated when used alongside `assertions`. \
-             Migrate health check scripts to declarative assertions. See docs/src/specification.md for details.",
-        );
-    }
-
     // Show spinner while checking
     let spinner = if !quiet {
         Some(SimpleProgress::spinner("Checking system health..."))
@@ -81,7 +58,7 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
     let mut _packages_to_update: Vec<String> = Vec::new();
 
     // Package checks
-    if !args.files_only && !args.scripts_only && !args.assertions_only {
+    if !args.files_only && !args.assertions_only {
         let (package_checks, fix_list, update_list) = check_packages(&workload, verbosity, quiet)?;
         checks.extend(package_checks);
         _packages_to_fix = fix_list;
@@ -96,7 +73,7 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
     }
 
     // File checks
-    if !args.packages_only && !args.scripts_only && !args.assertions_only {
+    if !args.packages_only && !args.assertions_only {
         let file_checks = check_files(&workload, &workload_path, verbosity, args.show_diff)?;
         checks.extend(file_checks);
 
@@ -109,7 +86,7 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
     }
 
     // Assertion checks
-    if !args.packages_only && !args.files_only && !args.scripts_only {
+    if !args.packages_only && !args.files_only {
         let health_config = workload.health.as_ref().cloned().unwrap_or_default();
         if health_config.assertion_check {
             if let Some(assertions) = &workload.assertions {
@@ -134,17 +111,6 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
                 }
             }
         }
-    }
-
-    // Script checks
-    if !args.packages_only && !args.files_only && !args.assertions_only {
-        if let Some(s) = &spinner {
-            s.set_message("Running health check scripts...");
-        }
-
-        let script_checks =
-            run_health_scripts(&workload, &workload_path, verbosity, args.script.as_deref())?;
-        checks.extend(script_checks);
     }
 
     if let Some(s) = spinner {
@@ -648,261 +614,6 @@ fn format_file_size(bytes: u64) -> String {
     } else {
         format!("{} B", bytes)
     }
-}
-
-/// Run health check scripts defined in the workload
-fn run_health_scripts(
-    workload: &crate::config::workload::Workload,
-    workload_path: &Path,
-    verbosity: u8,
-    script_filter: Option<&str>,
-) -> Result<Vec<CheckResult>> {
-    let mut results = Vec::new();
-
-    let scripts = match &workload.scripts {
-        Some(s) => s.health_check.as_deref().unwrap_or(&[]),
-        None => return Ok(results),
-    };
-
-    if scripts.is_empty() {
-        return Ok(results);
-    }
-
-    // Resolve scripts directory
-    let scripts_dir = workload_path.join("scripts");
-
-    // Create script provider
-    let mut provider = ScriptProvider::new()
-        .with_base_path(&scripts_dir)
-        .with_verbose(verbosity > 1);
-
-    // Create script context for environment injection
-    let context = ScriptContext::new(&workload.name, workload_path)
-        .with_phase(ScriptPhase::HealthCheck)
-        .with_verbose(verbosity > 1);
-
-    for script in scripts {
-        let display_name = &script.name;
-
-        // Filter by name if specified
-        if let Some(filter) = script_filter {
-            if !display_name.to_lowercase().contains(&filter.to_lowercase()) {
-                continue;
-            }
-        }
-
-        if verbosity > 1 {
-            tracing::debug!("Running health check script: {}", display_name);
-        }
-
-        // Resolve script path
-        let script_path = scripts_dir.join(&script.path);
-
-        if !script_path.exists() {
-            results.push(CheckResult::fail(
-                display_name,
-                "Scripts",
-                format!("Script not found: {}", script.path),
-            ));
-            continue;
-        }
-
-        // Build script configuration
-        let mut config = ScriptConfig::new(&script.path)
-            .with_timeout(Duration::from_secs(60)) // Default 60s timeout for health checks
-            .with_working_dir(&scripts_dir);
-
-        // Set output mode based on verbosity
-        if verbosity > 1 {
-            config = config.with_output_mode(OutputMode::Both);
-        }
-
-        // Inject environment variables
-        provider.inject_environment_variables(&mut config, &context);
-
-        // Execute the script
-        match provider.execute(&config) {
-            Ok(result) => {
-                let check_result = match result.exit_code {
-                    0 => {
-                        // Parse output for summary
-                        if let Some(ref parsed) = result.parsed {
-                            if parsed.summary.passed > 0
-                                || parsed.summary.failed > 0
-                                || parsed.summary.warnings > 0
-                            {
-                                // Build message including warnings if present
-                                let message = if parsed.summary.warnings > 0 {
-                                    format!(
-                                        "{} passed, {} failed, {} warning(s)",
-                                        parsed.summary.passed,
-                                        parsed.summary.failed,
-                                        parsed.summary.warnings
-                                    )
-                                } else {
-                                    format!(
-                                        "{} passed, {} failed",
-                                        parsed.summary.passed, parsed.summary.failed
-                                    )
-                                };
-
-                                // Use WARN status if there are warnings
-                                if parsed.summary.warnings > 0 {
-                                    CheckResult::warn_with_script_counts(
-                                        display_name,
-                                        "Scripts",
-                                        message,
-                                        parsed.summary.passed as usize,
-                                        parsed.summary.failed as usize,
-                                        parsed.summary.warnings as usize,
-                                    )
-                                } else {
-                                    CheckResult::ok_with_script_counts(
-                                        display_name,
-                                        "Scripts",
-                                        message,
-                                        parsed.summary.passed as usize,
-                                        parsed.summary.failed as usize,
-                                        parsed.summary.warnings as usize,
-                                    )
-                                }
-                            } else {
-                                let message =
-                                    format!("Completed in {:.1}s", result.duration.as_secs_f64());
-                                CheckResult::ok_with_message(display_name, "Scripts", message)
-                            }
-                        } else {
-                            let message =
-                                format!("Completed in {:.1}s", result.duration.as_secs_f64());
-                            CheckResult::ok_with_message(display_name, "Scripts", message)
-                        }
-                    }
-                    1 => {
-                        // Extract failure details from stdout
-                        let details: Vec<String> = result
-                            .stdout
-                            .lines()
-                            .filter(|line| {
-                                let line_lower = line.to_lowercase();
-                                let trimmed = line.trim();
-                                // Include lines with failure indicators
-                                (line_lower.contains("[fail]")
-                                    || line_lower.contains("fail:")
-                                    || line_lower.contains("error:"))
-                                    // But exclude generic summary lines
-                                    && !trimmed.eq_ignore_ascii_case("some checks failed.")
-                                    && !trimmed.eq_ignore_ascii_case("some checks failed")
-                            })
-                            .map(|s| s.trim().to_string())
-                            .filter(|s| !s.is_empty())
-                            .collect();
-
-                        // Parse failure details from output
-                        if let Some(ref parsed) = result.parsed {
-                            if parsed.summary.failed > 0 || parsed.summary.passed > 0 {
-                                let message = format!(
-                                    "{} checks failed (passed: {})",
-                                    parsed.summary.failed, parsed.summary.passed
-                                );
-                                CheckResult::fail_with_script_counts(
-                                    display_name,
-                                    "Scripts",
-                                    message,
-                                    details,
-                                    parsed.summary.passed as usize,
-                                    parsed.summary.failed as usize,
-                                    parsed.summary.warnings as usize,
-                                )
-                            } else {
-                                CheckResult::fail_with_details(
-                                    display_name,
-                                    "Scripts",
-                                    "Health check reported failures",
-                                    details,
-                                )
-                            }
-                        } else {
-                            CheckResult::fail_with_details(
-                                display_name,
-                                "Scripts",
-                                "Health check reported failures",
-                                details,
-                            )
-                        }
-                    }
-                    2 => {
-                        // Warnings only
-                        if let Some(ref parsed) = result.parsed {
-                            if parsed.summary.warnings > 0 || parsed.summary.passed > 0 {
-                                let message = format!(
-                                    "{} warnings (passed: {})",
-                                    parsed.summary.warnings, parsed.summary.passed
-                                );
-                                CheckResult::warn_with_script_counts(
-                                    display_name,
-                                    "Scripts",
-                                    message,
-                                    parsed.summary.passed as usize,
-                                    parsed.summary.failed as usize,
-                                    parsed.summary.warnings as usize,
-                                )
-                            } else {
-                                CheckResult::warn(
-                                    display_name,
-                                    "Scripts",
-                                    "Health check reported warnings",
-                                )
-                            }
-                        } else {
-                            CheckResult::warn(
-                                display_name,
-                                "Scripts",
-                                "Health check reported warnings",
-                            )
-                        }
-                    }
-                    code => {
-                        // Extract any error output for unexpected exit codes
-                        let details: Vec<String> = result
-                            .stderr
-                            .lines()
-                            .chain(result.stdout.lines().filter(|line| {
-                                let line_lower = line.to_lowercase();
-                                line_lower.contains("error") || line_lower.contains("fail")
-                            }))
-                            .filter(|line| !line.trim().is_empty())
-                            .take(10) // Limit to 10 lines
-                            .map(|s| s.trim().to_string())
-                            .collect();
-
-                        CheckResult::fail_with_details(
-                            display_name,
-                            "Scripts",
-                            format!("Script exited with code {}", code),
-                            details,
-                        )
-                    }
-                };
-                results.push(check_result);
-            }
-            Err(e) => {
-                let message = match &e {
-                    crate::providers::script::ScriptError::Timeout {
-                        timeout_seconds, ..
-                    } => {
-                        format!("Script timed out after {}s", timeout_seconds)
-                    }
-                    crate::providers::script::ScriptError::ElevationRequired { .. } => {
-                        "Script requires elevated privileges".to_string()
-                    }
-                    _ => e.to_string(),
-                };
-                results.push(CheckResult::fail(display_name, "Scripts", message));
-            }
-        }
-    }
-
-    Ok(results)
 }
 
 /// Generate and output the health report, then exit with appropriate code

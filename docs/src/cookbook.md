@@ -138,57 +138,11 @@ files:
 anvil install my-setup --files-only --dry-run
 ```
 
-## Writing Health Check Scripts
-
-Health check scripts validate that your environment is correctly configured. They return exit code 0 for success, 1 for failure.
-
-### Basic health check
-
-Create `scripts/health-check.ps1`:
-
-```powershell
-# health-check.ps1 - Verify development tools
-$ErrorActionPreference = "Continue"
-$exitCode = 0
-
-function Test-Tool($name) {
-    if (Get-Command $name -ErrorAction SilentlyContinue) {
-        Write-Host "  [PASS] $name found" -ForegroundColor Green
-    } else {
-        Write-Host "  [FAIL] $name not found" -ForegroundColor Red
-        $script:exitCode = 1
-    }
-}
-
-Write-Host "Checking tools..." -ForegroundColor Cyan
-Test-Tool "git"
-Test-Tool "code"
-Test-Tool "cargo"
-
-exit $exitCode
-```
-
-Reference it in `workload.yaml`:
-
-```yaml
-scripts:
-  health_check:
-    - path: health-check.ps1
-      name: "Development Tools"
-      description: "Verifies core development tools are installed"
-```
-
-Run the check:
-
-```sh
-anvil health my-setup                     # all checks
-anvil health my-setup --scripts-only      # scripts only
-anvil health my-setup --script "Development Tools"  # one script
-```
-
 ## Using Assertions for Declarative Health Checks
 
-Assertions are a declarative alternative to health check scripts — no scripting needed.
+Assertions are the recommended way to validate your environment — no scripting needed.
+
+> **Note:** `scripts.health_check` was removed in v1.0. Use declarative `assertions` instead.
 
 ### Check that commands exist
 

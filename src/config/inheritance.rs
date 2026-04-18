@@ -10,8 +10,8 @@ use std::path::PathBuf;
 use tracing::{debug, trace};
 
 use super::workload::{
-    AptPackage, BrewPackage, CommandBlock, CommandEntry, Environment, FileEntry, HealthCheckScript,
-    Packages, ScriptEntry, Scripts, WingetPackage, Workload,
+    AptPackage, BrewPackage, CommandBlock, CommandEntry, Environment, FileEntry, Packages,
+    ScriptEntry, Scripts, WingetPackage, Workload,
 };
 use super::ConfigManager;
 
@@ -344,7 +344,7 @@ impl InheritanceError {
 /// | files | Append (same destinations overwritten by child) |
 /// | scripts.pre_install | Parent first, then child |
 /// | scripts.post_install | Parent first, then child |
-/// | scripts.health_check | Combine all |
+/// | ~~scripts.health_check~~ | *(removed in v1.0)* |
 /// | environment.variables | Child overwrites same-named |
 /// | environment.path_additions | Append |
 ///
@@ -646,7 +646,6 @@ fn merge_files(
 /// Strategy:
 /// - pre_install: Parent scripts first, then child scripts
 /// - post_install: Parent scripts first, then child scripts
-/// - health_check: Combine all (parent first, then child)
 fn merge_scripts(parent: Option<Scripts>, child: Option<Scripts>) -> Option<Scripts> {
     match (parent, child) {
         (None, None) => None,
@@ -656,7 +655,6 @@ fn merge_scripts(parent: Option<Scripts>, child: Option<Scripts>) -> Option<Scri
             let mut result = Scripts {
                 pre_install: None,
                 post_install: None,
-                health_check: None,
             };
 
             // Pre-install: parent first, then child
@@ -665,14 +663,8 @@ fn merge_scripts(parent: Option<Scripts>, child: Option<Scripts>) -> Option<Scri
             // Post-install: parent first, then child
             result.post_install = merge_script_list(parent.post_install, child.post_install);
 
-            // Health check: combine all (using merge_health_check_list)
-            result.health_check = merge_health_check_list(parent.health_check, child.health_check);
-
             // Only return Some if at least one script list is present
-            if result.pre_install.is_some()
-                || result.post_install.is_some()
-                || result.health_check.is_some()
-            {
+            if result.pre_install.is_some() || result.post_install.is_some() {
                 Some(result)
             } else {
                 None
@@ -686,22 +678,6 @@ fn merge_script_list(
     parent: Option<Vec<ScriptEntry>>,
     child: Option<Vec<ScriptEntry>>,
 ) -> Option<Vec<ScriptEntry>> {
-    match (parent, child) {
-        (None, None) => None,
-        (Some(p), None) => Some(p),
-        (None, Some(c)) => Some(c),
-        (Some(mut parent), Some(child)) => {
-            parent.extend(child);
-            Some(parent)
-        }
-    }
-}
-
-/// Merge two health check script lists
-fn merge_health_check_list(
-    parent: Option<Vec<HealthCheckScript>>,
-    child: Option<Vec<HealthCheckScript>>,
-) -> Option<Vec<HealthCheckScript>> {
     match (parent, child) {
         (None, None) => None,
         (Some(p), None) => Some(p),
@@ -1156,12 +1132,10 @@ mod tests {
         let parent = Some(Scripts {
             pre_install: Some(vec![ScriptEntry::new("parent-pre.ps1")]),
             post_install: Some(vec![ScriptEntry::new("parent-post.ps1")]),
-            health_check: None,
         });
         let child = Some(Scripts {
             pre_install: Some(vec![ScriptEntry::new("child-pre.ps1")]),
             post_install: Some(vec![ScriptEntry::new("child-post.ps1")]),
-            health_check: None,
         });
 
         let merged = merge_scripts(parent, child).unwrap();

@@ -29,23 +29,10 @@ packages:
     - id: Microsoft.WindowsTerminal
 
 files: []
-
-scripts:
-  health_check:
-    - path: scripts/health.ps1
-      name: "Basic Check"
-      description: "Simple health check script"
 "#
     );
 
     fs::write(workload_dir.join("workload.yaml"), yaml)?;
-    fs::write(
-        workload_dir.join("scripts/health.ps1"),
-        r#"# Basic health check script
-Write-Host "Health check running..."
-exit 0
-"#,
-    )?;
 
     Ok(())
 }
@@ -186,12 +173,6 @@ scripts:
     - path: scripts/post-install.ps1
       description: "Post-installation configuration"
       timeout: 120
-
-  health_check:
-    - path: scripts/health-check.ps1
-      name: "Full Health Check"
-      description: "Comprehensive system verification"
-      timeout: 60
 
 environment:
   variables:
@@ -416,8 +397,8 @@ assertions:
     Ok(())
 }
 
-/// Create a workload with both assertions and health_check scripts
-/// for testing the deprecation warning
+/// Create a workload with the removed health_check field
+/// for testing that validation correctly rejects it
 #[allow(dead_code)]
 pub fn create_workload_with_both_assertions_and_scripts(
     dir: &Path,
@@ -430,7 +411,7 @@ pub fn create_workload_with_both_assertions_and_scripts(
     let yaml = format!(
         r#"name: {name}
 version: "1.0.0"
-description: "Workload with both assertions and health_check scripts"
+description: "Workload with removed health_check field"
 
 assertions:
   - name: "PATH is set"
@@ -519,10 +500,6 @@ mod tests {
         create_test_workload(temp.path(), "test-workload").unwrap();
 
         assert!(temp.path().join("test-workload/workload.yaml").exists());
-        assert!(temp
-            .path()
-            .join("test-workload/scripts/health.ps1")
-            .exists());
     }
 
     #[test]
