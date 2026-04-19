@@ -1229,7 +1229,7 @@ Duplicate workload names produce a warning with the resolved path shown.
 
 **Goal:** Stable release with cross-platform CI and crates.io publishing.
 
-- Decide crate name (`anvil` is taken on crates.io — candidates: `anvil-cli`, `devsmith`, `forgekit`)
+- Decide crate name (`anvil` is taken on crates.io — candidates: `anvil-dev`, `devsmith`, `forgekit`)
 - ~~Cross-compilation CI for Windows, Linux, macOS~~ ✅ Implemented (matrix build in `ci.yml`)
 - ~~Shell completions~~ ✅ Implemented (bash, zsh, fish, powershell, elvish via `cli/completions.rs`)
 - Comprehensive documentation review

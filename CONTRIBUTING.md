@@ -12,6 +12,7 @@ Thank you for your interest in contributing to Anvil! This document provides gui
 - [Testing](#testing)
 - [Submitting Changes](#submitting-changes)
 - [Creating Workloads](#creating-workloads)
+- [Releasing a New Version](#releasing-a-new-version)
 - [License](#license)
 
 ---
@@ -431,6 +432,99 @@ assertions:
     check:
       type: command_exists
       command: my-tool
+```
+
+---
+
+## Releasing a New Version
+
+Releases are automated — a single script bumps the version, stamps the changelog, commits, tags, and optionally pushes. CI then builds cross-platform binaries, creates a GitHub Release, and publishes to crates.io.
+
+### Prerequisites
+
+- You must be on the `main` branch with a clean working tree
+- `CHANGELOG.md` must have entries under `## [Unreleased]`
+- All tests and clippy checks must pass (the script verifies this)
+- The `CARGO_REGISTRY_TOKEN` secret must be configured in the repo (one-time setup)
+
+### Release Process
+
+**1. Run the release script**
+
+```powershell
+# Patch release (0.6.0 → 0.6.1)
+./scripts/release.ps1 patch
+
+# Minor release (0.6.0 → 0.7.0)
+./scripts/release.ps1 minor
+
+# Major release (0.6.0 → 1.0.0)
+./scripts/release.ps1 major
+
+# Preview what would happen without making changes
+./scripts/release.ps1 patch -DryRun
+
+# Release and push in one step
+./scripts/release.ps1 patch -Push
+```
+
+The script will:
+1. Read the current version from `Cargo.toml`
+2. Bump the specified semver component
+3. Verify the working tree is clean and on `main`
+4. Run `cargo test` and `cargo clippy` as preflight checks
+5. Update `Cargo.toml` with the new version
+6. Stamp `CHANGELOG.md` — rename `[Unreleased]` to `[x.y.z] - YYYY-MM-DD` and create a fresh `[Unreleased]` section
+7. Commit with message `chore: release vx.y.z`
+8. Create an annotated git tag `vx.y.z`
+
+**2. Push the tag**
+
+If you didn't use `-Push`, push manually:
+
+```powershell
+git push origin main --follow-tags
+```
+
+**3. CI takes over**
+
+Pushing a `v*` tag triggers `.github/workflows/release.yml`, which:
+
+1. **Builds** release binaries for 5 targets:
+   - `x86_64-pc-windows-msvc`
+   - `x86_64-unknown-linux-gnu`
+   - `aarch64-unknown-linux-gnu` (cross-compiled)
+   - `x86_64-apple-darwin`
+   - `aarch64-apple-darwin`
+2. **Packages** each binary (`.zip` for Windows, `.tar.gz` for Unix) with SHA-256 checksums
+3. **Creates a GitHub Release** with the changelog entry as release notes, and attaches all binaries
+4. **Publishes to crates.io** via `cargo publish --no-verify`
+
+### Post-Release Verification
+
+After the workflow completes:
+
+```powershell
+# Verify the GitHub release exists
+gh release view vx.y.z
+
+# Verify crates.io publication
+cargo install anvil-dev  # should install the new version
+anvil --version          # should show the new version
+```
+
+### Version Policy
+
+- Versions follow [Semantic Versioning](https://semver.org/)
+- Pre-1.0 releases (`0.x.y`) are marked as pre-releases on GitHub
+- Changelog follows [Keep a Changelog](https://keepachangelog.com/) format
+
+### Crate Packaging
+
+The `Cargo.toml` `exclude` list keeps the published crate lean — only source code, tests, licenses, README, and changelog are included. CI configs, docs, site assets, and scripts are excluded. To inspect what would be published:
+
+```powershell
+cargo package --list
 ```
 
 ---

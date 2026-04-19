@@ -37,7 +37,7 @@ Anvil is a declarative configuration management tool for developer workstations.
 
 ```powershell
 # Prerequisites: Rust 1.75+
-cargo install anvil-cli
+cargo install anvil-dev
 ```
 
 **Option 2: Download from Releases**

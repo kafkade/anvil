@@ -89,6 +89,10 @@ Create `examples/<name>/workload.yaml` (plus optional `files/` and `scripts/`). 
 
 **Never execute Git commands that modify history or submit code.** This includes `git commit`, `git push`, `git rebase`, `git merge`, `git reset`, `git cherry-pick`, `git revert`, and `git tag`. Read-only commands like `git status`, `git diff`, `git log`, and `git branch` are fine. The maintainer must always review and commit changes themselves.
 
+## Cargo Publish Policy
+
+**Never execute `cargo publish`.** This includes `cargo publish`, `cargo publish --dry-run`, and any other command that interacts with the crates.io registry. Publishing is a privileged, irreversible operation that the maintainer must perform manually. You may run `cargo package --list` to inspect what would be included, but never publish or attempt to publish.
+
 ## Key References
 
 - `docs/src/specification.md` — Project spec, workload schema, and roadmap (v0.4–v1.0)

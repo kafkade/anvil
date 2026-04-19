@@ -24,7 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cross-platform release builds for Linux (x86_64, aarch64), macOS (x86_64, aarch64), and Windows (x86_64)
 
 ### Changed
-- Crate renamed to `anvil-cli` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-cli`)
+- Crate renamed to `anvil-dev` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-dev`)
 
 ### Deprecated
 - ~~`scripts.health_check` when used alongside `assertions`~~ — **removed in this release** (see Removed)

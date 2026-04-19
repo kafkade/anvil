@@ -1,16 +1,28 @@
 [package]
-name = "anvil-cli"
+name = "anvil-dev"
 version = "0.6.0"
 edition = "2021"
 authors = ["Anvil Contributors"]
 description = "Declarative workstation configuration management"
 license = "MIT OR Apache-2.0"
 repository = "https://github.com/kafkade/anvil"
-homepage = "https://github.com/kafkade/anvil"
+homepage = "https://anvil.kafkade.com"
 readme = "README.md"
 keywords = ["windows", "configuration", "winget", "devops", "automation"]
 categories = ["command-line-utilities", "config", "development-tools"]
 rust-version = "1.75"
+exclude = [
+  ".github/",
+  "docs/",
+  "site/",
+  "scripts/",
+  "examples/",
+  "book.toml",
+  "rust-toolchain.toml",
+  "CODE_OF_CONDUCT.md",
+  "CONTRIBUTING.md",
+  "SECURITY.md",
+]
 
 [dependencies]
 # CLI framework

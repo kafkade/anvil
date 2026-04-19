@@ -44,7 +44,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Animated forge lettermark banner on `anvil --version` with molten gradient
 
 ### Changed
-- Crate renamed to `anvil-cli` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-cli`)
+- Crate renamed to `anvil-dev` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-dev`)
 - Tracing/log output now writes to stderr instead of stdout, preventing pollution of structured output (JSON, YAML)
 
 ### Fixed

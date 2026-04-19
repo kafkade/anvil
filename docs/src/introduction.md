@@ -23,7 +23,7 @@ that everything is healthy.
 
 ```sh
 # From crates.io (requires Rust 1.75+)
-cargo install anvil-cli
+cargo install anvil-dev
 ```
 
 Or download a pre-built binary from the
