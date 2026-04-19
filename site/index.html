@@ -28,19 +28,27 @@
   <nav class="nav">
     <div class="nav-inner">
       <a href="/" class="nav-logo" aria-label="Anvil home">
-        <svg viewBox="0 0 64 64" width="28" height="28" aria-hidden="true">
+        <svg viewBox="0 0 360 100" height="30" role="img" aria-labelledby="nav-logo-title">
+          <title id="nav-logo-title">Anvil</title>
           <defs>
             <linearGradient id="nav-forge" x1="0%" y1="100%" x2="0%" y2="0%">
               <stop offset="0%" stop-color="#dc2626"/><stop offset="35%" stop-color="#f97316"/>
               <stop offset="70%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#fef3c7"/>
             </linearGradient>
+            <radialGradient id="glow-h" cx="50%" cy="30%">
+              <stop offset="0%" stop-color="#fef3c7" stop-opacity="0.15"/>
+              <stop offset="100%" stop-color="#fef3c7" stop-opacity="0"/>
+            </radialGradient>
           </defs>
-          <g transform="translate(32,35)">
-            <path d="M-22 25 L-4-25 Q0-32 4-25 L22 25 L14 25 L8 6 L-8 6 L-14 25Z" fill="url(#nav-forge)"/>
-            <rect x="-10" y="0" width="20" height="6" rx="1" fill="#991b1b"/>
+          <circle cx="50" cy="48" r="42" fill="url(#glow-h)"/>
+          <g transform="translate(50,52)">
+            <path d="M-32 38 L-6-38 Q0-48 6-38 L32 38 L20 38 L10 8 L-10 8 L-20 38Z" fill="url(#nav-forge)"/>
+            <rect x="-14" y="0" width="28" height="10" rx="1.5" fill="#991b1b"/>
+            <path class="logo-cutout" d="M-7 8 L0-18 L7 8Z"/>
           </g>
+          <line x1="100" y1="24" x2="100" y2="76" class="logo-divider"/>
+          <text class="logo-wordmark" x="118" y="62" font-family="'Helvetica Neue', Arial, sans-serif" font-size="36" font-weight="700" letter-spacing="6">ANVIL</text>
         </svg>
-        <span>Anvil</span>
       </a>
       <input type="checkbox" id="nav-toggle" class="nav-toggle-input" aria-label="Toggle navigation">
       <label for="nav-toggle" class="nav-toggle" aria-label="Menu">
@@ -77,17 +85,24 @@
         <p class="hero-badge">Open Source · Built with Rust · MIT / Apache-2.0</p>
 
         <div class="hero-logo" aria-hidden="true">
-          <svg viewBox="0 0 200 200" width="96" height="96">
+          <svg viewBox="0 0 200 200" width="148" height="148">
             <defs>
               <linearGradient id="hero-forge" x1="0%" y1="100%" x2="0%" y2="0%">
                 <stop offset="0%" stop-color="#dc2626"/><stop offset="35%" stop-color="#f97316"/>
                 <stop offset="70%" stop-color="#fbbf24"/><stop offset="100%" stop-color="#fef3c7"/>
               </linearGradient>
+              <radialGradient id="glow-v" cx="50%" cy="25%">
+                <stop offset="0%" stop-color="#fef3c7" stop-opacity="0.2"/>
+                <stop offset="100%" stop-color="#fef3c7" stop-opacity="0"/>
+              </radialGradient>
             </defs>
-            <g transform="translate(100,105)">
-              <path d="M-56 65 L-10-65 Q0-82 10-65 L56 65 L34 65 L18 16 L-18 16 L-34 65Z" fill="url(#hero-forge)"/>
-              <rect x="-24" y="0" width="48" height="16" rx="2" fill="#991b1b"/>
+            <circle cx="100" cy="72" r="60" fill="url(#glow-v)"/>
+            <g transform="translate(100,82)">
+              <path d="M-44 52 L-8-52 Q0-66 8-52 L44 52 L28 52 L14 12 L-14 12 L-28 52Z" fill="url(#hero-forge)"/>
+              <rect x="-20" y="0" width="40" height="13" rx="2" fill="#991b1b"/>
+              <path class="logo-cutout" d="M-9 12 L0-26 L9 12Z"/>
             </g>
+            <text class="logo-wordmark" x="100" y="162" text-anchor="middle" font-family="'Helvetica Neue', Arial, sans-serif" font-size="18" font-weight="600" letter-spacing="10">ANVIL</text>
           </svg>
         </div>
 
@@ -218,30 +233,46 @@
       <div class="container">
         <h2 class="section-title">Install in<br><span class="accent">Seconds</span></h2>
         <div class="install-grid">
+
           <div class="install-card">
             <div class="install-card-badge">Recommended</div>
             <h3>From crates.io</h3>
-            <p>Install with Cargo — Rust 1.75+ required.</p>
+            <p>Install with Cargo — Rust 1.75+ required. Works on all platforms.</p>
             <pre class="install-code"><code>cargo install anvil-cli</code></pre>
           </div>
+
           <div class="install-card">
             <h3>Pre-built Binary</h3>
             <p>Download from GitHub Releases for your platform.</p>
-            <pre class="install-code"><code><span class="hl-comment"># Windows (PowerShell)</span>
-Invoke-WebRequest -Uri <span class="hl-str">\
-  "https://github.com/kafkade/anvil/
-releases/latest/download/
-anvil-windows-x64.zip"</span> `
-  -OutFile anvil.zip</code></pre>
+            <div class="shell-tabs" data-shell-group="binary">
+              <button class="shell-tab active" data-shell="powershell">PowerShell</button>
+              <button class="shell-tab" data-shell="bash">Bash / Zsh</button>
+            </div>
+            <pre class="install-code shell-panel active" data-shell="powershell"><code><span class="hl-comment"># github.com/kafkade/anvil/releases</span>
+Expand-Archive anvil.zip C:\Tools\anvil
+$env:PATH += <span class="hl-str">";C:\Tools\anvil"</span></code></pre>
+            <pre class="install-code shell-panel" data-shell="bash"><code><span class="hl-comment"># github.com/kafkade/anvil/releases</span>
+tar xzf anvil-*-linux-gnu.tar.gz
+sudo mv anvil /usr/local/bin/</code></pre>
           </div>
+
           <div class="install-card">
             <h3>From Source</h3>
             <p>Clone and build the latest from main.</p>
-            <pre class="install-code"><code>git clone https://github.com/
-  kafkade/anvil.git
+            <div class="shell-tabs" data-shell-group="source">
+              <button class="shell-tab active" data-shell="powershell">PowerShell</button>
+              <button class="shell-tab" data-shell="bash">Bash / Zsh</button>
+            </div>
+            <pre class="install-code shell-panel active" data-shell="powershell"><code>git clone https://github.com/kafkade/anvil
 <span class="hl-cmd">cd</span> anvil
-cargo build --release</code></pre>
+cargo build --release
+<span class="hl-comment"># Binary: target\release\anvil.exe</span></code></pre>
+            <pre class="install-code shell-panel" data-shell="bash"><code>git clone https://github.com/kafkade/anvil
+<span class="hl-cmd">cd</span> anvil
+cargo build --release
+<span class="hl-comment"># Binary: target/release/anvil</span></code></pre>
           </div>
+
         </div>
       </div>
     </section>
@@ -319,6 +350,19 @@ cargo build --release</code></pre>
   </footer>
 
   <script>
+    // Shell tab switcher
+    document.querySelectorAll('.shell-tabs').forEach(function(tabs) {
+      tabs.addEventListener('click', function(e) {
+        var btn = e.target.closest('.shell-tab');
+        if (!btn) return;
+        var shell = btn.dataset.shell;
+        var card = tabs.closest('.install-card');
+
+        card.querySelectorAll('.shell-tab').forEach(function(t) { t.classList.toggle('active', t.dataset.shell === shell); });
+        card.querySelectorAll('.shell-panel').forEach(function(p) { p.classList.toggle('active', p.dataset.shell === shell); });
+      });
+    });
+
     // Theme toggle with cookie persistence
     (function() {
       var toggle = document.getElementById('theme-toggle');

@@ -44,27 +44,27 @@
 }
 
 [data-theme="dark"] {
-  --bg-body: #1a1a2e;
-  --bg-card: #28284a;
-  --bg-mint: #1c2e1a;
-  --bg-lavender: #281c3e;
-  --bg-peach: #2e281a;
-  --bg-ink: #111122;
-  --bg-code: #222240;
-  --bg-nav: rgba(26, 26, 46, 0.92);
-  --bg-nav-mobile: rgba(26, 26, 46, 0.97);
+  --bg-body: #1e1b16;
+  --bg-card: #2a2620;
+  --bg-mint: #1e3520;
+  --bg-lavender: #2e2248;
+  --bg-peach: #352a18;
+  --bg-ink: #141210;
+  --bg-code: #24201a;
+  --bg-nav: rgba(30, 27, 22, 0.92);
+  --bg-nav-mobile: rgba(30, 27, 22, 0.97);
 
   --text-strong: #f0ece6;
-  --text-body: #c8c4be;
-  --text-soft: #908c86;
-  --text-faint: #706c66;
-  --text-on-ink: #d0ccc6;
+  --text-body: #d0cbc4;
+  --text-soft: #a8a39c;
+  --text-faint: #807b74;
+  --text-on-ink: #d8d4ce;
 
-  --stroke: #706c66;
-  --stroke-soft: #3a3a4e;
+  --stroke: #8a8580;
+  --stroke-soft: #4a4640;
 
-  --shadow: 4px 4px 0 #444;
-  --shadow-sm: 3px 3px 0 #444;
+  --shadow: 4px 4px 0 #0a0906;
+  --shadow-sm: 3px 3px 0 #0a0906;
 
   --hl-key: #7dd3fc;
   --hl-str: #a5d6a7;
@@ -200,12 +200,12 @@ a { color: inherit; text-decoration: none; }
 .nav-logo {
   display: flex;
   align-items: center;
-  gap: 0.5rem;
-  font-family: 'Gabarito', sans-serif;
-  font-weight: 900;
-  font-size: 1.25rem;
-  color: var(--text-strong);
 }
+
+/* Logo theme-responsive fills */
+.logo-wordmark { fill: var(--text-strong); }
+.logo-cutout { fill: var(--bg-body); }
+.logo-divider { stroke: var(--stroke-soft); stroke-width: 1; }
 
 .nav-links {
   display: flex;
@@ -542,10 +542,13 @@ a { color: inherit; text-decoration: none; }
 }
 
 .install-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
   margin-top: 2.5rem;
+  max-width: 540px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .install-card {
@@ -597,9 +600,52 @@ a { color: inherit; text-decoration: none; }
   padding: 0.7rem 1rem;
   margin: 0;
   font-family: 'JetBrains Mono', monospace;
-  font-size: 0.78rem;
-  line-height: 1.5;
+  font-size: 0.75rem;
+  line-height: 1.55;
   overflow-x: auto;
+  overflow-wrap: break-word;
+  white-space: pre-wrap;
+}
+
+/* Shell tabs */
+
+.shell-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: -2px;
+  position: relative;
+  z-index: 1;
+}
+
+.shell-tab {
+  font-family: 'Gabarito', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  padding: 0.35rem 0.85rem;
+  border: 2px solid var(--stroke);
+  background: var(--bg-code);
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background 0.1s, color 0.1s;
+  border-bottom: none;
+}
+
+.shell-tab:first-child { border-radius: 8px 0 0 0; }
+.shell-tab:last-child { border-radius: 0 8px 0 0; }
+.shell-tab:not(:first-child) { border-left: none; }
+
+.shell-tab.active {
+  background: var(--bg-card);
+  color: var(--text-strong);
+}
+
+.shell-panel { display: none; }
+.shell-panel.active { display: block; }
+
+.shell-tabs + .shell-panel,
+.shell-tabs ~ .shell-panel {
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
 }
 
 .install-code code {
