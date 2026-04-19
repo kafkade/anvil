@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+- Promotional landing page at `anvil.kafkade.com` with feature overview, code demo, and installation instructions
+- Separate mdbook documentation served at `anvil.kafkade.com/docs/`
+- Self-contained site build script (`scripts/build-site.sh`) that auto-installs mdbook
+- Redirect rules for old root-level documentation URLs to `/docs/` subpath
+
+### Changed
+- Documentation URLs now use `/docs/` subpath (e.g., `anvil.kafkade.com/docs/user-guide.html`)
+- CI `Documentation` job now validates the full site build (promotional site + mdbook)
+
 ### Removed
 - `scripts.health_check` field — use declarative `assertions` instead
 - `--scripts-only` and `--script` flags from `anvil health` command

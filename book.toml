@@ -14,8 +14,7 @@ preferred-dark-theme = "ayu"
 theme = "docs/theme"
 git-repository-url = "https://github.com/kafkade/anvil"
 edit-url-template = "https://github.com/kafkade/anvil/edit/main/{path}"
-site-url = "https://anvil.kafkade.com/"
-cname = "anvil.kafkade.com"
+site-url = "https://anvil.kafkade.com/docs/"
 no-section-label = false
 additional-css = ["docs/theme/custom.css"]
 

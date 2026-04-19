@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-labelledby="fav-title">
+  <title id="fav-title">Anvil</title>
+  <defs>
+    <linearGradient id="forge-sm" x1="0%" y1="100%" x2="0%" y2="0%">
+      <stop offset="0%" stop-color="#dc2626"/>
+      <stop offset="35%" stop-color="#f97316"/>
+      <stop offset="70%" stop-color="#fbbf24"/>
+      <stop offset="100%" stop-color="#fef3c7"/>
+    </linearGradient>
+  </defs>
+  <g transform="translate(32, 35)">
+    <path d="M-22 25 L-4 -25 Q0 -32 4 -25 L22 25 L14 25 L8 6 L-8 6 L-14 25 Z" fill="url(#forge-sm)"/>
+    <rect x="-10" y="0" width="20" height="6" rx="1" fill="#991b1b"/>
+    <path d="M-5 6 L0 -12 L5 6 Z" fill="#0f172a"/>
+  </g>
+</svg>
