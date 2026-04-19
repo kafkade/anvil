@@ -16,6 +16,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Changed
 - Documentation URLs now use `/docs/` subpath (e.g., `anvil.kafkade.com/docs/user-guide.html`)
 - CI `Documentation` job now validates the full site build (promotional site + mdbook)
+- Crate renamed from `anvil-cli` to `anvil-dev` for crates.io availability (binary name stays `anvil`)
+- `homepage` in `Cargo.toml` now points to `anvil.kafkade.com` instead of the GitHub repo
+- Published crate is now lean — `exclude` list trims CI, docs, site, and scripts from the package
 
 ### Removed
 - `scripts.health_check` field — use declarative `assertions` instead
