@@ -461,7 +461,7 @@ The script validates (clean tree, main branch, tests pass, clippy clean) before 
 
 1. Builds binaries for 5 platforms (Linux x86_64/aarch64, macOS x86_64/aarch64, Windows x86_64)
 2. Creates a GitHub Release with changelog notes and SHA256 checksums
-3. Publishes to [crates.io](https://crates.io/crates/anvil-cli)
+3. Publishes to [crates.io](https://crates.io/crates/anvil-dev)
 
 ### Required secrets
 

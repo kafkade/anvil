@@ -509,7 +509,7 @@ After the workflow completes:
 gh release view vx.y.z
 
 # Verify crates.io publication
-cargo install anvil-cli  # should install the new version
+cargo install anvil-dev  # should install the new version
 anvil --version          # should show the new version
 ```
 

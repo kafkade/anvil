@@ -1,5 +1,5 @@
 [package]
-name = "anvil-cli"
+name = "anvil-dev"
 version = "0.6.0"
 edition = "2021"
 authors = ["Anvil Contributors"]
