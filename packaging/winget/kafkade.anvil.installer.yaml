@@ -1,0 +1,16 @@
+# Created using winget CLI
+# yaml-language-server: $schema=https://aka.ms/winget-manifest.installer.1.9.0.schema.json
+
+PackageIdentifier: kafkade.anvil
+PackageVersion: 1.0.0
+InstallerType: zip
+NestedInstallerType: portable
+NestedInstallerFiles:
+  - RelativeFilePath: anvil.exe
+    PortableCommandAlias: anvil
+Installers:
+  - Architecture: x64
+    InstallerUrl: https://github.com/kafkade/anvil/releases/download/v1.0.0/anvil-v1.0.0-x86_64-pc-windows-msvc.zip
+    InstallerSha256: REPLACE_WITH_ACTUAL_SHA256_FROM_RELEASE
+ManifestType: installer
+ManifestVersion: 1.9.0

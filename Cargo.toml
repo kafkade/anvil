@@ -17,6 +17,7 @@ exclude = [
   "site/",
   "scripts/",
   "examples/",
+  "packaging/",
   "book.toml",
   "rust-toolchain.toml",
   "CODE_OF_CONDUCT.md",
