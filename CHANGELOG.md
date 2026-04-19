@@ -7,15 +7,21 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Changed
+
+- Update release to publish package to winget.
+
 ## [1.0.0] - 2026-04-18
 
 ### Added
+
 - Promotional landing page at `anvil.kafkade.com` with feature overview, code demo, and installation instructions
 - Separate mdbook documentation served at `anvil.kafkade.com/docs/`
 - Self-contained site build script (`scripts/build-site.sh`) that auto-installs mdbook
 - Redirect rules for old root-level documentation URLs to `/docs/` subpath
 
 ### Changed
+
 - Documentation URLs now use `/docs/` subpath (e.g., `anvil.kafkade.com/docs/user-guide.html`)
 - CI `Documentation` job now validates the full site build (promotional site + mdbook)
 - Crate renamed from `anvil-cli` to `anvil-dev` for crates.io availability (binary name stays `anvil`)
@@ -23,6 +29,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Published crate is now lean — `exclude` list trims CI, docs, site, and scripts from the package
 
 ### Removed
+
 - `scripts.health_check` field — use declarative `assertions` instead
 - `--scripts-only` and `--script` flags from `anvil health` command
 - `scripts.pre_install` and `scripts.post_install` fields — use the `commands` block instead
@@ -31,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [0.6.0] - 2026-04-17
 
 ### Added
+
 - Declarative assertions for workload health validation (`assertions:` field in workload YAML)
 - Condition engine with 9 predicate types: `command_exists`, `file_exists`, `dir_exists`, `env_var`, `path_contains`, `registry_value`, `shell`, plus `all_of`/`any_of` composition
 - `--assertions-only` flag for `anvil health` to run only assertion checks
@@ -49,13 +57,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Animated forge lettermark banner on `anvil --version` with molten gradient
 
 ### Changed
+
 - Crate renamed to `anvil-dev` for crates.io publishing (binary name stays `anvil`; install via `cargo install anvil-dev`)
 - Tracing/log output now writes to stderr instead of stdout, preventing pollution of structured output (JSON, YAML)
 
 ### Fixed
+
 - Integration tests no longer fail on Linux and macOS due to winget-dependent tests running on non-Windows platforms
 
 ### Deprecated
+
 - ~~`scripts.health_check` when used alongside `assertions`~~ — **removed** (see Removed above)
 - `scripts.pre_install` and `scripts.post_install` when used alongside `commands` (migrate to inline commands; removal planned for v1.0)
 
@@ -64,11 +75,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 This is the first release from the new repository home at [kafkade/anvil](https://github.com/kafkade/anvil). It marks a fresh start with modernized CI/CD, updated documentation, and a clear cross-platform direction. Prior changelog entries (v0.1.0–v0.3.1) are preserved below for historical context.
 
 ### Added
+
 - Architecture reference document for contributors (`docs/ARCHITECTURE.md`)
 - Automated releases from CHANGELOG.md with SHA256 checksums
 - Consolidated CI pipeline with formatting, linting, and testing in a single gate
 
 ### Changed
+
 - Project rebranded to "Declarative Workstation Configuration Management" to reflect cross-platform direction
 - Streamlined CI from 3 separate jobs to a single `Validate` gate plus release build
 - Release workflow aligned with org-wide pattern (changelog-driven notes, semver pre-release detection)
@@ -77,6 +90,7 @@ This is the first release from the new repository home at [kafkade/anvil](https:
 ## [0.3.1] - 2026-01-10
 
 ### Added
+
 - Comprehensive user documentation (USER_GUIDE.md)
 - Workload authoring guide (WORKLOAD_AUTHORING.md)
 - Troubleshooting guide (TROUBLESHOOTING.md)
@@ -86,16 +100,19 @@ This is the first release from the new repository home at [kafkade/anvil](https:
 - CONTRIBUTING.md with contribution guidelines
 
 ### Changed
+
 - Improved error messages throughout CLI
 - Enhanced validation reporting with detailed messages
 - Updated README with badges and clearer instructions
 
 ### Fixed
+
 - Various documentation typos and inconsistencies
 
 ## [0.3.0] - 2026-01-08
 
 ### Added
+
 - Shell completions command for multiple shells
 - Global configuration management (`config` command)
 - Backup management with create, list, show, restore, clean, and verify subcommands
@@ -106,6 +123,7 @@ This is the first release from the new repository home at [kafkade/anvil](https:
 - PATH additions support in workloads
 
 ### Changed
+
 - Improved inheritance resolution algorithm
 - Enhanced output formatting for all commands
 - Better progress indicators during installation
@@ -113,6 +131,7 @@ This is the first release from the new repository home at [kafkade/anvil](https:
 ## [0.2.0] - 2026-01-05
 
 ### Added
+
 - Script execution support with PowerShell and CMD
 - Pre-install and post-install script hooks
 - Health check script execution
@@ -124,16 +143,19 @@ This is the first release from the new repository home at [kafkade/anvil](https:
 - Variable expansion in paths (`~`, `${HOME}`, etc.)
 
 ### Changed
+
 - Improved file operation error handling
 - Enhanced dry-run output with detailed plan
 
 ### Fixed
+
 - Path expansion on Windows with backslashes
 - File permission handling on Windows
 
 ## [0.1.0] - 2026-01-01
 
 ### Added
+
 - Initial release of Anvil
 - Core CLI commands: install, health, list, show, validate, init
 - Package management via winget integration
@@ -157,6 +179,7 @@ This is the first release from the new repository home at [kafkade/anvil](https:
   - python-developer: Python with uv package manager (extends essentials)
 
 ### Documentation
+
 - Initial specification document
 - Phase development prompts
 
