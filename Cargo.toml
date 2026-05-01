@@ -42,7 +42,7 @@ anyhow = "1"
 
 # Terminal output
 comfy-table = "7"
-indicatif = { version = "0.17", features = ["rayon"] }
+indicatif = { version = "0.18", features = ["rayon"] }
 console = "0.15"
 colored = "2"
 atty = "0.2"
