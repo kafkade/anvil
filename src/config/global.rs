@@ -26,6 +26,9 @@ pub struct GlobalConfig {
 
     /// Logging configuration
     pub logging: LoggingConfig,
+
+    /// Registry configuration
+    pub registry: RegistryConfig,
 }
 
 impl GlobalConfig {
@@ -91,6 +94,7 @@ impl GlobalConfig {
             ["install", "confirm"] => Some(self.install.confirm.to_string()),
             ["logging", "level"] => Some(self.logging.level.clone()),
             ["logging", "file"] => self.logging.file.clone(),
+            ["registry", "url"] => Some(self.registry.url.clone()),
             _ => None,
         }
     }
@@ -174,6 +178,12 @@ impl GlobalConfig {
                     self.logging.file = Some(value.to_string());
                 }
             }
+            ["registry", "url"] => {
+                if value.is_empty() {
+                    anyhow::bail!("Registry URL cannot be empty");
+                }
+                self.registry.url = value.to_string();
+            }
             _ => {
                 anyhow::bail!("Unknown configuration key: {}", key);
             }
@@ -244,6 +254,8 @@ impl GlobalConfig {
                 .clone()
                 .unwrap_or_else(|| "(none)".to_string()),
         ));
+
+        items.push(("registry.url".to_string(), self.registry.url.clone()));
 
         items
     }
@@ -380,6 +392,22 @@ impl Default for LoggingConfig {
         Self {
             level: "info".to_string(),
             file: None,
+        }
+    }
+}
+
+/// Registry configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(default)]
+pub struct RegistryConfig {
+    /// Registry index URL
+    pub url: String,
+}
+
+impl Default for RegistryConfig {
+    fn default() -> Self {
+        Self {
+            url: crate::config::registry::DEFAULT_REGISTRY_URL.to_string(),
         }
     }
 }

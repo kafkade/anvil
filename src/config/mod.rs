@@ -4,6 +4,7 @@
 //! including support for workload inheritance and variable expansion.
 pub mod global;
 pub mod inheritance;
+pub mod registry;
 pub mod schema;
 pub mod sources;
 pub mod workload;

@@ -8,6 +8,7 @@
 pub mod backup;
 pub mod filesystem;
 pub mod git;
+pub mod http;
 pub mod script;
 pub mod template;
 pub mod winget;

@@ -73,6 +73,9 @@ pub enum Commands {
 
     /// Manage workload sources (local paths and git repositories)
     Source(commands::SourceArgs),
+
+    /// Browse and install workloads from the community registry
+    Registry(commands::RegistryArgs),
 }
 
 impl Cli {

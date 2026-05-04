@@ -9,6 +9,7 @@ pub mod health;
 pub mod init;
 pub mod install;
 pub mod list;
+pub mod registry;
 pub mod show;
 pub mod source;
 pub mod status;
