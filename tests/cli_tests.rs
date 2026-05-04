@@ -502,6 +502,29 @@ mod install_command {
                 "scripts.pre_install and scripts.post_install have been removed in v1.0",
             ));
     }
+
+    #[test]
+    fn install_no_tui_flag_accepted() {
+        anvil()
+            .args([
+                "install",
+                "./examples/minimal",
+                "--dry-run",
+                "--no-tui",
+                "--skip-packages",
+            ])
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn install_help_shows_no_tui() {
+        anvil()
+            .args(["install", "--help"])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("--no-tui"));
+    }
 }
 
 mod health_command {
