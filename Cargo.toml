@@ -47,7 +47,7 @@ console = "0.15"
 colored = "2"
 atty = "0.2"
 ratatui = "0.30"
-crossterm = "0.28"
+crossterm = "0.29"
 
 # File operations
 sha2 = "0.10"
