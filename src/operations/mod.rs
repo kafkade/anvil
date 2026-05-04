@@ -10,6 +10,7 @@ pub mod init;
 pub mod install;
 pub mod list;
 pub mod show;
+pub mod source;
 pub mod status;
 pub mod validate;
 

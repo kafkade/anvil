@@ -5,10 +5,12 @@
 pub mod global;
 pub mod inheritance;
 pub mod schema;
+pub mod sources;
 pub mod workload;
 
 pub use global::GlobalConfig;
 pub use inheritance::InheritanceGraph;
+pub use sources::SourcesConfig;
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
@@ -56,6 +58,7 @@ impl ConfigManager {
     ///
     /// User-configured paths from GlobalConfig are prepended before defaults,
     /// giving them higher priority during workload discovery.
+    /// Managed sources from sources.json are added after user paths but before defaults.
     pub fn new() -> Self {
         let mut search_paths = Vec::new();
 
@@ -70,7 +73,16 @@ impl ConfigManager {
             }
         }
 
-        // 2. Default search paths (lower priority)
+        // 2. Managed sources from sources.json (after user paths, before defaults)
+        if let Ok(sources_config) = SourcesConfig::load() {
+            for source_path in sources_config.workload_paths() {
+                if !search_paths.contains(&source_path) {
+                    search_paths.push(source_path);
+                }
+            }
+        }
+
+        // 3. Default search paths (lower priority)
         for path in default_workload_paths() {
             if !search_paths.contains(&path) {
                 search_paths.push(path);

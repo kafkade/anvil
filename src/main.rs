@@ -69,6 +69,9 @@ fn main() -> Result<()> {
         Commands::Config(args) => {
             operations::config::execute(args, &cli)?;
         }
+        Commands::Source(args) => {
+            operations::source::execute(args, &cli)?;
+        }
     }
 
     Ok(())

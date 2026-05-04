@@ -4,8 +4,10 @@
 //! - `winget`: Windows Package Manager for package installation
 //! - `filesystem`: File operations with backup and hashing
 //! - `script`: PowerShell script execution
+//! - `git`: Git operations for remote workload sources
 pub mod backup;
 pub mod filesystem;
+pub mod git;
 pub mod script;
 pub mod template;
 pub mod winget;
