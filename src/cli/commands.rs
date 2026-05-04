@@ -133,6 +133,10 @@ pub struct InstallArgs {
     /// Force overwrite files without checking hash
     #[arg(long)]
     pub force_files: bool,
+
+    /// Disable interactive TUI dashboard (use plain progress output)
+    #[arg(long)]
+    pub no_tui: bool,
 }
 
 /// Arguments for the `health` command

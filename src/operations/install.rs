@@ -23,6 +23,7 @@ use crate::providers::filesystem::{CopyOptions, CopyResult};
 use crate::providers::template::TemplateProcessor;
 use crate::providers::{create_registry, FilesystemProvider, PackageSpec, ProviderConfig};
 use crate::state::{FileState, FileStateManager, InstallationState, PackageCache};
+use crate::tui::events::{InstallEvent, InstallPhase, ItemResult};
 
 use super::{resolve_workload_path, OperationContext};
 
@@ -152,12 +153,53 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         return Ok(());
     }
 
+    // Determine if TUI should be used (after confirmation, before execution)
+    let use_tui = !args.no_tui && !args.dry_run && crate::tui::should_use_tui();
+
+    // Set up TUI channel if applicable
+    let (tui_tx, tui_handle) = if use_tui {
+        let (tx, rx) = std::sync::mpsc::channel::<InstallEvent>();
+        let (cancel_tx, cancel_rx) = std::sync::mpsc::channel::<()>();
+        let wname = workload.name.clone();
+        let handle = std::thread::spawn(move || {
+            crate::tui::views::install::run_dashboard(wname, rx, cancel_tx)
+        });
+        // Store cancel_rx for checking
+        let _ = cancel_rx; // cancellation not wired yet — future enhancement
+        (Some(tx), Some(handle))
+    } else {
+        (None, None)
+    };
+
+    // Helper to send TUI events (no-op if TUI not active)
+    macro_rules! tui_send {
+        ($tx:expr, $event:expr) => {
+            if let Some(ref tx) = $tx {
+                let _ = tx.send($event);
+            }
+        };
+    }
+
     // Initialize installation state
     let mut state = InstallationState::new(&workload.name, &workload.version);
 
     // Run pre-install commands (skip if files_only)
     let pre_cmd_summary = if !args.files_only {
-        run_pre_install_commands(&context, args)?
+        tui_send!(
+            tui_tx,
+            InstallEvent::PhaseStart {
+                phase: InstallPhase::PreCommands,
+                total: 0,
+            }
+        );
+        let result = run_pre_install_commands(&context, args)?;
+        tui_send!(
+            tui_tx,
+            InstallEvent::PhaseComplete {
+                phase: InstallPhase::PreCommands,
+            }
+        );
+        result
     } else {
         crate::commands::CommandSummary::new()
     };
@@ -166,18 +208,61 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
     let mut summary = InstallationSummary::default();
     if !args.skip_packages && !args.files_only {
         if let Some(plan) = plan {
-            summary = install_packages_with_progress(&context, args, plan, &mut state)?;
+            let pkg_count = plan.len();
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseStart {
+                    phase: InstallPhase::Packages,
+                    total: pkg_count,
+                }
+            );
+            summary =
+                install_packages_with_progress_and_tui(&context, args, plan, &mut state, &tui_tx)?;
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseComplete {
+                    phase: InstallPhase::Packages,
+                }
+            );
         }
     }
 
     // Copy files
     if (!args.skip_files && !args.packages_only) || args.files_only {
+        let file_count = workload.files.as_ref().map(|f| f.len()).unwrap_or(0);
+        tui_send!(
+            tui_tx,
+            InstallEvent::PhaseStart {
+                phase: InstallPhase::Files,
+                total: file_count,
+            }
+        );
         copy_files(&context, args)?;
+        tui_send!(
+            tui_tx,
+            InstallEvent::PhaseComplete {
+                phase: InstallPhase::Files,
+            }
+        );
     }
 
     // Run post-install commands (skip if packages_only or files_only)
     let post_cmd_summary = if !args.packages_only && !args.files_only {
-        run_post_install_commands(&context, args)?
+        tui_send!(
+            tui_tx,
+            InstallEvent::PhaseStart {
+                phase: InstallPhase::PostCommands,
+                total: 0,
+            }
+        );
+        let result = run_post_install_commands(&context, args)?;
+        tui_send!(
+            tui_tx,
+            InstallEvent::PhaseComplete {
+                phase: InstallPhase::PostCommands,
+            }
+        );
+        result
     } else {
         crate::commands::CommandSummary::new()
     };
@@ -200,7 +285,30 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
 
     // Print final summary
     summary.duration = start_time.elapsed();
-    print_final_summary(&summary, args.dry_run, &workload.name);
+
+    // Send done event to TUI
+    tui_send!(
+        tui_tx,
+        InstallEvent::Done {
+            success: summary.is_successful(),
+            summary: format!(
+                "Installed: {}  Skipped: {}  Failed: {}",
+                summary.installed, summary.skipped, summary.failed
+            ),
+            duration: summary.duration,
+        }
+    );
+
+    // Drop sender and wait for TUI thread to finish
+    drop(tui_tx);
+    if let Some(handle) = tui_handle {
+        let _ = handle.join();
+    }
+
+    // Print summary to terminal (after TUI has restored the terminal)
+    if !use_tui {
+        print_final_summary(&summary, args.dry_run, &workload.name);
+    }
 
     if !summary.is_successful() {
         print_warning(&format!(
@@ -589,7 +697,260 @@ fn print_command_summary(summary: &crate::commands::CommandSummary, phase: &str)
     }
 }
 
-/// Install packages with progress tracking
+/// Install packages with progress tracking and optional TUI events
+fn install_packages_with_progress_and_tui(
+    context: &OperationContext,
+    _args: &InstallArgs,
+    plan: Vec<PackagePlanEntry>,
+    state: &mut InstallationState,
+    tui_tx: &Option<std::sync::mpsc::Sender<InstallEvent>>,
+) -> Result<InstallationSummary> {
+    let packages_to_process: Vec<_> = plan
+        .iter()
+        .filter(|p| p.action != PackageAction::Skip)
+        .collect();
+
+    let total_to_install = packages_to_process.len();
+    let total_skipped = plan.len() - total_to_install;
+
+    if total_to_install == 0 {
+        return Ok(InstallationSummary {
+            skipped: total_skipped,
+            ..Default::default()
+        });
+    }
+
+    if tui_tx.is_none() {
+        print_info(&format!(
+            "Installing {} package(s) ({} already installed)...",
+            total_to_install, total_skipped
+        ));
+        println!();
+    }
+
+    // Initialize state for all packages
+    for entry in &plan {
+        state.add_package(&entry.package.id, entry.package.version.clone());
+        if entry.action == PackageAction::Skip {
+            if let Some(record) = state.get_package_mut(&entry.package.id) {
+                record.mark_skipped("Already installed");
+            }
+            // Send skip event to TUI
+            if let Some(ref tx) = tui_tx {
+                let _ = tx.send(InstallEvent::ItemStart {
+                    phase: InstallPhase::Packages,
+                    name: entry.package.id.clone(),
+                });
+                let _ = tx.send(InstallEvent::ItemComplete {
+                    phase: InstallPhase::Packages,
+                    name: entry.package.id.clone(),
+                    result: ItemResult::Skipped,
+                    message: "already installed".to_string(),
+                });
+            }
+        }
+    }
+
+    // Create progress manager (only if no TUI)
+    let progress_manager = if tui_tx.is_none() && context.verbosity >= 1 && !context.dry_run {
+        Arc::new(ProgressManager::new())
+    } else {
+        Arc::new(ProgressManager::quiet())
+    };
+
+    // Create provider via registry
+    let registry = create_registry(&ProviderConfig {
+        dry_run: context.dry_run,
+        verbose: context.verbosity >= 2,
+        retry_count: 3,
+    });
+    let provider = registry
+        .get("winget")
+        .ok_or_else(|| anyhow::anyhow!("Winget provider not registered"))?;
+
+    let mut summary = InstallationSummary {
+        skipped: total_skipped,
+        ..Default::default()
+    };
+
+    // Install packages one by one with progress
+    let mut install_progress = InstallProgress::new(progress_manager.clone(), total_to_install);
+
+    for entry in packages_to_process {
+        let idx = install_progress.start_package(&entry.package.id);
+
+        // Send start event to TUI
+        if let Some(ref tx) = tui_tx {
+            let _ = tx.send(InstallEvent::ItemStart {
+                phase: InstallPhase::Packages,
+                name: entry.package.id.clone(),
+            });
+        }
+
+        // Update state
+        if let Some(record) = state.get_package_mut(&entry.package.id) {
+            record.mark_installing();
+        }
+
+        let start_time = Instant::now();
+
+        // Perform installation
+        let spec = PackageSpec::from(&entry.package);
+        let result = match entry.action {
+            PackageAction::Install | PackageAction::Reinstall => provider.install(&spec),
+            PackageAction::Upgrade => provider.upgrade(&entry.package.id),
+            PackageAction::Skip => unreachable!(),
+        };
+
+        let duration = start_time.elapsed();
+
+        match result {
+            Ok(install_result) => {
+                if install_result.success {
+                    let version_msg = install_result
+                        .installed_version
+                        .as_ref()
+                        .map(|v| format!(" ({})", v))
+                        .unwrap_or_default();
+
+                    let action_msg = match entry.action {
+                        PackageAction::Install => "Installed",
+                        PackageAction::Upgrade => "Upgraded",
+                        PackageAction::Reinstall => "Reinstalled",
+                        _ => "Completed",
+                    };
+
+                    install_progress.complete_package(
+                        idx,
+                        &format!(
+                            "{}{} in {}",
+                            action_msg,
+                            version_msg,
+                            format_duration(duration)
+                        ),
+                    );
+
+                    // Send TUI event
+                    if let Some(ref tx) = tui_tx {
+                        let _ = tx.send(InstallEvent::ItemComplete {
+                            phase: InstallPhase::Packages,
+                            name: entry.package.id.clone(),
+                            result: ItemResult::Success,
+                            message: format!("{}{}", action_msg, version_msg),
+                        });
+                    }
+
+                    // Update state
+                    if let Some(record) = state.get_package_mut(&entry.package.id) {
+                        match entry.action {
+                            PackageAction::Upgrade => {
+                                record.mark_upgraded(
+                                    install_result.installed_version.clone(),
+                                    duration.as_secs_f64(),
+                                    install_result.needs_reboot,
+                                );
+                                summary.upgraded += 1;
+                            }
+                            _ => {
+                                record.mark_installed(
+                                    install_result.installed_version.clone(),
+                                    duration.as_secs_f64(),
+                                    install_result.needs_reboot,
+                                );
+                                summary.installed += 1;
+                            }
+                        }
+                    }
+
+                    if install_result.needs_reboot {
+                        summary.reboot_required = true;
+                    }
+                } else {
+                    let fail_msg = if install_result.message.is_empty() {
+                        "Unknown error"
+                    } else {
+                        &install_result.message
+                    };
+                    install_progress.fail_package(idx, fail_msg);
+
+                    if let Some(ref tx) = tui_tx {
+                        let _ = tx.send(InstallEvent::ItemComplete {
+                            phase: InstallPhase::Packages,
+                            name: entry.package.id.clone(),
+                            result: ItemResult::Failed,
+                            message: fail_msg.to_string(),
+                        });
+                    }
+
+                    if let Some(record) = state.get_package_mut(&entry.package.id) {
+                        record.mark_failed(&install_result.message, duration.as_secs_f64());
+                    }
+
+                    summary.failed += 1;
+                    summary.failed_packages.push(entry.package.id.clone());
+                }
+            }
+            Err(e) => {
+                let error_str = e.to_string();
+                if error_str.contains("already installed") {
+                    install_progress.skip_package(idx, "Already installed");
+
+                    if let Some(ref tx) = tui_tx {
+                        let _ = tx.send(InstallEvent::ItemComplete {
+                            phase: InstallPhase::Packages,
+                            name: entry.package.id.clone(),
+                            result: ItemResult::Skipped,
+                            message: "already installed".to_string(),
+                        });
+                    }
+
+                    if let Some(record) = state.get_package_mut(&entry.package.id) {
+                        record.mark_skipped("Already installed");
+                    }
+
+                    summary.skipped += 1;
+                } else {
+                    install_progress.fail_package(idx, &error_str);
+
+                    if let Some(ref tx) = tui_tx {
+                        let _ = tx.send(InstallEvent::ItemComplete {
+                            phase: InstallPhase::Packages,
+                            name: entry.package.id.clone(),
+                            result: ItemResult::Failed,
+                            message: error_str.clone(),
+                        });
+                    }
+
+                    if let Some(record) = state.get_package_mut(&entry.package.id) {
+                        record.mark_failed(&error_str, duration.as_secs_f64());
+                    }
+
+                    summary.failed += 1;
+                    summary.failed_packages.push(entry.package.id.clone());
+
+                    if let crate::providers::ProviderError::Winget(ref winget_err) = e {
+                        if let Some(suggestion) = winget_err.suggestion() {
+                            install_progress.println(&format!("    Hint: {}", suggestion));
+                        }
+                    }
+                }
+            }
+        }
+
+        // Save state periodically
+        let _ = state.save();
+    }
+
+    install_progress.finish();
+    if tui_tx.is_none() {
+        println!();
+    }
+
+    Ok(summary)
+}
+
+/// Install packages with progress tracking (legacy, no TUI)
+#[allow(dead_code)]
 fn install_packages_with_progress(
     context: &OperationContext,
     _args: &InstallArgs,

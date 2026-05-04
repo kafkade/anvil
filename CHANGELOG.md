@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Configurable registry URL via `registry.url` in global config (`anvil config set registry.url <url>`)
 - Local registry cache with 1-hour TTL and `--refresh` flag to force update
 - Version compatibility checking -- registry entries can specify minimum Anvil version
+- Interactive TUI installation dashboard with real-time progress across all phases (`anvil install`)
+- `--no-tui` flag to disable the interactive dashboard and use plain progress output
+- TUI automatically activates when stdout and stdin are a TTY; falls back to existing output in CI/scripts
+- Forge-branded color theme for TUI views (amber/gold accent palette)
+- Reusable TUI widget library: status badges with animated spinners, progress gauges, and key hints bar
 
 ## [1.1.0] - 2026-04-18
 

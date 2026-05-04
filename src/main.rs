@@ -11,6 +11,7 @@ mod config;
 mod operations;
 mod providers;
 mod state;
+mod tui;
 
 use anyhow::Result;
 use clap::Parser;
