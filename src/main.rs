@@ -72,6 +72,9 @@ fn main() -> Result<()> {
         Commands::Source(args) => {
             operations::source::execute(args, &cli)?;
         }
+        Commands::Registry(args) => {
+            operations::registry::execute(args, &cli)?;
+        }
     }
 
     Ok(())

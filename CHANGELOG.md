@@ -15,11 +15,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - `anvil source add <git-url>` clones a git repository as a remote workload source with `--name`, `--ref`, and `--path` options
 - `anvil source remove <name>` removes a source (with `--delete` to clean up cloned files)
 - `anvil source status` shows sync status, current ref, dirty state, and last synced time for all sources
-- `anvil source sync [name]` pulls latest changes for remote sources (non-destructive — skips dirty working trees)
+- `anvil source sync [name]` pulls latest changes for remote sources (non-destructive -- skips dirty working trees)
 - Remote source metadata persisted in `~/.anvil/sources.json`
 - Remote repositories cloned to `~/.anvil/sources/<name>/` using shallow clones for fast setup
 - Managed sources automatically integrated into workload discovery (after user paths, before defaults)
 - JSON and YAML output formats for `source list` and `source status`
+- `anvil registry` command family for browsing and installing community workloads
+- `anvil registry list` displays all workloads available in the registry
+- `anvil registry search <query>` searches workloads by name, description, tags, or author
+- `anvil registry add <name>` installs a registry workload as a remote source with one command
+- Configurable registry URL via `registry.url` in global config (`anvil config set registry.url <url>`)
+- Local registry cache with 1-hour TTL and `--refresh` flag to force update
+- Version compatibility checking -- registry entries can specify minimum Anvil version
 
 ## [1.1.0] - 2026-04-18
 

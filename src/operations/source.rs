@@ -166,7 +166,9 @@ fn add_local_source(
 }
 
 /// Add a remote git repository as a source
-fn add_remote_source(
+///
+/// This is a public helper so that `operations::registry` can reuse it.
+pub fn add_remote_source(
     config: &mut SourcesConfig,
     url: &str,
     name: Option<&str>,

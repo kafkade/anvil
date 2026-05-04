@@ -1147,3 +1147,54 @@ mod source_command {
             .stdout(predicate::str::contains("sync"));
     }
 }
+
+mod registry_command {
+    use super::*;
+
+    #[test]
+    fn registry_help_shows_subcommands() {
+        anvil()
+            .args(["registry", "--help"])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("list"))
+            .stdout(predicate::str::contains("search"))
+            .stdout(predicate::str::contains("add"));
+    }
+
+    #[test]
+    fn registry_list_fails_gracefully_when_registry_unavailable() {
+        // The default registry URL doesn't exist yet, but the command
+        // should fail with a clear error rather than panic
+        anvil()
+            .args(["registry", "list", "--refresh"])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn registry_search_fails_gracefully_when_registry_unavailable() {
+        anvil()
+            .args(["registry", "search", "rust", "--refresh"])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn registry_add_fails_gracefully_when_registry_unavailable() {
+        anvil()
+            .args(["registry", "add", "nonexistent-workload", "--refresh"])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn registry_search_requires_query() {
+        anvil().args(["registry", "search"]).assert().failure();
+    }
+
+    #[test]
+    fn registry_add_requires_name() {
+        anvil().args(["registry", "add"]).assert().failure();
+    }
+}

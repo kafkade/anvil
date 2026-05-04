@@ -548,3 +548,60 @@ pub enum SourceCommand {
         name: Option<String>,
     },
 }
+
+/// Arguments for the `registry` command
+#[derive(Args, Debug)]
+pub struct RegistryArgs {
+    /// Registry subcommand
+    #[command(subcommand)]
+    pub command: RegistryCommand,
+}
+
+/// Registry subcommands
+#[derive(Subcommand, Debug)]
+pub enum RegistryCommand {
+    /// List all workloads in the registry
+    List {
+        /// Output format
+        #[arg(short, long, value_enum, default_value = "table")]
+        output: OutputFormat,
+
+        /// Force refresh from remote registry
+        #[arg(long)]
+        refresh: bool,
+    },
+
+    /// Search for workloads in the registry
+    Search {
+        /// Search query (matches name, description, tags, author)
+        #[arg(value_name = "QUERY")]
+        query: String,
+
+        /// Output format
+        #[arg(short, long, value_enum, default_value = "table")]
+        output: OutputFormat,
+
+        /// Force refresh from remote registry
+        #[arg(long)]
+        refresh: bool,
+    },
+
+    /// Add a workload from the registry as a source
+    Add {
+        /// Name of the registry workload to add
+        #[arg(value_name = "NAME")]
+        name: String,
+
+        /// Override the source name
+        #[arg(long, value_name = "NAME")]
+        source_name: Option<String>,
+
+        /// Override the git ref from the registry entry
+        #[arg(short = 'r', long = "ref", value_name = "REF")]
+        git_ref: Option<String>,
+
+        /// Force refresh from remote registry
+        #[arg(long)]
+        refresh: bool,
+    },
+}
