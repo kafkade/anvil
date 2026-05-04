@@ -62,7 +62,7 @@ tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 
 # Template processing
-handlebars = "5"
+handlebars = "6"
 
 # Logging
 tracing = "0.1"
