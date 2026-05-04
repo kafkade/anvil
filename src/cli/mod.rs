@@ -70,6 +70,9 @@ pub enum Commands {
 
     /// Manage global configuration
     Config(commands::ConfigArgs),
+
+    /// Manage workload sources (local paths and git repositories)
+    Source(commands::SourceArgs),
 }
 
 impl Cli {

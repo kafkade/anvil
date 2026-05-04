@@ -1040,3 +1040,110 @@ extends:
             .stdout(predicate::str::contains("child-workload"));
     }
 }
+
+mod source_command {
+    use super::*;
+
+    #[test]
+    fn source_list_succeeds() {
+        anvil().args(["source", "list"]).assert().success();
+    }
+
+    #[test]
+    fn source_list_json_output() {
+        anvil()
+            .args(["source", "list", "--output", "json"])
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn source_list_yaml_output() {
+        anvil()
+            .args(["source", "list", "--output", "yaml"])
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn source_status_succeeds() {
+        anvil().args(["source", "status"]).assert().success();
+    }
+
+    #[test]
+    fn source_status_json_output() {
+        anvil()
+            .args(["source", "status", "--output", "json"])
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn source_add_nonexistent_path_fails() {
+        anvil()
+            .args(["source", "add", "/nonexistent/path/that/does/not/exist"])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn source_add_invalid_name_fails() {
+        let temp = TempDir::new().unwrap();
+        anvil()
+            .args([
+                "source",
+                "add",
+                temp.path().to_str().unwrap(),
+                "--name",
+                "../escape",
+            ])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn source_remove_nonexistent_fails() {
+        anvil()
+            .args(["source", "remove", "nonexistent-source-name"])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn source_sync_no_remote_sources() {
+        anvil().args(["source", "sync"]).assert().success();
+    }
+
+    #[test]
+    fn source_sync_nonexistent_name_fails() {
+        anvil()
+            .args(["source", "sync", "nonexistent-source-name"])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn source_add_invalid_git_url_fails() {
+        anvil()
+            .args([
+                "source",
+                "add",
+                "https://example.invalid/nonexistent/repo.git",
+            ])
+            .assert()
+            .failure();
+    }
+
+    #[test]
+    fn source_help_shows_subcommands() {
+        anvil()
+            .args(["source", "--help"])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("list"))
+            .stdout(predicate::str::contains("add"))
+            .stdout(predicate::str::contains("remove"))
+            .stdout(predicate::str::contains("status"))
+            .stdout(predicate::str::contains("sync"));
+    }
+}

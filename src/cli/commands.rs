@@ -485,3 +485,66 @@ impl std::fmt::Display for WorkloadTemplate {
         }
     }
 }
+
+/// Arguments for the `source` command
+#[derive(Args, Debug)]
+pub struct SourceArgs {
+    /// Source subcommand
+    #[command(subcommand)]
+    pub command: SourceCommand,
+}
+
+/// Source subcommands
+#[derive(Subcommand, Debug)]
+pub enum SourceCommand {
+    /// List all configured sources
+    List {
+        /// Output format
+        #[arg(short, long, value_enum, default_value = "table")]
+        output: OutputFormat,
+    },
+
+    /// Add a workload source (local path or git URL)
+    Add {
+        /// Local path or git repository URL
+        #[arg(value_name = "PATH_OR_URL")]
+        location: String,
+
+        /// Name for the source (auto-detected from URL or path if not specified)
+        #[arg(short, long)]
+        name: Option<String>,
+
+        /// Subdirectory within the source to search for workloads
+        #[arg(short, long, value_name = "DIR")]
+        path: Option<String>,
+
+        /// Git branch or tag to track (remote sources only)
+        #[arg(short = 'r', long = "ref", value_name = "REF")]
+        git_ref: Option<String>,
+    },
+
+    /// Remove a workload source
+    Remove {
+        /// Name of the source to remove
+        #[arg(value_name = "NAME")]
+        name: String,
+
+        /// Also delete cloned files for remote sources
+        #[arg(long)]
+        delete: bool,
+    },
+
+    /// Show sync status for all sources
+    Status {
+        /// Output format
+        #[arg(short, long, value_enum, default_value = "table")]
+        output: OutputFormat,
+    },
+
+    /// Sync remote sources (git pull)
+    Sync {
+        /// Name of a specific source to sync (syncs all if omitted)
+        #[arg(value_name = "NAME")]
+        name: Option<String>,
+    },
+}

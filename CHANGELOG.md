@@ -7,6 +7,20 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- `anvil source` command family for managing workload sources from the CLI
+- `anvil source list` shows all configured sources with origin (default/local/remote) and workload counts
+- `anvil source add <path>` adds a local directory as a workload source
+- `anvil source add <git-url>` clones a git repository as a remote workload source with `--name`, `--ref`, and `--path` options
+- `anvil source remove <name>` removes a source (with `--delete` to clean up cloned files)
+- `anvil source status` shows sync status, current ref, dirty state, and last synced time for all sources
+- `anvil source sync [name]` pulls latest changes for remote sources (non-destructive — skips dirty working trees)
+- Remote source metadata persisted in `~/.anvil/sources.json`
+- Remote repositories cloned to `~/.anvil/sources/<name>/` using shallow clones for fast setup
+- Managed sources automatically integrated into workload discovery (after user paths, before defaults)
+- JSON and YAML output formats for `source list` and `source status`
+
 ## [1.1.0] - 2026-04-18
 
 ### Changed
