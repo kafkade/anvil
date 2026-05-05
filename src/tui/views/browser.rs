@@ -78,11 +78,11 @@ impl WorkloadBrowser {
                 self.selected = self.selected.saturating_sub(1);
             }
             KeyCode::Down | KeyCode::Char('j')
-                if key.modifiers == KeyModifiers::NONE && !self.searching =>
+                if key.modifiers == KeyModifiers::NONE
+                    && !self.searching
+                    && !self.filtered.is_empty() =>
             {
-                if !self.filtered.is_empty() {
-                    self.selected = (self.selected + 1).min(self.filtered.len() - 1);
-                }
+                self.selected = (self.selected + 1).min(self.filtered.len() - 1);
             }
 
             // Enter search mode
@@ -91,13 +91,11 @@ impl WorkloadBrowser {
             }
 
             // Escape clears search
-            KeyCode::Esc => {
-                if self.searching {
-                    self.searching = false;
-                    self.search_query.clear();
-                    self.apply_filter();
-                    self.selected = 0;
-                }
+            KeyCode::Esc if self.searching => {
+                self.searching = false;
+                self.search_query.clear();
+                self.apply_filter();
+                self.selected = 0;
             }
 
             // Enter: confirm search or select workload
