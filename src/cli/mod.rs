@@ -118,6 +118,7 @@ mod tests {
                 path: None,
                 all_paths: false,
                 output: None,
+                no_tui: false,
             }),
         };
         assert_eq!(cli.verbosity_level(), 3);
@@ -136,6 +137,7 @@ mod tests {
                 path: None,
                 all_paths: false,
                 output: None,
+                no_tui: false,
             }),
         };
         assert_eq!(cli.verbosity_level(), 0);

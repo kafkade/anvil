@@ -117,6 +117,17 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
         s.finish_and_clear();
     }
 
+    // TUI mode: interactive health viewer when default format, no file output, and TTY
+    if !args.no_tui
+        && args.file.is_none()
+        && args.output == crate::cli::commands::OutputFormat::Table
+        && crate::tui::should_use_tui()
+    {
+        let report = build_tui_health_report(&workload.name, &checks);
+        crate::tui::views::health::run_health_viewer(report)?;
+        return Ok(());
+    }
+
     // Generate and output the report
     report_and_exit(args, cli, &workload.name, checks)
 }
@@ -763,5 +774,48 @@ fn print_recommendations(report: &HealthReport) {
         }
         println!();
         print_warning("Review the health check output above for details");
+    }
+}
+
+/// Build a TUI-compatible health report from check results
+fn build_tui_health_report(
+    workload_name: &str,
+    checks: &[CheckResult],
+) -> crate::tui::views::health::HealthReport {
+    use std::collections::BTreeMap;
+
+    // Group checks by category
+    let mut sections_map: BTreeMap<String, Vec<crate::tui::views::health::HealthItem>> =
+        BTreeMap::new();
+    for check in checks {
+        let status = match check.status {
+            CheckStatus::Ok => crate::tui::views::health::HealthStatus::Pass,
+            CheckStatus::Fail => crate::tui::views::health::HealthStatus::Fail,
+            CheckStatus::Warn => crate::tui::views::health::HealthStatus::Warn,
+            CheckStatus::Skip => crate::tui::views::health::HealthStatus::Skip,
+        };
+        let detail = check
+            .message
+            .clone()
+            .or_else(|| check.details.as_ref().map(|d| d.join("; ")));
+        sections_map
+            .entry(check.category.clone())
+            .or_default()
+            .push(crate::tui::views::health::HealthItem {
+                name: check.name.clone(),
+                status,
+                detail,
+            });
+    }
+
+    let sections: Vec<crate::tui::views::health::HealthSection> = sections_map
+        .into_iter()
+        .map(|(name, items)| crate::tui::views::health::HealthSection { name, items })
+        .collect();
+
+    crate::tui::views::health::HealthReport {
+        workload_name: workload_name.to_string(),
+        sections,
+        duration: std::time::Duration::ZERO,
     }
 }

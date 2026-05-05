@@ -149,6 +149,20 @@ mod list_command {
             .success()
             .stdout(predicate::str::contains("shadow-test"));
     }
+
+    #[test]
+    fn list_no_tui_flag_accepted() {
+        anvil().args(["list", "--no-tui"]).assert().success();
+    }
+
+    #[test]
+    fn list_help_shows_no_tui() {
+        anvil()
+            .args(["list", "--help"])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("--no-tui"));
+    }
 }
 
 mod show_command {
@@ -207,6 +221,23 @@ mod show_command {
             .args(["show", "./examples/rust-developer", "--resolved"])
             .assert()
             .success();
+    }
+
+    #[test]
+    fn show_no_tui_flag_accepted() {
+        anvil()
+            .args(["show", "./examples/minimal", "--no-tui"])
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn show_help_shows_no_tui() {
+        anvil()
+            .args(["show", "--help"])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("--no-tui"));
     }
 }
 
@@ -723,6 +754,23 @@ mod health_command {
                 "scripts.health_check has been removed in v1.0",
             ));
     }
+
+    #[test]
+    fn health_no_tui_flag_accepted() {
+        anvil()
+            .args(["health", "./examples/minimal", "--no-tui"])
+            .assert()
+            .code(predicate::in_iter([0, 1]));
+    }
+
+    #[test]
+    fn health_help_shows_no_tui() {
+        anvil()
+            .args(["health", "--help"])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("--no-tui"));
+    }
 }
 
 mod completions_command {
@@ -822,6 +870,20 @@ mod status_command {
     #[test]
     fn status_long_format() {
         anvil().args(["status", "--long"]).assert().success();
+    }
+
+    #[test]
+    fn status_no_tui_flag_accepted() {
+        anvil().args(["status", "--no-tui"]).assert().success();
+    }
+
+    #[test]
+    fn status_help_shows_no_tui() {
+        anvil()
+            .args(["status", "--help"])
+            .assert()
+            .success()
+            .stdout(predicate::str::contains("--no-tui"));
     }
 }
 

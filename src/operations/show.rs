@@ -39,6 +39,13 @@ pub fn execute(args: &ShowArgs, cli: &Cli) -> Result<()> {
         manager.load_workload(&path)?
     };
 
+    // TUI mode: interactive detail view when default format and TTY
+    if !args.no_tui && args.output == ConfigOutputFormat::Yaml && crate::tui::should_use_tui() {
+        let detail = build_workload_detail(&workload);
+        crate::tui::views::detail::run_detail_view(detail)?;
+        return Ok(());
+    }
+
     // If outputting to terminal with YAML format and not quiet, show human-readable summary first
     let show_summary = !cli.quiet && atty::is(atty::Stream::Stdout);
 
@@ -362,6 +369,73 @@ fn show_inheritance_tree(
     }
 
     Ok(())
+}
+
+/// Build a WorkloadDetail from a Workload for TUI display
+fn build_workload_detail(workload: &Workload) -> crate::tui::views::detail::WorkloadDetail {
+    let extends = workload.extends.as_deref().unwrap_or(&[]).to_vec();
+
+    let packages: Vec<String> = workload
+        .packages
+        .as_ref()
+        .and_then(|p| p.winget.as_ref())
+        .map(|pkgs| pkgs.iter().map(|p| p.id.clone()).collect())
+        .unwrap_or_default();
+
+    let files: Vec<crate::tui::views::detail::FileEntry> = workload
+        .files
+        .as_ref()
+        .map(|f| {
+            f.iter()
+                .map(|fe| crate::tui::views::detail::FileEntry {
+                    source: fe.source.clone(),
+                    destination: fe.destination.clone(),
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let commands: Vec<crate::tui::views::detail::CommandEntry> = workload
+        .commands
+        .as_ref()
+        .map(|cb| {
+            let mut cmds = Vec::new();
+            if let Some(ref pre) = cb.pre_install {
+                for cmd in pre {
+                    cmds.push(crate::tui::views::detail::CommandEntry {
+                        name: cmd.description.clone().unwrap_or_else(|| cmd.run.clone()),
+                        phase: "pre_install".to_string(),
+                    });
+                }
+            }
+            if let Some(ref post) = cb.post_install {
+                for cmd in post {
+                    cmds.push(crate::tui::views::detail::CommandEntry {
+                        name: cmd.description.clone().unwrap_or_else(|| cmd.run.clone()),
+                        phase: "post_install".to_string(),
+                    });
+                }
+            }
+            cmds
+        })
+        .unwrap_or_default();
+
+    let assertions: Vec<String> = workload
+        .assertions
+        .as_ref()
+        .map(|a| a.iter().map(|ass| ass.name.clone()).collect())
+        .unwrap_or_default();
+
+    crate::tui::views::detail::WorkloadDetail {
+        name: workload.name.clone(),
+        version: workload.version.clone(),
+        description: workload.description.clone(),
+        extends,
+        packages,
+        files,
+        commands,
+        assertions,
+    }
 }
 
 #[cfg(test)]
