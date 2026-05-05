@@ -54,6 +54,26 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
 
     info!("Found {} workload(s)", workloads.len());
 
+    // TUI mode: interactive browser when no explicit format and TTY
+    if !args.no_tui && args.output.is_none() && crate::tui::should_use_tui() {
+        let entries: Vec<_> = workloads
+            .iter()
+            .map(|w| crate::tui::views::browser::WorkloadEntry {
+                name: w.name.clone(),
+                version: w.version.clone(),
+                description: w.description.clone(),
+                extends: w.extends.clone(),
+                package_count: w.package_count,
+                file_count: w.file_count,
+                source: "local".to_string(),
+            })
+            .collect();
+        if let Some(selected) = crate::tui::views::browser::run_browser(entries)? {
+            println!("{}", selected);
+        }
+        return Ok(());
+    }
+
     // Determine output format
     let format = args.output.unwrap_or_default();
 

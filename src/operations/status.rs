@@ -21,6 +21,16 @@ pub fn execute(args: &StatusArgs, cli: &Cli) -> Result<()> {
         return clear_state(&args.workload, use_color);
     }
 
+    // TUI mode: interactive status dashboard when default format and TTY
+    if !args.no_tui
+        && args.output == crate::cli::commands::OutputFormat::Table
+        && crate::tui::should_use_tui()
+    {
+        let info = build_status_info()?;
+        crate::tui::views::status::run_status_dashboard(info)?;
+        return Ok(());
+    }
+
     // Show status for specific workload or all
     if let Some(ref workload_name) = args.workload {
         show_workload_status(workload_name, args, use_color)?;
@@ -345,4 +355,59 @@ fn show_cache_info(_use_color: bool) -> Result<()> {
     }
 
     Ok(())
+}
+
+/// Build a StatusInfo for TUI display
+fn build_status_info() -> Result<crate::tui::views::status::StatusInfo> {
+    let state_dir = get_state_dir()?;
+
+    let mut installed_workloads = Vec::new();
+
+    if state_dir.exists() {
+        let entries: Vec<_> = std::fs::read_dir(&state_dir)?
+            .filter_map(|e| e.ok())
+            .filter(|e| {
+                e.path()
+                    .extension()
+                    .map(|ext| ext == "json")
+                    .unwrap_or(false)
+            })
+            .collect();
+
+        for entry in entries {
+            let path = entry.path();
+            let workload_name = path
+                .file_stem()
+                .map(|s| s.to_string_lossy().to_string())
+                .unwrap_or_else(|| "unknown".to_string());
+
+            if let Ok(Some(state)) = InstallationState::load(&workload_name) {
+                let local_time: DateTime<Local> = state.updated_at.into();
+                installed_workloads.push(crate::tui::views::status::InstalledWorkload {
+                    name: state.workload_name,
+                    version: state.workload_version,
+                    installed_at: local_time.format("%Y-%m-%d %H:%M:%S").to_string(),
+                });
+            }
+        }
+    }
+
+    let total_workloads = installed_workloads.len();
+
+    Ok(crate::tui::views::status::StatusInfo {
+        installed_workloads,
+        source_summary: crate::tui::views::status::SourceSummary {
+            local_count: total_workloads,
+            remote_count: 0,
+            total_workloads,
+        },
+        system_info: crate::tui::views::status::SystemInfo {
+            anvil_version: env!("CARGO_PKG_VERSION").to_string(),
+            os: std::env::consts::OS.to_string(),
+            winget_available: std::process::Command::new("winget")
+                .arg("--version")
+                .output()
+                .is_ok(),
+        },
+    })
 }

@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - TUI automatically activates when stdout and stdin are a TTY; falls back to existing output in CI/scripts
 - Forge-branded color theme for TUI views (amber/gold accent palette)
 - Reusable TUI widget library: status badges with animated spinners, progress gauges, and key hints bar
+- Interactive workload browser for `anvil list` with search filtering, preview pane, and direct install (press Enter)
+- Interactive health report viewer for `anvil health` with collapsible sections, failure filtering (press f), and inline error details
+- Rich workload detail view for `anvil show` with collapsible sections for inheritance, packages, files, commands, and assertions
+- Interactive status dashboard for `anvil status` showing installed workloads, source summary, and system info
+- `--no-tui` flag on `anvil list`, `anvil health`, `anvil show`, and `anvil status` to disable interactive views
 
 ## [1.1.0] - 2026-04-18
 

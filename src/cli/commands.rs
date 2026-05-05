@@ -73,6 +73,10 @@ pub struct StatusArgs {
     /// Clear stored state for the specified workload
     #[arg(long)]
     pub clear: bool,
+
+    /// Disable interactive TUI dashboard (use plain output)
+    #[arg(long)]
+    pub no_tui: bool,
 }
 
 /// Arguments for the `install` command
@@ -189,6 +193,10 @@ pub struct HealthArgs {
     /// Show file differences for modified files
     #[arg(long)]
     pub show_diff: bool,
+
+    /// Disable interactive TUI dashboard (use plain output)
+    #[arg(long)]
+    pub no_tui: bool,
 }
 
 /// Arguments for the `list` command
@@ -213,6 +221,10 @@ pub struct ListArgs {
     /// Output format
     #[arg(short, long, value_enum)]
     pub output: Option<OutputFormat>,
+
+    /// Disable interactive TUI dashboard (use plain output)
+    #[arg(long)]
+    pub no_tui: bool,
 }
 
 /// Arguments for the `show` command
@@ -233,6 +245,10 @@ pub struct ShowArgs {
     /// Output format
     #[arg(short, long, value_enum, default_value = "yaml")]
     pub output: ConfigOutputFormat,
+
+    /// Disable interactive TUI dashboard (use plain output)
+    #[arg(long)]
+    pub no_tui: bool,
 }
 
 /// Arguments for the `validate` command
