@@ -493,6 +493,23 @@ fn merge_workloads(parent: Workload, child: Workload) -> Workload {
                 Some(p)
             }
         },
+
+        // Merge fonts (child overrides same font name)
+        fonts: match (parent.fonts, child.fonts) {
+            (None, None) => None,
+            (Some(p), None) => Some(p),
+            (None, Some(c)) => Some(c),
+            (Some(mut p), Some(c)) => {
+                for child_font in c {
+                    if let Some(existing) = p.iter_mut().find(|f| f.name == child_font.name) {
+                        *existing = child_font;
+                    } else {
+                        p.push(child_font);
+                    }
+                }
+                Some(p)
+            }
+        },
     }
 }
 

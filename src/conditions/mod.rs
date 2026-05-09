@@ -105,6 +105,12 @@ pub enum Condition {
 
     /// At least one child condition must pass (logical OR).
     AnyOf { conditions: Vec<Condition> },
+
+    /// Check whether a font is installed by name pattern in the Windows font registry.
+    FontInstalled {
+        /// Font name pattern to search for (e.g., "Lilex", "Cascadia")
+        name: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -131,6 +137,7 @@ pub fn evaluate(condition: &Condition) -> ConditionResult {
         } => eval_shell(command, description.as_deref()),
         Condition::AllOf { conditions } => eval_all_of(conditions),
         Condition::AnyOf { conditions } => eval_any_of(conditions),
+        Condition::FontInstalled { name } => eval_font_installed(name),
     }
 }
 
@@ -395,6 +402,41 @@ fn eval_shell(command: &str, description: Option<&str>) -> ConditionResult {
             actual: Some(e.to_string()),
             expected: Some("0".to_string()),
             message: format!("Shell command could not be executed: {}", label),
+        },
+    }
+}
+
+fn eval_font_installed(name: &str) -> ConditionResult {
+    let script = format!(
+        "$fonts = Get-ItemProperty -Path 'HKLM:\\SOFTWARE\\Microsoft\\Windows NT\\CurrentVersion\\Fonts' -ErrorAction SilentlyContinue; \
+         if ($fonts) {{ ($fonts.PSObject.Properties | Where-Object {{ $_.Name -like '*{}*' }}).Count -gt 0 }} else {{ $false }}",
+        name.replace('\'', "''")
+    );
+
+    let output = Command::new("powershell")
+        .args(["-NoProfile", "-Command", &script])
+        .output();
+
+    let installed = match output {
+        Ok(o) if o.status.success() => String::from_utf8_lossy(&o.stdout)
+            .trim()
+            .eq_ignore_ascii_case("true"),
+        _ => false,
+    };
+
+    ConditionResult {
+        condition_type: "font_installed".to_string(),
+        passed: installed,
+        actual: Some(if installed {
+            "installed".to_string()
+        } else {
+            "not found".to_string()
+        }),
+        expected: Some(name.to_string()),
+        message: if installed {
+            format!("Font '{}' is installed", name)
+        } else {
+            format!("Font '{}' is not installed", name)
         },
     }
 }

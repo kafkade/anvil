@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Rich workload detail view for `anvil show` with collapsible sections for inheritance, packages, files, commands, and assertions
 - Interactive status dashboard for `anvil status` showing installed workloads, source summary, and system info
 - `--no-tui` flag on `anvil list`, `anvil health`, `anvil show`, and `anvil status` to disable interactive views
+- Declarative `fonts:` block in workload schema for downloading and installing fonts from zip archives
+- Font provider automatically downloads, extracts, and registers font files in the Windows font registry
+- `font_installed` assertion type for verifying fonts are installed (e.g., `type: font_installed, name: Lilex`)
+- Font installation phase in the install dashboard (between packages and files)
 
 ## [1.1.0] - 2026-04-18
 

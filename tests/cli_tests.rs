@@ -771,6 +771,60 @@ mod health_command {
             .success()
             .stdout(predicate::str::contains("--no-tui"));
     }
+
+    #[test]
+    fn validate_workload_with_fonts() {
+        let temp = TempDir::new().unwrap();
+        let workload_dir = temp.path().join("font-test");
+        fs::create_dir_all(&workload_dir).unwrap();
+        fs::write(
+            workload_dir.join("workload.yaml"),
+            r#"
+name: font-test
+version: "1.0.0"
+description: "Test workload with fonts"
+
+fonts:
+  - name: TestFont
+    url: https://example.com/font.zip
+    version: "1.0"
+    format: ttf
+"#,
+        )
+        .unwrap();
+
+        anvil()
+            .args(["validate", workload_dir.to_str().unwrap()])
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn validate_workload_with_font_installed_assertion() {
+        let temp = TempDir::new().unwrap();
+        let workload_dir = temp.path().join("font-assert-test");
+        fs::create_dir_all(&workload_dir).unwrap();
+        fs::write(
+            workload_dir.join("workload.yaml"),
+            r#"
+name: font-assert-test
+version: "1.0.0"
+description: "Test workload with font_installed assertion"
+
+assertions:
+  - name: Test font is installed
+    check:
+      type: font_installed
+      name: TestFont
+"#,
+        )
+        .unwrap();
+
+        anvil()
+            .args(["validate", workload_dir.to_str().unwrap()])
+            .assert()
+            .success();
+    }
 }
 
 mod completions_command {

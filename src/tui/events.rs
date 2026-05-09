@@ -10,6 +10,7 @@ use std::time::Duration;
 pub enum InstallPhase {
     PreCommands,
     Packages,
+    Fonts,
     Files,
     PostCommands,
 }
@@ -20,6 +21,7 @@ impl InstallPhase {
         match self {
             InstallPhase::PreCommands => "Running pre-install commands",
             InstallPhase::Packages => "Installing packages",
+            InstallPhase::Fonts => "Installing fonts",
             InstallPhase::Files => "Deploying files",
             InstallPhase::PostCommands => "Running post-install commands",
         }
@@ -79,6 +81,7 @@ mod tests {
     #[test]
     fn test_phase_labels() {
         assert_eq!(InstallPhase::Packages.label(), "Installing packages");
+        assert_eq!(InstallPhase::Fonts.label(), "Installing fonts");
         assert_eq!(InstallPhase::Files.label(), "Deploying files");
         assert_eq!(
             InstallPhase::PreCommands.label(),

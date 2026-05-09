@@ -287,6 +287,7 @@ impl InstallDashboard {
             let all_phases = [
                 InstallPhase::PreCommands,
                 InstallPhase::Packages,
+                InstallPhase::Fonts,
                 InstallPhase::Files,
                 InstallPhase::PostCommands,
             ];
