@@ -227,6 +227,27 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         }
     }
 
+    // Install fonts
+    if !args.skip_packages && !args.files_only {
+        if let Some(ref fonts) = workload.fonts {
+            let font_count = fonts.len();
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseStart {
+                    phase: InstallPhase::Fonts,
+                    total: font_count,
+                }
+            );
+            install_fonts(&context, fonts, &tui_tx)?;
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseComplete {
+                    phase: InstallPhase::Fonts,
+                }
+            );
+        }
+    }
+
     // Copy files
     if (!args.skip_files && !args.packages_only) || args.files_only {
         let file_count = workload.files.as_ref().map(|f| f.len()).unwrap_or(0);
@@ -487,6 +508,7 @@ fn print_install_header(workload: &Workload, dry_run: bool, file_count: usize) {
     println!("Version:     {}", workload.version);
     println!("Description: {}", workload.description);
     println!("Packages:    {}", workload.package_count());
+    println!("Fonts:       {}", workload.font_count());
     println!("Files:       {}", file_count);
     println!("Commands:    {}", workload.command_count());
     println!();
@@ -695,6 +717,73 @@ fn print_command_summary(summary: &crate::commands::CommandSummary, phase: &str)
             phase, summary.succeeded, summary.failed, summary.skipped
         ));
     }
+}
+
+/// Install fonts from workload font definitions
+fn install_fonts(
+    context: &OperationContext,
+    fonts: &[crate::config::workload::FontEntry],
+    tui_tx: &Option<std::sync::mpsc::Sender<InstallEvent>>,
+) -> Result<()> {
+    use crate::providers::font::FontProvider;
+
+    for font in fonts {
+        if let Some(ref tx) = tui_tx {
+            let _ = tx.send(InstallEvent::ItemStart {
+                phase: InstallPhase::Fonts,
+                name: font.name.clone(),
+            });
+        }
+
+        match FontProvider::install_font(font, context.dry_run) {
+            Ok(result) => {
+                let message = if result.already_installed {
+                    "already installed".to_string()
+                } else {
+                    format!("{} files installed", result.files_installed)
+                };
+                let item_result = if result.already_installed {
+                    ItemResult::Skipped
+                } else {
+                    ItemResult::Success
+                };
+
+                if tui_tx.is_none() {
+                    if result.already_installed {
+                        print_info(&format!("Font '{}' is already installed", font.name));
+                    } else {
+                        print_success(&format!(
+                            "Font '{}' installed ({} files)",
+                            font.name, result.files_installed
+                        ));
+                    }
+                }
+
+                if let Some(ref tx) = tui_tx {
+                    let _ = tx.send(InstallEvent::ItemComplete {
+                        phase: InstallPhase::Fonts,
+                        name: font.name.clone(),
+                        result: item_result,
+                        message,
+                    });
+                }
+            }
+            Err(e) => {
+                if tui_tx.is_none() {
+                    print_error(&format!("Failed to install font '{}': {}", font.name, e));
+                }
+                if let Some(ref tx) = tui_tx {
+                    let _ = tx.send(InstallEvent::ItemComplete {
+                        phase: InstallPhase::Fonts,
+                        name: font.name.clone(),
+                        result: ItemResult::Failed,
+                        message: e.to_string(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
 }
 
 /// Install packages with progress tracking and optional TUI events

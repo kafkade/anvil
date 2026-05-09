@@ -7,6 +7,7 @@
 //! - `git`: Git operations for remote workload sources
 pub mod backup;
 pub mod filesystem;
+pub mod font;
 pub mod git;
 pub mod http;
 pub mod script;

@@ -190,6 +190,9 @@ impl SchemaValidator {
         // Validate assertions
         self.validate_assertions(workload, &mut result);
 
+        // Validate fonts
+        self.validate_fonts(workload, &mut result);
+
         result
     }
 
@@ -625,6 +628,43 @@ impl SchemaValidator {
         }
     }
 
+    /// Validate font definitions
+    fn validate_fonts(&self, workload: &Workload, result: &mut ValidationResult) {
+        if let Some(fonts) = &workload.fonts {
+            for (i, font) in fonts.iter().enumerate() {
+                let path = format!("fonts[{}]", i);
+
+                if font.name.is_empty() {
+                    result.add_error(format!("{}.name", path), "Font name is required");
+                }
+
+                if font.url.is_empty() {
+                    result.add_error(format!("{}.url", path), "Font URL is required");
+                } else if !font.url.starts_with("https://") && !font.url.starts_with("http://") {
+                    result.add_warning(
+                        format!("{}.url", path),
+                        "Font URL should start with https:// or http://",
+                    );
+                }
+
+                if font.version.is_empty() {
+                    result.add_warning(format!("{}.version", path), "Font version is recommended");
+                }
+
+                let valid_formats = ["ttf", "otf", "woff", "woff2"];
+                if !valid_formats.contains(&font.format.to_lowercase().as_str()) {
+                    result.add_warning(
+                        format!("{}.format", path),
+                        format!(
+                            "Unknown font format '{}'. Expected one of: {:?}",
+                            font.format, valid_formats
+                        ),
+                    );
+                }
+            }
+        }
+    }
+
     /// Validate a condition is structurally valid
     fn validate_condition(
         &self,
@@ -696,6 +736,11 @@ impl SchemaValidator {
             Condition::Shell { command, .. } => {
                 if command.is_empty() {
                     result.add_error(format!("{}.command", path), "Shell command cannot be empty");
+                }
+            }
+            Condition::FontInstalled { name } => {
+                if name.is_empty() {
+                    result.add_error(format!("{}.name", path), "Font name cannot be empty");
                 }
             }
             Condition::AllOf { conditions } => {

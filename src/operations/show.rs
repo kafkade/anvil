@@ -125,16 +125,19 @@ fn display_workload_summary(workload: &Workload, use_color: bool, is_resolved: b
     // Summary counts
     let package_count = workload.package_count();
     let file_count = workload.file_count();
+    let font_count = workload.font_count();
     let command_count = workload.command_count();
 
     if use_color {
         println!("{}", "Summary:".bold());
         println!("  📦 {} package(s)", package_count.to_string().cyan());
+        println!("  🔤 {} font(s)", font_count.to_string().cyan());
         println!("  📄 {} file(s)", file_count.to_string().cyan());
         println!("  ⚡ {} command(s)", command_count.to_string().cyan());
     } else {
         println!("Summary:");
         println!("  Packages: {}", package_count);
+        println!("  Fonts: {}", font_count);
         println!("  Files: {}", file_count);
         println!("  Commands: {}", command_count);
     }
@@ -344,6 +347,7 @@ fn show_inheritance_tree(
 
     let package_count = resolved.package_count();
     let file_count = resolved.file_count();
+    let font_count = resolved.font_count();
     let command_count = resolved.command_count();
 
     if use_color {
@@ -352,6 +356,7 @@ fn show_inheritance_tree(
             package_count.to_string().cyan(),
             stats.total_workloads
         );
+        println!("  Fonts: {}", font_count.to_string().cyan());
         println!("  Files: {}", file_count.to_string().cyan());
         println!("  Commands: {}", command_count.to_string().cyan());
         println!(
@@ -363,6 +368,7 @@ fn show_inheritance_tree(
             "  Packages: {} (from {} workload(s))",
             package_count, stats.total_workloads
         );
+        println!("  Fonts: {}", font_count);
         println!("  Files: {}", file_count);
         println!("  Commands: {}", command_count);
         println!("  Inheritance depth: {}", stats.max_depth);

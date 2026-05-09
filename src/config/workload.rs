@@ -43,6 +43,10 @@ pub struct Workload {
     /// Declarative assertions for health validation
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub assertions: Option<Vec<Assertion>>,
+
+    /// Font definitions for installation
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fonts: Option<Vec<FontEntry>>,
 }
 impl Workload {
     /// Create an empty workload (used as a base for merging)
@@ -58,6 +62,7 @@ impl Workload {
             environment: None,
             health: None,
             assertions: None,
+            fonts: None,
         }
     }
 
@@ -77,6 +82,11 @@ impl Workload {
     /// Get the total number of files
     pub fn file_count(&self) -> usize {
         self.files.as_ref().map(|f| f.len()).unwrap_or(0)
+    }
+
+    /// Get the total number of fonts
+    pub fn font_count(&self) -> usize {
+        self.fonts.as_ref().map(|f| f.len()).unwrap_or(0)
     }
 
     /// Get the total number of commands (pre_install + post_install)
@@ -111,6 +121,7 @@ impl Workload {
             environment: None,
             health: None,
             assertions: None,
+            fonts: None,
         }
     }
 
@@ -249,6 +260,35 @@ pub struct FileEntry {
 
 fn default_true() -> bool {
     true
+}
+
+/// A font to download and install
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FontEntry {
+    /// Display name of the font
+    pub name: String,
+
+    /// URL to download the font archive (zip)
+    pub url: String,
+
+    /// Font version string
+    pub version: String,
+
+    /// Font file format to look for inside the archive
+    #[serde(default = "default_font_format")]
+    pub format: String,
+
+    /// Subdirectory within the archive containing font files
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub subfolder: Option<String>,
+
+    /// Specific font file variants to install (default: all matching format)
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub variants: Option<Vec<String>>,
+}
+
+fn default_font_format() -> String {
+    "ttf".to_string()
 }
 
 #[cfg(test)]
