@@ -47,6 +47,14 @@ pub struct Workload {
     /// Font definitions for installation
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub fonts: Option<Vec<FontEntry>>,
+
+    /// Windows Terminal configuration
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub terminal: Option<TerminalConfig>,
+
+    /// Windows feature toggles
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub features: Option<Vec<FeatureEntry>>,
 }
 impl Workload {
     /// Create an empty workload (used as a base for merging)
@@ -63,6 +71,8 @@ impl Workload {
             health: None,
             assertions: None,
             fonts: None,
+            terminal: None,
+            features: None,
         }
     }
 
@@ -87,6 +97,11 @@ impl Workload {
     /// Get the total number of fonts
     pub fn font_count(&self) -> usize {
         self.fonts.as_ref().map(|f| f.len()).unwrap_or(0)
+    }
+
+    /// Get the total number of feature toggles
+    pub fn feature_count(&self) -> usize {
+        self.features.as_ref().map(|f| f.len()).unwrap_or(0)
     }
 
     /// Get the total number of commands (pre_install + post_install)
@@ -122,6 +137,8 @@ impl Workload {
             health: None,
             assertions: None,
             fonts: None,
+            terminal: None,
+            features: None,
         }
     }
 
@@ -289,6 +306,166 @@ pub struct FontEntry {
 
 fn default_font_format() -> String {
     "ttf".to_string()
+}
+
+/// Windows Terminal configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TerminalConfig {
+    /// Color schemes to add/update
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub schemes: Option<Vec<ColorScheme>>,
+
+    /// Profile defaults to set
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub profile_defaults: Option<serde_json::Value>,
+}
+
+/// A Windows Terminal color scheme
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ColorScheme {
+    pub name: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub background: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub foreground: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub black: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub red: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub green: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub yellow: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub blue: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub purple: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub cyan: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub white: Option<String>,
+    #[serde(
+        rename = "brightBlack",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bright_black: Option<String>,
+    #[serde(rename = "brightRed", default, skip_serializing_if = "Option::is_none")]
+    pub bright_red: Option<String>,
+    #[serde(
+        rename = "brightGreen",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bright_green: Option<String>,
+    #[serde(
+        rename = "brightYellow",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bright_yellow: Option<String>,
+    #[serde(
+        rename = "brightBlue",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bright_blue: Option<String>,
+    #[serde(
+        rename = "brightPurple",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bright_purple: Option<String>,
+    #[serde(
+        rename = "brightCyan",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bright_cyan: Option<String>,
+    #[serde(
+        rename = "brightWhite",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub bright_white: Option<String>,
+    #[serde(
+        rename = "cursorColor",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub cursor_color: Option<String>,
+    #[serde(
+        rename = "selectionBackground",
+        default,
+        skip_serializing_if = "Option::is_none"
+    )]
+    pub selection_background: Option<String>,
+}
+
+/// A Windows feature toggle (registry-based)
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct FeatureEntry {
+    /// Display name of the feature
+    pub name: String,
+
+    /// Feature type (currently only "registry_toggle")
+    #[serde(rename = "type", default = "default_feature_type")]
+    pub feature_type: String,
+
+    /// Human-readable description
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+
+    /// Minimum Windows build number required
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub min_build: Option<u32>,
+
+    /// Registry configuration
+    pub registry: RegistryConfig,
+
+    /// Whether elevation is required
+    #[serde(default)]
+    pub elevated: bool,
+}
+
+fn default_feature_type() -> String {
+    "registry_toggle".to_string()
+}
+
+/// Registry configuration for a feature
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegistryConfig {
+    /// Registry key path (without hive prefix)
+    pub path: String,
+
+    /// Registry hive (HKLM or HKCU)
+    #[serde(default = "default_hive")]
+    pub hive: String,
+
+    /// Values to set
+    pub values: Vec<RegistryValueEntry>,
+}
+
+fn default_hive() -> String {
+    "HKLM".to_string()
+}
+
+/// A single registry value to set
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RegistryValueEntry {
+    /// Value name
+    pub name: String,
+
+    /// Value type (dword, string, expand_string)
+    #[serde(rename = "type", default = "default_reg_type")]
+    pub value_type: String,
+
+    /// Value to set (as string — converted to appropriate type)
+    pub value: serde_json::Value,
+}
+
+fn default_reg_type() -> String {
+    "dword".to_string()
 }
 
 #[cfg(test)]

@@ -288,6 +288,8 @@ impl InstallDashboard {
                 InstallPhase::PreCommands,
                 InstallPhase::Packages,
                 InstallPhase::Fonts,
+                InstallPhase::Features,
+                InstallPhase::Terminal,
                 InstallPhase::Files,
                 InstallPhase::PostCommands,
             ];

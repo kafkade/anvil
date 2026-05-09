@@ -193,6 +193,12 @@ impl SchemaValidator {
         // Validate fonts
         self.validate_fonts(workload, &mut result);
 
+        // Validate terminal
+        self.validate_terminal(workload, &mut result);
+
+        // Validate features
+        self.validate_features(workload, &mut result);
+
         result
     }
 
@@ -665,6 +671,79 @@ impl SchemaValidator {
         }
     }
 
+    /// Validate terminal configuration
+    fn validate_terminal(&self, workload: &Workload, result: &mut ValidationResult) {
+        if let Some(terminal) = &workload.terminal {
+            if let Some(schemes) = &terminal.schemes {
+                for (i, scheme) in schemes.iter().enumerate() {
+                    let path = format!("terminal.schemes[{}]", i);
+                    if scheme.name.is_empty() {
+                        result.add_error(format!("{}.name", path), "Scheme name is required");
+                    }
+                }
+            }
+        }
+    }
+
+    /// Validate feature definitions
+    fn validate_features(&self, workload: &Workload, result: &mut ValidationResult) {
+        if let Some(features) = &workload.features {
+            for (i, feature) in features.iter().enumerate() {
+                let path = format!("features[{}]", i);
+
+                if feature.name.is_empty() {
+                    result.add_error(format!("{}.name", path), "Feature name is required");
+                }
+
+                if feature.registry.path.is_empty() {
+                    result.add_error(
+                        format!("{}.registry.path", path),
+                        "Registry path is required",
+                    );
+                }
+
+                let valid_hives = ["HKLM", "HKCU"];
+                if !valid_hives.contains(&feature.registry.hive.as_str()) {
+                    result.add_warning(
+                        format!("{}.registry.hive", path),
+                        format!(
+                            "Unknown registry hive '{}'. Expected one of: {:?}",
+                            feature.registry.hive, valid_hives
+                        ),
+                    );
+                }
+
+                if feature.registry.values.is_empty() {
+                    result.add_error(
+                        format!("{}.registry.values", path),
+                        "At least one registry value is required",
+                    );
+                }
+
+                for (j, value) in feature.registry.values.iter().enumerate() {
+                    let vpath = format!("{}.registry.values[{}]", path, j);
+                    if value.name.is_empty() {
+                        result.add_error(
+                            format!("{}.name", vpath),
+                            "Registry value name is required",
+                        );
+                    }
+
+                    let valid_types = ["dword", "string", "expand_string"];
+                    if !valid_types.contains(&value.value_type.as_str()) {
+                        result.add_warning(
+                            format!("{}.type", vpath),
+                            format!(
+                                "Unknown registry value type '{}'. Expected one of: {:?}",
+                                value.value_type, valid_types
+                            ),
+                        );
+                    }
+                }
+            }
+        }
+    }
+
     /// Validate a condition is structurally valid
     fn validate_condition(
         &self,
@@ -741,6 +820,14 @@ impl SchemaValidator {
             Condition::FontInstalled { name } => {
                 if name.is_empty() {
                     result.add_error(format!("{}.name", path), "Font name cannot be empty");
+                }
+            }
+            Condition::TerminalSchemeExists { name } => {
+                if name.is_empty() {
+                    result.add_error(
+                        format!("{}.name", path),
+                        "Terminal scheme name cannot be empty",
+                    );
                 }
             }
             Condition::AllOf { conditions } => {

@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Font provider automatically downloads, extracts, and registers font files in the Windows font registry
 - `font_installed` assertion type for verifying fonts are installed (e.g., `type: font_installed, name: Lilex`)
 - Font installation phase in the install dashboard (between packages and files)
+- Declarative `terminal:` block for managing Windows Terminal color schemes and profile defaults
+- `terminal_scheme_exists` assertion type for verifying color schemes are present in Windows Terminal settings
+- Declarative `features:` block for toggling Windows system features via registry settings (sudo, developer mode, etc.)
+- OS build gating for features (e.g., `min_build: 26100` skips gracefully on older Windows versions)
 
 ## [1.1.0] - 2026-04-18
 

@@ -248,6 +248,47 @@ pub fn execute(args: &InstallArgs, cli: &Cli) -> Result<()> {
         }
     }
 
+    // Configure features
+    if !args.files_only {
+        if let Some(ref features) = workload.features {
+            let feat_count = features.len();
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseStart {
+                    phase: InstallPhase::Features,
+                    total: feat_count,
+                }
+            );
+            install_features(&context, features, &tui_tx)?;
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseComplete {
+                    phase: InstallPhase::Features,
+                }
+            );
+        }
+    }
+
+    // Configure terminal
+    if !args.files_only {
+        if let Some(ref terminal) = workload.terminal {
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseStart {
+                    phase: InstallPhase::Terminal,
+                    total: 1,
+                }
+            );
+            configure_terminal(&context, terminal, &tui_tx)?;
+            tui_send!(
+                tui_tx,
+                InstallEvent::PhaseComplete {
+                    phase: InstallPhase::Terminal,
+                }
+            );
+        }
+    }
+
     // Copy files
     if (!args.skip_files && !args.packages_only) || args.files_only {
         let file_count = workload.files.as_ref().map(|f| f.len()).unwrap_or(0);
@@ -780,6 +821,152 @@ fn install_fonts(
                         message: e.to_string(),
                     });
                 }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Install features (registry-based toggles)
+fn install_features(
+    context: &OperationContext,
+    features: &[crate::config::workload::FeatureEntry],
+    tui_tx: &Option<std::sync::mpsc::Sender<InstallEvent>>,
+) -> Result<()> {
+    use crate::providers::features::FeatureProvider;
+
+    for feature in features {
+        if let Some(ref tx) = tui_tx {
+            let _ = tx.send(InstallEvent::ItemStart {
+                phase: InstallPhase::Features,
+                name: feature.name.clone(),
+            });
+        }
+
+        match FeatureProvider::apply_feature(feature, context.dry_run) {
+            Ok(result) => {
+                let message = if result.skipped_build {
+                    "skipped (build requirement not met)".to_string()
+                } else if result.already_configured {
+                    "already configured".to_string()
+                } else {
+                    format!("{} value(s) set", result.values_set)
+                };
+                let item_result = if result.already_configured || result.skipped_build {
+                    ItemResult::Skipped
+                } else {
+                    ItemResult::Success
+                };
+
+                if tui_tx.is_none() {
+                    if result.skipped_build {
+                        print_info(&format!(
+                            "Feature '{}' skipped (build requirement not met)",
+                            feature.name
+                        ));
+                    } else if result.already_configured {
+                        print_info(&format!("Feature '{}' is already configured", feature.name));
+                    } else {
+                        print_success(&format!(
+                            "Feature '{}' configured ({} value(s) set)",
+                            feature.name, result.values_set
+                        ));
+                    }
+                }
+
+                if let Some(ref tx) = tui_tx {
+                    let _ = tx.send(InstallEvent::ItemComplete {
+                        phase: InstallPhase::Features,
+                        name: feature.name.clone(),
+                        result: item_result,
+                        message,
+                    });
+                }
+            }
+            Err(e) => {
+                if tui_tx.is_none() {
+                    print_error(&format!(
+                        "Failed to configure feature '{}': {}",
+                        feature.name, e
+                    ));
+                }
+                if let Some(ref tx) = tui_tx {
+                    let _ = tx.send(InstallEvent::ItemComplete {
+                        phase: InstallPhase::Features,
+                        name: feature.name.clone(),
+                        result: ItemResult::Failed,
+                        message: e.to_string(),
+                    });
+                }
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Configure Windows Terminal settings
+fn configure_terminal(
+    context: &OperationContext,
+    terminal: &crate::config::workload::TerminalConfig,
+    tui_tx: &Option<std::sync::mpsc::Sender<InstallEvent>>,
+) -> Result<()> {
+    use crate::providers::terminal::TerminalProvider;
+
+    if let Some(ref tx) = tui_tx {
+        let _ = tx.send(InstallEvent::ItemStart {
+            phase: InstallPhase::Terminal,
+            name: "Windows Terminal".to_string(),
+        });
+    }
+
+    match TerminalProvider::apply_settings(terminal, context.dry_run) {
+        Ok(result) => {
+            let message = if result.already_configured {
+                "already configured".to_string()
+            } else {
+                format!(
+                    "{} scheme(s) added, {} updated",
+                    result.schemes_added, result.schemes_updated
+                )
+            };
+            let item_result = if result.already_configured {
+                ItemResult::Skipped
+            } else {
+                ItemResult::Success
+            };
+
+            if tui_tx.is_none() {
+                if result.already_configured {
+                    print_info("Windows Terminal is already configured");
+                } else {
+                    print_success(&format!(
+                        "Windows Terminal configured ({} scheme(s) added, {} updated)",
+                        result.schemes_added, result.schemes_updated
+                    ));
+                }
+            }
+
+            if let Some(ref tx) = tui_tx {
+                let _ = tx.send(InstallEvent::ItemComplete {
+                    phase: InstallPhase::Terminal,
+                    name: "Windows Terminal".to_string(),
+                    result: item_result,
+                    message,
+                });
+            }
+        }
+        Err(e) => {
+            // Terminal not found is a soft error — don't fail the install
+            if tui_tx.is_none() {
+                print_warning(&format!("Windows Terminal configuration skipped: {}", e));
+            }
+            if let Some(ref tx) = tui_tx {
+                let _ = tx.send(InstallEvent::ItemComplete {
+                    phase: InstallPhase::Terminal,
+                    name: "Windows Terminal".to_string(),
+                    result: ItemResult::Skipped,
+                    message: e.to_string(),
+                });
             }
         }
     }

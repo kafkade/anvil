@@ -111,6 +111,12 @@ pub enum Condition {
         /// Font name pattern to search for (e.g., "Lilex", "Cascadia")
         name: String,
     },
+
+    /// Check whether a Windows Terminal color scheme exists by name.
+    TerminalSchemeExists {
+        /// Color scheme name to search for
+        name: String,
+    },
 }
 
 // ---------------------------------------------------------------------------
@@ -138,6 +144,7 @@ pub fn evaluate(condition: &Condition) -> ConditionResult {
         Condition::AllOf { conditions } => eval_all_of(conditions),
         Condition::AnyOf { conditions } => eval_any_of(conditions),
         Condition::FontInstalled { name } => eval_font_installed(name),
+        Condition::TerminalSchemeExists { name } => eval_terminal_scheme_exists(name),
     }
 }
 
@@ -437,6 +444,28 @@ fn eval_font_installed(name: &str) -> ConditionResult {
             format!("Font '{}' is installed", name)
         } else {
             format!("Font '{}' is not installed", name)
+        },
+    }
+}
+
+fn eval_terminal_scheme_exists(name: &str) -> ConditionResult {
+    use crate::providers::terminal::TerminalProvider;
+
+    let exists = TerminalProvider::check_scheme_exists(name);
+
+    ConditionResult {
+        condition_type: "terminal_scheme_exists".to_string(),
+        passed: exists,
+        actual: Some(if exists {
+            "found".to_string()
+        } else {
+            "not found".to_string()
+        }),
+        expected: Some(name.to_string()),
+        message: if exists {
+            format!("Terminal color scheme '{}' exists", name)
+        } else {
+            format!("Terminal color scheme '{}' not found", name)
         },
     }
 }

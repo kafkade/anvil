@@ -11,6 +11,8 @@ pub enum InstallPhase {
     PreCommands,
     Packages,
     Fonts,
+    Features,
+    Terminal,
     Files,
     PostCommands,
 }
@@ -22,6 +24,8 @@ impl InstallPhase {
             InstallPhase::PreCommands => "Running pre-install commands",
             InstallPhase::Packages => "Installing packages",
             InstallPhase::Fonts => "Installing fonts",
+            InstallPhase::Features => "Configuring features",
+            InstallPhase::Terminal => "Configuring terminal",
             InstallPhase::Files => "Deploying files",
             InstallPhase::PostCommands => "Running post-install commands",
         }
@@ -82,6 +86,8 @@ mod tests {
     fn test_phase_labels() {
         assert_eq!(InstallPhase::Packages.label(), "Installing packages");
         assert_eq!(InstallPhase::Fonts.label(), "Installing fonts");
+        assert_eq!(InstallPhase::Features.label(), "Configuring features");
+        assert_eq!(InstallPhase::Terminal.label(), "Configuring terminal");
         assert_eq!(InstallPhase::Files.label(), "Deploying files");
         assert_eq!(
             InstallPhase::PreCommands.label(),
