@@ -6,12 +6,14 @@
 //! - `script`: PowerShell script execution
 //! - `git`: Git operations for remote workload sources
 pub mod backup;
+pub mod features;
 pub mod filesystem;
 pub mod font;
 pub mod git;
 pub mod http;
 pub mod script;
 pub mod template;
+pub mod terminal;
 pub mod winget;
 
 // Re-export commonly used types

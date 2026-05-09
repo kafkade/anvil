@@ -825,6 +825,71 @@ assertions:
             .assert()
             .success();
     }
+
+    #[test]
+    fn validate_workload_with_terminal() {
+        let temp = TempDir::new().unwrap();
+        let workload_dir = temp.path().join("terminal-test");
+        fs::create_dir_all(&workload_dir).unwrap();
+        fs::write(
+            workload_dir.join("workload.yaml"),
+            r##"
+name: terminal-test
+version: "1.0.0"
+description: "Test workload with terminal config"
+
+terminal:
+  schemes:
+    - name: TestScheme
+      background: "#000000"
+      foreground: "#FFFFFF"
+  profile_defaults:
+    colorScheme: TestScheme
+    font:
+      face: "Cascadia Code NF"
+      size: 12
+"##,
+        )
+        .unwrap();
+
+        anvil()
+            .args(["validate", workload_dir.to_str().unwrap()])
+            .assert()
+            .success();
+    }
+
+    #[test]
+    fn validate_workload_with_features() {
+        let temp = TempDir::new().unwrap();
+        let workload_dir = temp.path().join("features-test");
+        fs::create_dir_all(&workload_dir).unwrap();
+        fs::write(
+            workload_dir.join("workload.yaml"),
+            r##"
+name: features-test
+version: "1.0.0"
+description: "Test workload with features"
+
+features:
+  - name: Test Feature
+    type: registry_toggle
+    description: A test feature toggle
+    registry:
+      path: "SOFTWARE\\TestKey"
+      hive: HKCU
+      values:
+        - name: TestValue
+          type: dword
+          value: 1
+"##,
+        )
+        .unwrap();
+
+        anvil()
+            .args(["validate", workload_dir.to_str().unwrap()])
+            .assert()
+            .success();
+    }
 }
 
 mod completions_command {

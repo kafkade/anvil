@@ -510,6 +510,26 @@ fn merge_workloads(parent: Workload, child: Workload) -> Workload {
                 Some(p)
             }
         },
+
+        // Terminal: child overwrites parent
+        terminal: child.terminal.or(parent.terminal),
+
+        // Merge features (child overrides same feature name)
+        features: match (parent.features, child.features) {
+            (None, None) => None,
+            (Some(p), None) => Some(p),
+            (None, Some(c)) => Some(c),
+            (Some(mut p), Some(c)) => {
+                for child_feat in c {
+                    if let Some(existing) = p.iter_mut().find(|f| f.name == child_feat.name) {
+                        *existing = child_feat;
+                    } else {
+                        p.push(child_feat);
+                    }
+                }
+                Some(p)
+            }
+        },
     }
 }
 
