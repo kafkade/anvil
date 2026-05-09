@@ -239,10 +239,16 @@ mod tests {
         };
 
         let result = FeatureProvider::check_registry_values(&config);
-        assert!(result.is_ok());
-        assert!(
-            !result.unwrap(),
-            "Nonexistent registry path should return false"
-        );
+
+        if cfg!(windows) {
+            assert!(result.is_ok());
+            assert!(
+                !result.unwrap(),
+                "Nonexistent registry path should return false"
+            );
+        } else {
+            // PowerShell may not be available on non-Windows platforms
+            assert!(result.is_err() || !result.unwrap());
+        }
     }
 }
