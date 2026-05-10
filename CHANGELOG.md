@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [1.2.0] - 2026-05-09
+
 ### Added
 
 - `anvil source` command family for managing workload sources from the CLI
@@ -226,7 +228,8 @@ This is the first release from the new repository home at [kafkade/anvil](https:
 
 ---
 
-[Unreleased]: https://github.com/kafkade/anvil/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/kafkade/anvil/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/kafkade/anvil/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/kafkade/anvil/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/kafkade/anvil/compare/v0.6.0...v1.0.0
 [0.6.0]: https://github.com/kafkade/anvil/compare/v0.5.0...v0.6.0
