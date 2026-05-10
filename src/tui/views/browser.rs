@@ -28,6 +28,7 @@ pub struct WorkloadEntry {
     pub package_count: usize,
     pub file_count: usize,
     pub source: String,
+    pub path: String,
 }
 
 /// Interactive workload browser state
@@ -315,6 +316,10 @@ impl WorkloadBrowser {
             Span::styled("  Source: ", self.theme.dimmed()),
             Span::styled(&entry.source, self.theme.normal()),
         ]));
+        lines.push(Line::from(vec![
+            Span::styled("  Path: ", self.theme.dimmed()),
+            Span::styled(&entry.path, self.theme.normal()),
+        ]));
 
         let paragraph = Paragraph::new(lines);
         frame.render_widget(paragraph, inner);
@@ -402,6 +407,7 @@ mod tests {
                 package_count: 12,
                 file_count: 3,
                 source: "default".to_string(),
+                path: "C:\\workloads\\essentials".to_string(),
             },
             WorkloadEntry {
                 name: "rust-developer".to_string(),
@@ -411,6 +417,7 @@ mod tests {
                 package_count: 5,
                 file_count: 1,
                 source: "local".to_string(),
+                path: "C:\\workloads\\rust-developer".to_string(),
             },
             WorkloadEntry {
                 name: "node-developer".to_string(),
@@ -420,6 +427,7 @@ mod tests {
                 package_count: 8,
                 file_count: 2,
                 source: "remote".to_string(),
+                path: "C:\\workloads\\node-developer".to_string(),
             },
         ]
     }

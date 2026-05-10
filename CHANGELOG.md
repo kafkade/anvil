@@ -7,6 +7,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- Workload path shown in the TUI browser preview pane and detail view header
+- Pressing Enter in the workload browser opens the detail view for the selected workload
+
+### Fixed
+
+- Windows UNC path prefix (`\\?\`) no longer appears in source paths and workload displays
+- TUI no longer registers each keystroke twice on Windows (filtered key release events)
+
 ## [1.2.0] - 2026-05-09
 
 ### Added

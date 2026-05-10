@@ -39,6 +39,7 @@ pub struct WorkloadDetail {
     pub name: String,
     pub version: String,
     pub description: String,
+    pub path: String,
     pub extends: Vec<String>,
     pub packages: Vec<String>,
     pub files: Vec<FileEntry>,
@@ -288,6 +289,7 @@ impl DetailView {
                 self.theme.dimmed(),
             )),
             Line::from(Span::styled(&self.detail.description, self.theme.normal())),
+            Line::from(Span::styled(&self.detail.path, self.theme.dimmed())),
         ];
 
         let paragraph = Paragraph::new(lines);
@@ -391,6 +393,7 @@ mod tests {
             name: "test-workload".to_string(),
             version: "1.0.0".to_string(),
             description: "A test workload".to_string(),
+            path: "C:\\test\\workloads\\test-workload".to_string(),
             extends: vec!["essentials".to_string()],
             packages: vec!["Git.Git".to_string(), "Node.js".to_string()],
             files: vec![FileEntry {

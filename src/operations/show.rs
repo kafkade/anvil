@@ -26,22 +26,29 @@ pub fn execute(args: &ShowArgs, cli: &Cli) -> Result<()> {
     }
 
     // Load the workload (optionally resolved with inheritance)
-    let workload = if args.resolved {
+    let (workload, workload_path) = if args.resolved {
         debug!("Loading resolved workload with inheritance");
-        manager
+        let w = manager
             .load_resolved(&args.workload)
-            .with_context(|| format!("Failed to load resolved workload: {}", args.workload))?
+            .with_context(|| format!("Failed to load resolved workload: {}", args.workload))?;
+        let p = manager
+            .find_workload(&args.workload)
+            .map(|p| p.parent().unwrap_or(&p).to_string_lossy().to_string())
+            .unwrap_or_default();
+        (w, p)
     } else {
         let path = manager
             .find_workload(&args.workload)
             .with_context(|| format!("Workload not found: {}", args.workload))?;
         debug!("Loading workload from: {}", path.display());
-        manager.load_workload(&path)?
+        let dir = path.parent().unwrap_or(&path).to_string_lossy().to_string();
+        let w = manager.load_workload(&path)?;
+        (w, dir)
     };
 
     // TUI mode: interactive detail view when default format and TTY
     if !args.no_tui && args.output == ConfigOutputFormat::Yaml && crate::tui::should_use_tui() {
-        let detail = build_workload_detail(&workload);
+        let detail = build_workload_detail(&workload, &workload_path);
         crate::tui::views::detail::run_detail_view(detail)?;
         return Ok(());
     }
@@ -390,7 +397,10 @@ fn show_inheritance_tree(
 }
 
 /// Build a WorkloadDetail from a Workload for TUI display
-fn build_workload_detail(workload: &Workload) -> crate::tui::views::detail::WorkloadDetail {
+fn build_workload_detail(
+    workload: &Workload,
+    path: &str,
+) -> crate::tui::views::detail::WorkloadDetail {
     let extends = workload.extends.as_deref().unwrap_or(&[]).to_vec();
 
     let packages: Vec<String> = workload
@@ -448,6 +458,7 @@ fn build_workload_detail(workload: &Workload) -> crate::tui::views::detail::Work
         name: workload.name.clone(),
         version: workload.version.clone(),
         description: workload.description.clone(),
+        path: path.to_string(),
         extends,
         packages,
         files,

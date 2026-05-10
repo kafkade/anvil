@@ -66,10 +66,85 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
                 package_count: w.package_count,
                 file_count: w.file_count,
                 source: "local".to_string(),
+                path: w
+                    .path
+                    .parent()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_default(),
             })
             .collect();
         if let Some(selected) = crate::tui::views::browser::run_browser(entries)? {
-            println!("{}", selected);
+            // Open the detail view for the selected workload
+            let mut detail_manager = ConfigManager::new();
+            if let Some(wpath) = detail_manager.find_workload(&selected) {
+                let workload = detail_manager.load_workload(&wpath)?;
+                let dir = wpath
+                    .parent()
+                    .unwrap_or(&wpath)
+                    .to_string_lossy()
+                    .to_string();
+                let detail = crate::tui::views::detail::WorkloadDetail {
+                    name: workload.name.clone(),
+                    version: workload.version.clone(),
+                    description: workload.description.clone(),
+                    path: dir,
+                    extends: workload.extends.unwrap_or_default(),
+                    packages: workload
+                        .packages
+                        .as_ref()
+                        .and_then(|p| p.winget.as_ref())
+                        .map(|pkgs| pkgs.iter().map(|p| p.id.clone()).collect())
+                        .unwrap_or_default(),
+                    files: workload
+                        .files
+                        .as_ref()
+                        .map(|f| {
+                            f.iter()
+                                .map(|fe| crate::tui::views::detail::FileEntry {
+                                    source: fe.source.clone(),
+                                    destination: fe.destination.clone(),
+                                })
+                                .collect()
+                        })
+                        .unwrap_or_default(),
+                    commands: workload
+                        .commands
+                        .as_ref()
+                        .map(|cb| {
+                            let mut cmds = Vec::new();
+                            if let Some(ref pre) = cb.pre_install {
+                                for cmd in pre {
+                                    cmds.push(crate::tui::views::detail::CommandEntry {
+                                        name: cmd
+                                            .description
+                                            .clone()
+                                            .unwrap_or_else(|| cmd.run.clone()),
+                                        phase: "pre_install".to_string(),
+                                    });
+                                }
+                            }
+                            if let Some(ref post) = cb.post_install {
+                                for cmd in post {
+                                    cmds.push(crate::tui::views::detail::CommandEntry {
+                                        name: cmd
+                                            .description
+                                            .clone()
+                                            .unwrap_or_else(|| cmd.run.clone()),
+                                        phase: "post_install".to_string(),
+                                    });
+                                }
+                            }
+                            cmds
+                        })
+                        .unwrap_or_default(),
+                    assertions: workload
+                        .assertions
+                        .as_ref()
+                        .map(|a| a.iter().map(|ass| ass.name.clone()).collect())
+                        .unwrap_or_default(),
+                };
+                crate::tui::views::detail::run_detail_view(detail)?;
+            }
         }
         return Ok(());
     }

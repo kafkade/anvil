@@ -14,7 +14,7 @@ use std::io::{self, Stdout};
 
 use anyhow::{Context, Result};
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -69,9 +69,18 @@ impl Tui {
     /// Poll for a crossterm event with timeout
     ///
     /// Returns `None` if no event is available within the timeout.
+    /// On Windows, filters out key release/repeat events to prevent double-firing.
     pub fn poll_event(&self, timeout: std::time::Duration) -> Result<Option<Event>> {
         if event::poll(timeout).context("Failed to poll for event")? {
             let evt = event::read().context("Failed to read event")?;
+
+            // Filter out key release and repeat events (Windows reports both press and release)
+            if let Event::Key(ref key) = evt {
+                if key.kind != KeyEventKind::Press {
+                    return Ok(None);
+                }
+            }
+
             Ok(Some(evt))
         } else {
             Ok(None)

@@ -139,6 +139,17 @@ fn add_local_source(
     let canonical = std::fs::canonicalize(&path)
         .with_context(|| format!("Path does not exist: {}", path.display()))?;
 
+    // Strip Windows UNC extended-length prefix (\\?\) for cleaner display and storage
+    #[cfg(windows)]
+    let canonical = {
+        let s = canonical.to_string_lossy();
+        if let Some(stripped) = s.strip_prefix(r"\\?\") {
+            PathBuf::from(stripped)
+        } else {
+            canonical
+        }
+    };
+
     if !canonical.is_dir() {
         anyhow::bail!("Path is not a directory: {}", canonical.display());
     }
