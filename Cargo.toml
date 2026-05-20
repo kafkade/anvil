@@ -44,7 +44,7 @@ anyhow = "1"
 comfy-table = "7"
 indicatif = { version = "0.18", features = ["rayon"] }
 console = "0.15"
-colored = "2"
+colored = "3"
 atty = "0.2"
 ratatui = "0.30"
 crossterm = "0.29"
