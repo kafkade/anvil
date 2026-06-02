@@ -73,7 +73,7 @@ regex-lite = "0.1"
 
 # Temporary files (for atomic writes)
 tempfile = "3"
-uuid = { version = "1.23.1", features = ["v4"] }
+uuid = { version = "1.23.2", features = ["v4"] }
 
 [dev-dependencies]
 assert_cmd = "2"
