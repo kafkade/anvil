@@ -313,6 +313,17 @@ impl ConfigManager {
                 .map(|p| p.winget.as_ref().map(|w| w.len()).unwrap_or(0))
                 .unwrap_or(0),
             file_count: workload.files.as_ref().map(|f| f.len()).unwrap_or(0),
+            command_count: workload
+                .commands
+                .as_ref()
+                .map(|c| {
+                    c.pre_install.as_ref().map(|v| v.len()).unwrap_or(0)
+                        + c.post_install.as_ref().map(|v| v.len()).unwrap_or(0)
+                })
+                .unwrap_or(0),
+            font_count: workload.fonts.as_ref().map(|f| f.len()).unwrap_or(0),
+            feature_count: workload.features.as_ref().map(|f| f.len()).unwrap_or(0),
+            assertion_count: workload.assertions.as_ref().map(|a| a.len()).unwrap_or(0),
             path: path.to_path_buf(),
             shadowed_paths: Vec::new(),
         })
@@ -340,6 +351,14 @@ pub struct WorkloadInfo {
     pub package_count: usize,
     /// Number of files
     pub file_count: usize,
+    /// Number of commands (pre + post install)
+    pub command_count: usize,
+    /// Number of fonts
+    pub font_count: usize,
+    /// Number of features
+    pub feature_count: usize,
+    /// Number of assertions
+    pub assertion_count: usize,
     /// Path to the workload file
     #[serde(skip_serializing)]
     pub path: PathBuf,

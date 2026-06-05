@@ -11,12 +11,15 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::Modifier,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{
+        Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    },
     Frame,
 };
 
 use crate::tui::events::{InstallEvent, InstallPhase, ItemResult};
 use crate::tui::theme::Theme;
+use crate::tui::widgets::chrome::{gauge, render_header};
 use crate::tui::widgets::keyhints::{render_keyhints, KeyHint};
 use crate::tui::widgets::status::{status_line, ItemStatus};
 use crate::tui::Tui;
@@ -180,23 +183,124 @@ impl InstallDashboard {
     pub fn render(&self, frame: &mut Frame) {
         let area = frame.area();
 
-        // Main layout: content + key hints bar
         let chunks = Layout::vertical([
-            Constraint::Min(3),    // main content
+            Constraint::Length(1), // branded header
+            Constraint::Length(1), // overall gauge
+            Constraint::Length(1), // phase chips
+            Constraint::Min(3),    // main content (split body)
             Constraint::Length(1), // key hints
         ])
         .split(area);
 
-        self.render_main(frame, chunks[0]);
-        self.render_keyhints(frame, chunks[1]);
+        self.render_branded_header(frame, chunks[0]);
+        self.render_gauge(frame, chunks[1]);
+        self.render_phase_chips(frame, chunks[2]);
+        self.render_main(frame, chunks[3]);
+        self.render_keyhints(frame, chunks[4]);
+    }
+
+    /// Render the branded header bar
+    fn render_branded_header(&self, frame: &mut Frame, area: Rect) {
+        let status_text = if self.done { "Complete" } else { "Installing" };
+
+        render_header(
+            frame,
+            area,
+            &self.theme,
+            &["Install", &self.workload_name],
+            Some(Line::from(vec![
+                Span::styled(
+                    status_text,
+                    if self.done {
+                        self.theme.success_style()
+                    } else {
+                        self.theme.running_style()
+                    },
+                ),
+                if let Some(dur) = self.total_duration {
+                    Span::styled(
+                        format!("  {}", crate::cli::progress::format_duration(dur)),
+                        self.theme.dimmed(),
+                    )
+                } else {
+                    Span::raw("")
+                },
+            ])),
+        );
+    }
+
+    /// Render the overall progress gauge
+    fn render_gauge(&self, frame: &mut Frame, area: Rect) {
+        let (completed, total) = self.overall_progress();
+        let ratio = if total > 0 {
+            completed as f64 / total as f64
+        } else {
+            0.0
+        };
+        frame.render_widget(
+            gauge(
+                &self.theme,
+                ratio,
+                self.theme.accent,
+                Some(format!("{completed} / {total} items")),
+            ),
+            area,
+        );
+    }
+
+    /// Render phase indicator chips
+    fn render_phase_chips(&self, frame: &mut Frame, area: Rect) {
+        let all_phases = [
+            InstallPhase::PreCommands,
+            InstallPhase::Packages,
+            InstallPhase::Fonts,
+            InstallPhase::Features,
+            InstallPhase::Terminal,
+            InstallPhase::Files,
+            InstallPhase::PostCommands,
+        ];
+
+        let mut spans: Vec<Span> = vec![Span::raw(" ")];
+        for phase in &all_phases {
+            let state = self.phases.iter().find(|p| p.phase == *phase);
+            let (icon, style) = match state.map(|p| p.status) {
+                Some(ItemStatus::Success) => ("✓", self.theme.success_style()),
+                Some(ItemStatus::Running) => ("⠋", self.theme.running_style()),
+                _ => ("·", self.theme.faint_style()),
+            };
+            spans.push(Span::styled(format!(" {} {} ", icon, phase.label()), style));
+        }
+        frame.render_widget(Paragraph::new(Line::from(spans)), area);
+    }
+
+    /// Compute overall completed/total across all phases
+    fn overall_progress(&self) -> (usize, usize) {
+        let completed: usize = self.phases.iter().map(|p| p.completed).sum();
+        let total: usize = self.phases.iter().map(|p| p.total).sum();
+        (completed, total)
     }
 
     /// Render the main content area
     fn render_main(&self, frame: &mut Frame, area: Rect) {
-        let title = format!(" Anvil — Installing {} ", self.workload_name);
+        if self.verbose && !self.logs.is_empty() {
+            // Split body: items (62%) + log (38%)
+            let body = Layout::horizontal([Constraint::Percentage(62), Constraint::Percentage(38)])
+                .split(area);
+
+            self.render_items(frame, body[0]);
+            self.render_log(frame, body[1]);
+        } else {
+            self.render_items(frame, area);
+        }
+    }
+
+    /// Render the items pane
+    fn render_items(&self, frame: &mut Frame, area: Rect) {
+        let title = format!(" Installing {} ", self.workload_name);
         let block = Block::default()
             .title(Span::styled(title, self.theme.title_style()))
             .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
             .border_style(self.theme.border_style());
 
         let inner = block.inner(area);
@@ -282,35 +386,7 @@ impl InstallDashboard {
                 }
             }
 
-            // Show future phases as pending
-            let active_phases: Vec<InstallPhase> = self.phases.iter().map(|p| p.phase).collect();
-            let all_phases = [
-                InstallPhase::PreCommands,
-                InstallPhase::Packages,
-                InstallPhase::Fonts,
-                InstallPhase::Features,
-                InstallPhase::Terminal,
-                InstallPhase::Files,
-                InstallPhase::PostCommands,
-            ];
-            for phase in &all_phases {
-                if !active_phases.contains(phase) {
-                    lines.push(Line::styled(
-                        format!("  Phase: {}  pending", phase.label()),
-                        self.theme.dimmed(),
-                    ));
-                }
-            }
-
-            // Verbose log section
-            if self.verbose && !self.logs.is_empty() {
-                lines.push(Line::raw(""));
-                lines.push(Line::styled("  ─── Log ───", self.theme.dimmed()));
-                let log_start = self.logs.len().saturating_sub(10);
-                for log in &self.logs[log_start..] {
-                    lines.push(Line::styled(format!("  {}", log), self.theme.dimmed()));
-                }
-            }
+            // Future phases no longer shown inline — phase chips handle this
         }
 
         // Apply scroll offset
@@ -332,6 +408,37 @@ impl InstallDashboard {
             let mut scrollbar_state = ScrollbarState::new(max_scroll).position(scroll);
             frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
         }
+    }
+
+    /// Render the log pane (right side when verbose)
+    fn render_log(&self, frame: &mut Frame, area: Rect) {
+        let block = Block::default()
+            .title(Span::styled(" Log ", self.theme.dimmed()))
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(self.theme.border_style());
+
+        let inner = block.inner(area);
+        frame.render_widget(block, area);
+
+        let visible_height = inner.height as usize;
+        let log_start = self.logs.len().saturating_sub(visible_height);
+        let lines: Vec<Line> = self.logs[log_start..]
+            .iter()
+            .map(|log| {
+                let style = if log.starts_with('$') || log.starts_with('>') {
+                    self.theme.faint_style()
+                } else if log.starts_with('✓') {
+                    self.theme.success_style()
+                } else {
+                    self.theme.dimmed()
+                };
+                Line::styled(format!(" {}", log), style)
+            })
+            .collect();
+
+        let paragraph = Paragraph::new(lines);
+        frame.render_widget(paragraph, inner);
     }
 
     /// Render the key hints bar

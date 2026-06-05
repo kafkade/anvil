@@ -6,6 +6,10 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 env:
   CARGO_TERM_COLOR: always
   RUST_BACKTRACE: 1
@@ -13,8 +17,70 @@ env:
   CARGO_HTTP_CHECK_REVOKE: false
 
 jobs:
-  validate:
-    name: Validate (${{ matrix.os }})
+  # ── Change detection ──────────────────────────────────────────────────────────
+  # Determines which component groups were modified so downstream jobs can skip
+  # irrelevant work on PRs. Push-to-main/develop always runs everything.
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: read
+    outputs:
+      rust: ${{ steps.filter.outputs.rust }}
+      docs: ${{ steps.filter.outputs.docs }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            rust:
+              - 'src/**'
+              - 'tests/**'
+              - 'examples/**'
+              - 'Cargo.*'
+              - '.cargo/**'
+              - '.github/workflows/**'
+            docs:
+              - '**/*.md'
+              - 'docs/**'
+              - 'book.toml'
+              - 'site/**'
+              - 'scripts/build-site.sh'
+              - '.github/mlc_config.json'
+              - '.github/workflows/**'
+
+  # ── Rust checks ───────────────────────────────────────────────────────────────
+
+  fmt:
+    name: Formatting
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt
+      - run: cargo fmt --all -- --check
+
+  clippy:
+    name: Clippy
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+      - run: cargo clippy --all-targets --all-features -- -D warnings
+
+  test:
+    name: Test (${{ matrix.os }})
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.rust == 'true'
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
@@ -23,21 +89,11 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      - name: Install Rust
-        uses: dtolnay/rust-toolchain@stable
-        with:
-          components: rustfmt, clippy
+      - uses: dtolnay/rust-toolchain@stable
 
       - uses: Swatinem/rust-cache@v2
         with:
           key: ${{ matrix.os }}
-          cache-all-crates: true
-
-      - name: Check formatting
-        run: cargo fmt --all -- --check
-
-      - name: Clippy
-        run: cargo clippy --all-targets --all-features -- -D warnings
 
       - name: Run unit tests
         run: cargo test --bin anvil --all-features
@@ -45,10 +101,34 @@ jobs:
       - name: Run integration tests
         run: cargo test --test cli_tests --all-features
 
+  msrv:
+    name: MSRV (1.75)
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: dtolnay/rust-toolchain@1.75
+      - uses: Swatinem/rust-cache@v2
+        with:
+          key: msrv
+      - run: cargo check --all-features
+
+  audit:
+    name: Security audit
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.rust == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
   build:
     name: Build
+    needs: [fmt, clippy, test]
     runs-on: windows-latest
-    needs: validate
     steps:
       - uses: actions/checkout@v6
 
@@ -72,8 +152,12 @@ jobs:
           path: target/release/anvil.exe
           retention-days: 7
 
+  # ── Documentation ─────────────────────────────────────────────────────────────
+
   docs:
     name: Documentation
+    needs: changes
+    if: github.event_name == 'push' || needs.changes.outputs.docs == 'true'
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v6
@@ -102,14 +186,17 @@ jobs:
           chmod +x scripts/build-site.sh
           bash scripts/build-site.sh
 
+  # ── Summary gate ──────────────────────────────────────────────────────────────
+  # Single required status check for branch protection. Downstream jobs may be
+  # skipped (path filters) — that is OK; only failures or cancellations block.
   ci-pass:
     name: CI Pass
-    needs: [validate, build, docs]
     if: always()
+    needs: [changes, fmt, clippy, test, msrv, audit, build, docs]
     runs-on: ubuntu-latest
     steps:
-      - name: Check results
-        run: |
-          if [ "${{ needs.validate.result }}" != "success" ]; then exit 1; fi
-          if [ "${{ needs.build.result }}" != "success" ]; then exit 1; fi
-          if [ "${{ needs.docs.result }}" != "success" ]; then exit 1; fi
+      - name: Fail if any dependency failed
+        if: contains(needs.*.result, 'failure') || contains(needs.*.result, 'cancelled')
+        run: exit 1
+      - name: All checks passed
+        run: echo "All CI checks passed"

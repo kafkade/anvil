@@ -41,7 +41,11 @@ pub fn execute(args: &ShowArgs, cli: &Cli) -> Result<()> {
 
     // TUI mode: interactive detail view when default format and TTY
     if !args.no_tui && args.output == ConfigOutputFormat::Yaml && crate::tui::should_use_tui() {
-        let detail = build_workload_detail(&workload);
+        let workload_path = manager
+            .find_workload(&args.workload)
+            .map(|p| p.to_string_lossy().to_string())
+            .unwrap_or_default();
+        let detail = build_workload_detail(&workload, &workload_path);
         crate::tui::views::detail::run_detail_view(detail)?;
         return Ok(());
     }
@@ -390,7 +394,10 @@ fn show_inheritance_tree(
 }
 
 /// Build a WorkloadDetail from a Workload for TUI display
-fn build_workload_detail(workload: &Workload) -> crate::tui::views::detail::WorkloadDetail {
+fn build_workload_detail(
+    workload: &Workload,
+    workload_path: &str,
+) -> crate::tui::views::detail::WorkloadDetail {
     let extends = workload.extends.as_deref().unwrap_or(&[]).to_vec();
 
     let packages: Vec<String> = workload
@@ -444,6 +451,49 @@ fn build_workload_detail(workload: &Workload) -> crate::tui::views::detail::Work
         .map(|a| a.iter().map(|ass| ass.name.clone()).collect())
         .unwrap_or_default();
 
+    let fonts: Vec<String> = workload
+        .fonts
+        .as_ref()
+        .map(|fs| {
+            fs.iter()
+                .map(|f| format!("{} v{}", f.name, f.version))
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let features: Vec<String> = workload
+        .features
+        .as_ref()
+        .map(|fs| {
+            fs.iter()
+                .map(|f| {
+                    format!(
+                        "{} ({})",
+                        f.name,
+                        f.description.as_deref().unwrap_or(&f.feature_type)
+                    )
+                })
+                .collect()
+        })
+        .unwrap_or_default();
+
+    let environment: Vec<String> = {
+        let mut env = Vec::new();
+        if let Some(ref e) = workload.environment {
+            if let Some(ref vars) = e.variables {
+                for v in vars {
+                    env.push(format!("{}={}", v.name, v.value));
+                }
+            }
+            if let Some(ref paths) = e.path_additions {
+                for p in paths {
+                    env.push(format!("PATH += {}", p));
+                }
+            }
+        }
+        env
+    };
+
     crate::tui::views::detail::WorkloadDetail {
         name: workload.name.clone(),
         version: workload.version.clone(),
@@ -453,6 +503,10 @@ fn build_workload_detail(workload: &Workload) -> crate::tui::views::detail::Work
         files,
         commands,
         assertions,
+        fonts,
+        features,
+        environment,
+        path: workload_path.to_string(),
     }
 }
 

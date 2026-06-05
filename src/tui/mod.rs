@@ -14,7 +14,7 @@ use std::io::{self, Stdout};
 
 use anyhow::{Context, Result};
 use crossterm::{
-    event::{self, Event, KeyCode, KeyEvent, KeyModifiers},
+    event::{self, Event, KeyCode, KeyEvent, KeyEventKind, KeyModifiers},
     execute,
     terminal::{self, EnterAlternateScreen, LeaveAlternateScreen},
 };
@@ -24,7 +24,8 @@ use ratatui::{backend::CrosstermBackend, Terminal};
 ///
 /// Returns true when both stdout and stdin are TTYs.
 pub fn should_use_tui() -> bool {
-    atty::is(atty::Stream::Stdout) && atty::is(atty::Stream::Stdin)
+    use std::io::IsTerminal;
+    io::stdout().is_terminal() && io::stdin().is_terminal()
 }
 
 /// Terminal wrapper that manages setup/teardown of the raw terminal
@@ -51,6 +52,14 @@ impl Tui {
         let backend = CrosstermBackend::new(stdout);
         let terminal = Terminal::new(backend).context("Failed to create terminal")?;
 
+        // Drain any input events already in the console buffer (e.g., the
+        // Enter key the user pressed to launch the command). Without this,
+        // the first poll in the event loop would pick up stale keypresses
+        // and act on them immediately.
+        while event::poll(std::time::Duration::from_millis(50)).unwrap_or(false) {
+            let _ = event::read();
+        }
+
         Ok(Self {
             terminal,
             restored: false,
@@ -66,12 +75,21 @@ impl Tui {
         Ok(())
     }
 
-    /// Poll for a crossterm event with timeout
+    /// Poll for a crossterm key-press event with timeout
     ///
     /// Returns `None` if no event is available within the timeout.
+    /// Only returns `KeyEventKind::Press` events — release and repeat
+    /// events are silently consumed to prevent double-registration on
+    /// Windows, where every physical keypress produces both a press
+    /// and a release event.
     pub fn poll_event(&self, timeout: std::time::Duration) -> Result<Option<Event>> {
         if event::poll(timeout).context("Failed to poll for event")? {
             let evt = event::read().context("Failed to read event")?;
+            if let Event::Key(ref key) = evt {
+                if key.kind != KeyEventKind::Press {
+                    return Ok(None);
+                }
+            }
             Ok(Some(evt))
         } else {
             Ok(None)
