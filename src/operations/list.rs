@@ -65,11 +65,21 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
                 extends: w.extends.clone(),
                 package_count: w.package_count,
                 file_count: w.file_count,
+                command_count: w.command_count,
+                font_count: w.font_count,
+                feature_count: w.feature_count,
+                assertion_count: w.assertion_count,
                 source: "local".to_string(),
+                path: w.path.to_string_lossy().to_string(),
             })
             .collect();
-        if let Some(selected) = crate::tui::views::browser::run_browser(entries)? {
-            println!("{}", selected);
+        match crate::tui::views::browser::run_browser(entries)? {
+            crate::tui::views::browser::BrowserOutcome::Select(name)
+            | crate::tui::views::browser::BrowserOutcome::Install(name, _)
+            | crate::tui::views::browser::BrowserOutcome::DryRun(name, _) => {
+                println!("{}", name);
+            }
+            crate::tui::views::browser::BrowserOutcome::Quit => {}
         }
         return Ok(());
     }

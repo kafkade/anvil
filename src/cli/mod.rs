@@ -16,7 +16,6 @@ use clap::{Parser, Subcommand};
 #[command(name = "anvil")]
 #[command(author, version, about, long_about = None)]
 #[command(propagate_version = true)]
-#[command(arg_required_else_help = true)]
 pub struct Cli {
     /// Increase output verbosity (can be repeated: -v, -vv, -vvv)
     #[arg(short, long, action = clap::ArgAction::Count, global = true)]
@@ -35,7 +34,7 @@ pub struct Cli {
     pub no_color: bool,
 
     #[command(subcommand)]
-    pub command: Commands,
+    pub command: Option<Commands>,
 }
 
 /// Available commands
@@ -112,14 +111,14 @@ mod tests {
             quiet: false,
             config: None,
             no_color: false,
-            command: Commands::List(commands::ListArgs {
+            command: Some(Commands::List(commands::ListArgs {
                 all: false,
                 long: false,
                 path: None,
                 all_paths: false,
                 output: None,
                 no_tui: false,
-            }),
+            })),
         };
         assert_eq!(cli.verbosity_level(), 3);
     }
@@ -131,14 +130,14 @@ mod tests {
             quiet: true,
             config: None,
             no_color: false,
-            command: Commands::List(commands::ListArgs {
+            command: Some(Commands::List(commands::ListArgs {
                 all: false,
                 long: false,
                 path: None,
                 all_paths: false,
                 output: None,
                 no_tui: false,
-            }),
+            })),
         };
         assert_eq!(cli.verbosity_level(), 0);
     }

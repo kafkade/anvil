@@ -200,7 +200,7 @@ pub struct HealthArgs {
 }
 
 /// Arguments for the `list` command
-#[derive(Args, Debug)]
+#[derive(Args, Debug, Default)]
 pub struct ListArgs {
     /// Include built-in and custom workloads
     #[arg(short, long)]

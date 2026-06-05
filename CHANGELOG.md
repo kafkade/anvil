@@ -7,6 +7,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Added
+
+- TUI workload browser launches by default when running `anvil` without a subcommand
+- Workload detail view with tabbed sections (Overview, Packages, Files, Commands, Config, Assertions) and ←/→ navigation
+- Install and dry-run actions directly from the TUI browser (`i` / `d` keybindings)
+- Branded `anvil │ …` header bar with breadcrumb navigation across all TUI views
+- Reusable chrome widget library (header, badge, gauge, heatmap, health bar, error block)
+- Two-column CONTENTS grid in the browser preview pane showing package, file, font, feature, command, and assertion counts
+- Bordered panes with rounded corners and hairline section dividers in the browser view
+- `SOURCE` and metadata sections in the browser detail preview
+
+### Changed
+
+- Replaced amber/gold TUI theme with Flexoki dark palette (ember red accent, section-colored icons)
+- Detail view uses tabbed navigation instead of collapsible sections
+- Health view shows inline heatmap per section and summary strip with pass/fail badge
+- Install dashboard shows overall progress gauge with phase chips and split body layout
+- Status dashboard uses stat blocks with branded header and system info
+- Browser list items show right-aligned version and package count columns
+- Replaced emoji icons with single-width ASCII characters for consistent terminal alignment
+- Key hints bar updated to show all available actions (`↵ open`, `h health`, etc.)
+
+### Fixed
+
+- Double keystroke registration on Windows by filtering for `KeyEventKind::Press` events only
+- Stale Enter keypress from command launch no longer triggers immediate TUI exit (input buffer drain)
+- Workload install/dry-run from TUI now uses actual filesystem path instead of searching only `<cwd>/workloads/`
+- Replaced deprecated `atty` crate with `std::io::IsTerminal` for TTY detection
+
 ## [1.2.0] - 2026-05-09
 
 ### Added

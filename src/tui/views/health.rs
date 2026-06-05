@@ -9,13 +9,16 @@ use std::time::Duration;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::{Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{
+        Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
+    },
     Frame,
 };
 
 use crate::tui::theme::Theme;
+use crate::tui::widgets::chrome::{badge, render_header};
 use crate::tui::widgets::keyhints::{render_keyhints, KeyHint};
 use crate::tui::Tui;
 
@@ -140,18 +143,46 @@ impl HealthViewer {
         let area = frame.area();
 
         let chunks = Layout::vertical([
-            Constraint::Length(3), // summary bar
+            Constraint::Length(1), // branded header
+            Constraint::Length(1), // summary strip
             Constraint::Min(3),    // main content
             Constraint::Length(1), // key hints
         ])
         .split(area);
 
-        self.render_summary(frame, chunks[0]);
-        self.render_main(frame, chunks[1]);
-        self.render_keyhints(frame, chunks[2]);
+        self.render_branded_header(frame, chunks[0]);
+        self.render_summary(frame, chunks[1]);
+        self.render_main(frame, chunks[2]);
+        self.render_keyhints(frame, chunks[3]);
     }
 
-    /// Render the summary bar
+    /// Render the branded header bar
+    fn render_branded_header(&self, frame: &mut Frame, area: Rect) {
+        let (_, _pass, fail, _, _) = self.count_statuses();
+        let issues_text = format!("{} ISSUES", fail);
+        let result_badge = if fail == 0 {
+            badge("ALL PASS", self.theme.success)
+        } else {
+            badge(&issues_text, self.theme.error)
+        };
+
+        render_header(
+            frame,
+            area,
+            &self.theme,
+            &["Health", &self.report.workload_name],
+            Some(Line::from(vec![
+                Span::styled(
+                    format!("{:.1}s", self.report.duration.as_secs_f64()),
+                    self.theme.dimmed(),
+                ),
+                Span::raw(" "),
+                result_badge,
+            ])),
+        );
+    }
+
+    /// Render the summary strip
     fn render_summary(&self, frame: &mut Frame, area: Rect) {
         let (total, pass, fail, skip, warn) = self.count_statuses();
         let pass_rate = if total > 0 {
@@ -160,18 +191,8 @@ impl HealthViewer {
             0.0
         };
 
-        let title = format!(" Anvil — Health Report: {} ", self.report.workload_name);
-
-        let block = Block::default()
-            .title(Span::styled(title, self.theme.title_style()))
-            .borders(Borders::ALL)
-            .border_style(self.theme.border_style());
-
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
-
         let summary_line = Line::from(vec![
-            Span::raw("  "),
+            Span::raw(" "),
             Span::styled(format!("{total} checks"), self.theme.normal()),
             Span::raw("  "),
             Span::styled(format!("{pass} pass"), self.theme.success_style()),
@@ -183,7 +204,7 @@ impl HealthViewer {
             Span::styled(format!("{warn} warn"), self.theme.warning_style()),
             Span::raw("  "),
             Span::styled(
-                format!("{pass_rate:.0}% pass rate"),
+                format!("{pass_rate:.0}%"),
                 if pass_rate >= 100.0 {
                     self.theme.success_style()
                 } else if pass_rate >= 50.0 {
@@ -192,21 +213,17 @@ impl HealthViewer {
                     self.theme.error_style()
                 },
             ),
-            Span::raw("  "),
-            Span::styled(
-                format!("{:.1}s", self.report.duration.as_secs_f64()),
-                self.theme.dimmed(),
-            ),
         ]);
 
         let paragraph = Paragraph::new(summary_line);
-        frame.render_widget(paragraph, inner);
+        frame.render_widget(paragraph, area);
     }
 
     /// Render the main content area with sections and items
     fn render_main(&self, frame: &mut Frame, area: Rect) {
         let block = Block::default()
             .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
             .border_style(self.theme.border_style());
 
         let inner = block.inner(area);
@@ -214,25 +231,71 @@ impl HealthViewer {
 
         let mut lines: Vec<Line> = Vec::new();
         let mut flat_index: usize = 0;
-        let highlight_style = Style::default().bg(self.theme.accent).fg(Color::Black);
 
         for (si, section) in self.report.sections.iter().enumerate() {
             let is_collapsed = self.section_collapsed.contains(&si);
             let (section_pass, section_total) = self.section_counts(section);
             let is_selected = flat_index == self.selected;
 
-            // Section header
+            // Build heatmap data for this section
+            let heatmap_results: Vec<bool> = section
+                .items
+                .iter()
+                .map(|i| i.status == HealthStatus::Pass)
+                .collect();
+
+            // Section header with heatmap
             let arrow = if is_collapsed { "▸" } else { "▾" };
-            let header_text = format!(
-                "  {} {} ({}/{})",
-                arrow, section.name, section_pass, section_total
-            );
-            let header_style = if is_selected {
-                highlight_style.add_modifier(Modifier::BOLD)
+            let count_style = if section_pass == section_total {
+                self.theme.success_style()
             } else {
-                self.theme.normal().add_modifier(Modifier::BOLD)
+                self.theme.error_style()
             };
-            lines.push(Line::styled(header_text, header_style));
+
+            if is_selected {
+                let mut spans = vec![
+                    Span::styled("▌", Style::default().fg(self.theme.accent)),
+                    Span::styled(
+                        format!(" {} {} ", arrow, section.name),
+                        self.theme.selection().bg(self.theme.bg_inset),
+                    ),
+                ];
+                // Inline heatmap
+                for &pass in heatmap_results.iter().take(20) {
+                    let c = if pass {
+                        self.theme.success
+                    } else {
+                        self.theme.error
+                    };
+                    spans.push(Span::styled("▮", Style::default().fg(c)));
+                }
+                spans.push(Span::styled(
+                    format!(" {}/{}", section_pass, section_total),
+                    count_style,
+                ));
+                lines.push(Line::from(spans));
+            } else {
+                let mut spans = vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{} {} ", arrow, section.name),
+                        self.theme.normal().add_modifier(Modifier::BOLD),
+                    ),
+                ];
+                for &pass in heatmap_results.iter().take(20) {
+                    let c = if pass {
+                        self.theme.success
+                    } else {
+                        self.theme.error
+                    };
+                    spans.push(Span::styled("▮", Style::default().fg(c)));
+                }
+                spans.push(Span::styled(
+                    format!(" {}/{}", section_pass, section_total),
+                    count_style,
+                ));
+                lines.push(Line::from(spans));
+            }
             flat_index += 1;
 
             // Items (if section not collapsed)
@@ -252,30 +315,50 @@ impl HealthViewer {
                         HealthStatus::Warn => ("⚠", self.theme.warning_style()),
                     };
 
-                    let item_style = if is_item_selected {
-                        highlight_style
+                    if is_item_selected {
+                        let mut spans = vec![
+                            Span::styled("  ▌", Style::default().fg(self.theme.accent)),
+                            Span::styled(format!(" {} ", icon), icon_style.bg(self.theme.bg_inset)),
+                            Span::styled(
+                                item.name.clone(),
+                                self.theme.selection().bg(self.theme.bg_inset),
+                            ),
+                        ];
+                        // Right-aligned error text for failed items
+                        if item.status == HealthStatus::Fail {
+                            if let Some(detail) = &item.detail {
+                                let affordance = if is_expanded { " ▾" } else { " ▸" };
+                                spans.push(Span::styled(
+                                    format!("  {}{}", detail, affordance),
+                                    self.theme.error_style(),
+                                ));
+                            }
+                        }
+                        lines.push(Line::from(spans));
                     } else {
-                        Style::default()
-                    };
-
-                    let item_icon_style = if is_item_selected {
-                        highlight_style
-                    } else {
-                        icon_style
-                    };
-
-                    lines.push(Line::from(vec![
-                        Span::raw("    "),
-                        Span::styled(icon, item_icon_style),
-                        Span::styled(format!(" {}", item.name), item_style),
-                    ]));
+                        let mut spans = vec![
+                            Span::raw("    "),
+                            Span::styled(format!("{} ", icon), icon_style),
+                            Span::styled(&item.name, self.theme.normal()),
+                        ];
+                        if item.status == HealthStatus::Fail {
+                            if let Some(detail) = &item.detail {
+                                let affordance = if is_expanded { " ▾" } else { " ▸" };
+                                spans.push(Span::styled(
+                                    format!("  {}{}", detail, affordance),
+                                    self.theme.error_style(),
+                                ));
+                            }
+                        }
+                        lines.push(Line::from(spans));
+                    }
 
                     // Show detail if expanded
                     if is_expanded {
                         if let Some(detail) = &item.detail {
                             lines.push(Line::from(vec![
                                 Span::raw("      "),
-                                Span::styled(detail, self.theme.dimmed()),
+                                Span::styled(detail.as_str(), self.theme.error_style()),
                             ]));
                         }
                     }
