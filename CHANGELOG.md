@@ -17,17 +17,28 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Two-column CONTENTS grid in the browser preview pane showing package, file, font, feature, command, and assertion counts
 - Bordered panes with rounded corners and hairline section dividers in the browser view
 - `SOURCE` and metadata sections in the browser detail preview
+- Health check action from the browser (`h` keybinding) with live progress and log output
+- Health view runs inline within the TUI session — `Esc` returns to browser, `q` quits the app
+- Install history view with columnar table, detail pane, re-install action, and log viewer
+- Columnar table layout for Packages, Files, Commands, and Assertions tabs in the detail view
+- Inline progress gauge with animated spinner in the install dashboard phase headers
+- `HealthEvent` / `HealthPhase` event types for channel-based health check progress
 
 ### Changed
 
 - Replaced amber/gold TUI theme with Flexoki dark palette (ember red accent, section-colored icons)
 - Detail view uses tabbed navigation instead of collapsible sections
-- Health view shows inline heatmap per section and summary strip with pass/fail badge
-- Install dashboard shows overall progress gauge with phase chips and split body layout
+- Detail view shows column headers (PACKAGE ID / VERSION / SOURCE) for table-style tabs
+- Detail view description, path, and tabs rendered as separate padded sections with hairline dividers
+- Health view shows inline gauge bar with pass/fail summary, `N ISSUES` badge, and section heatmaps
+- Health view expanded errors render in a word-wrapped `bg_inset` background box
+- Install dashboard renders inline ASCII gauge bar instead of widget-based gauge
+- Install dashboard shows phase chips with animated spinner on active phase
+- Install dashboard log pane uses `LOG` uppercase header with auto-scrolling timestamped entries
 - Status dashboard uses stat blocks with branded header and system info
 - Browser list items show right-aligned version and package count columns
 - Replaced emoji icons with single-width ASCII characters for consistent terminal alignment
-- Key hints bar updated to show all available actions (`↵ open`, `h health`, etc.)
+- Key hints bar updated across all views with consistent symbols (`↕`, `↵`, `↑↓`, `←→`)
 
 ### Fixed
 

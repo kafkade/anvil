@@ -82,6 +82,7 @@ pub fn badge<'a>(text: &'a str, fg: ratatui::style::Color) -> Span<'a> {
 /// Build a Gauge widget styled to the theme.
 ///
 /// `ratio` in 0.0..=1.0. `color` is the fill (accent / success / running).
+#[allow(dead_code)]
 pub fn gauge<'a>(
     theme: &Theme,
     ratio: f64,

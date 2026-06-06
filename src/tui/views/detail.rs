@@ -10,10 +10,7 @@ use ratatui::{
     layout::{Constraint, Layout, Rect},
     style::Style,
     text::{Line, Span},
-    widgets::{
-        Block, BorderType, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState,
-        Tabs,
-    },
+    widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Tabs},
     Frame,
 };
 
@@ -264,22 +261,81 @@ impl DetailView {
         if items.is_empty() {
             return vec![Line::styled("  No items", self.theme.dimmed())];
         }
+
+        // For the packages tab, render as table with columns
+        if self.active_tab == TAB_PACKAGES {
+            return self.build_package_table_lines(items, highlight_style);
+        }
+
         items
             .iter()
             .enumerate()
             .map(|(i, item)| {
-                let style = if let Some(hl) = highlight_style.filter(|_| i == self.selected) {
-                    hl
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
                 } else {
                     self.theme.normal()
                 };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
                 Line::from(vec![
-                    if Some(i) == Some(self.selected) && highlight_style.is_some() {
+                    if is_selected {
                         Span::styled("▌", Style::default().fg(self.theme.accent))
                     } else {
                         Span::raw(" ")
                     },
-                    Span::styled(format!(" {}", item), style),
+                    Span::styled(format!(" {}", item), style.patch(bg)),
+                ])
+            })
+            .collect()
+    }
+
+    /// Build package table rows with PACKAGE ID, VERSION, SOURCE columns
+    fn build_package_table_lines<'a>(
+        &'a self,
+        items: &'a [String],
+        highlight_style: Option<Style>,
+    ) -> Vec<Line<'a>> {
+        items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let base_style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
+                } else {
+                    self.theme.normal()
+                };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
+
+                // Package ID is the item text, version is "latest", source is "winget"
+                let id_width = 40usize;
+                let id_display = if item.len() > id_width {
+                    format!("{}…", &item[..id_width - 1])
+                } else {
+                    format!("{:<width$}", item, width = id_width)
+                };
+
+                Line::from(vec![
+                    if is_selected {
+                        Span::styled("▌", Style::default().fg(self.theme.accent))
+                    } else {
+                        Span::raw(" ")
+                    },
+                    Span::styled(format!(" {}", id_display), base_style.patch(bg)),
+                    Span::styled(
+                        format!("{:<12}", "latest"),
+                        self.theme.faint_style().patch(bg),
+                    ),
+                    Span::styled("winget", self.theme.faint_style().patch(bg)),
                 ])
             })
             .collect()
@@ -294,18 +350,26 @@ impl DetailView {
             .iter()
             .enumerate()
             .map(|(i, f)| {
-                let style = if let Some(hl) = highlight_style.filter(|_| i == self.selected) {
-                    hl
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
                 } else {
                     self.theme.normal()
                 };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
+                let src = format!("{:<38}", f.source);
                 Line::from(vec![
-                    if Some(i) == Some(self.selected) && highlight_style.is_some() {
+                    if is_selected {
                         Span::styled("▌", Style::default().fg(self.theme.accent))
                     } else {
                         Span::raw(" ")
                     },
-                    Span::styled(format!(" {} → {}", f.source, f.destination), style),
+                    Span::styled(format!(" {}", src), style.patch(bg)),
+                    Span::styled(&f.destination, self.theme.faint_style().patch(bg)),
                 ])
             })
             .collect()
@@ -320,18 +384,26 @@ impl DetailView {
             .iter()
             .enumerate()
             .map(|(i, c)| {
-                let style = if let Some(hl) = highlight_style.filter(|_| i == self.selected) {
-                    hl
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
                 } else {
                     self.theme.normal()
                 };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
+                let phase = format!("{:<12}", c.phase);
                 Line::from(vec![
-                    if Some(i) == Some(self.selected) && highlight_style.is_some() {
+                    if is_selected {
                         Span::styled("▌", Style::default().fg(self.theme.accent))
                     } else {
                         Span::raw(" ")
                     },
-                    Span::styled(format!(" [{}] {}", c.phase, c.name), style),
+                    Span::styled(format!(" {}", phase), self.theme.faint_style().patch(bg)),
+                    Span::styled(&c.name, style.patch(bg)),
                 ])
             })
             .collect()
@@ -416,33 +488,65 @@ impl DetailView {
         let area = frame.area();
 
         let chunks = Layout::vertical([
-            Constraint::Length(1), // branded header
+            Constraint::Length(1), // branded header with breadcrumb + version/source badges
+            Constraint::Length(1), // blank padding
+            Constraint::Length(1), // description
+            Constraint::Length(1), // path
+            Constraint::Length(1), // blank padding
             Constraint::Length(1), // tabs
-            Constraint::Length(2), // description + path strip
+            Constraint::Length(1), // hairline divider
             Constraint::Min(3),    // main content
             Constraint::Length(1), // key hints
         ])
         .split(area);
 
         self.render_branded_header(frame, chunks[0]);
-        self.render_tabs(frame, chunks[1]);
-        self.render_info_strip(frame, chunks[2]);
-        self.render_main(frame, chunks[3]);
-        self.render_keyhints(frame, chunks[4]);
+        // chunks[1] is blank padding
+        self.render_description(frame, chunks[2]);
+        self.render_path(frame, chunks[3]);
+        // chunks[4] is blank padding
+        self.render_tabs(frame, chunks[5]);
+        self.render_divider(frame, chunks[6]);
+        self.render_main(frame, chunks[7]);
+        self.render_keyhints(frame, chunks[8]);
     }
 
-    /// Render the branded header bar with breadcrumb
+    /// Render the branded header bar with breadcrumb + right-aligned version/source badges
     fn render_branded_header(&self, frame: &mut Frame, area: Rect) {
+        let source_label = "LOCAL";
+        let source_color = self.theme.success;
+        let version_text = format!("V{}", self.detail.version);
+
         render_header(
             frame,
             area,
             &self.theme,
             &["Workloads", &self.detail.name],
-            Some(Line::from(vec![Span::styled(
-                format!("v{}", self.detail.version),
-                self.theme.dimmed(),
-            )])),
+            Some(Line::from(vec![
+                Span::styled(&version_text, Style::default().fg(self.theme.faint)),
+                Span::raw("  "),
+                Span::styled(source_label, Style::default().fg(source_color)),
+            ])),
         );
+    }
+
+    /// Render the description line
+    fn render_description(&self, frame: &mut Frame, area: Rect) {
+        let para = Paragraph::new(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(&self.detail.description, self.theme.body()),
+        ]));
+        frame.render_widget(para, area);
+    }
+
+    /// Render the path line
+    fn render_path(&self, frame: &mut Frame, area: Rect) {
+        let para = Paragraph::new(Line::from(vec![
+            Span::raw("  "),
+            Span::styled("Path: ", self.theme.faint_style()),
+            Span::styled(&self.detail.path, self.theme.running_style()),
+        ]));
+        frame.render_widget(para, area);
     }
 
     /// Render the tabs bar
@@ -452,40 +556,57 @@ impl DetailView {
             .select(self.active_tab)
             .style(self.theme.dimmed())
             .highlight_style(self.theme.brand_style())
-            .divider(Span::styled("·", self.theme.faint_style()));
-        frame.render_widget(tabs, area);
+            .divider(Span::raw("  "))
+            .padding("  ", "");
+        let padded = Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: area.height,
+        };
+        frame.render_widget(tabs, padded);
     }
 
-    /// Render the description + path info strip
-    fn render_info_strip(&self, frame: &mut Frame, area: Rect) {
-        let lines = vec![
-            Line::from(vec![
-                Span::raw(" "),
-                Span::styled(&self.detail.description, self.theme.body()),
-            ]),
-            Line::from(vec![
-                Span::raw(" "),
-                Span::styled(&self.detail.path, self.theme.running_style()),
-            ]),
-        ];
-        let paragraph = Paragraph::new(lines);
-        frame.render_widget(paragraph, area);
+    /// Render a hairline divider
+    fn render_divider(&self, frame: &mut Frame, area: Rect) {
+        let divider_text = "─".repeat(area.width as usize);
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                divider_text,
+                Style::default().fg(self.theme.hairline),
+            ))),
+            area,
+        );
     }
 
     /// Render the main content area for the active tab
     fn render_main(&self, frame: &mut Frame, area: Rect) {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_type(BorderType::Rounded)
-            .border_style(self.theme.border_style());
-
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
-
         let highlight = self.theme.selection().bg(self.theme.bg_inset);
-        let lines = self.build_tab_lines(Some(highlight));
 
-        let visible_height = inner.height as usize;
+        // For Packages/Files/Commands/Assertions tabs, show column header + hairline + scrollable list
+        let has_column_header = matches!(
+            self.active_tab,
+            TAB_PACKAGES | TAB_FILES | TAB_COMMANDS | TAB_ASSERTIONS
+        );
+
+        let (header_area, content_area) = if has_column_header {
+            let parts = Layout::vertical([
+                Constraint::Length(1), // column header
+                Constraint::Length(1), // hairline
+                Constraint::Min(1),    // content
+            ])
+            .split(area);
+            self.render_column_header(frame, parts[0]);
+            self.render_divider(frame, parts[1]);
+            (Some(parts[0]), parts[2])
+        } else {
+            (None, area)
+        };
+
+        let _ = header_area;
+
+        let lines = self.build_tab_lines(Some(highlight));
+        let visible_height = content_area.height as usize;
         let total = lines.len();
         let max_scroll = total.saturating_sub(visible_height);
 
@@ -506,26 +627,65 @@ impl DetailView {
             .collect();
 
         let paragraph = Paragraph::new(visible_lines);
-        frame.render_widget(paragraph, inner);
+        frame.render_widget(paragraph, content_area);
 
         // Scrollbar
         if max_scroll > 0 {
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
             let mut scrollbar_state = ScrollbarState::new(max_scroll).position(scroll);
-            frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
+            frame.render_stateful_widget(scrollbar, content_area, &mut scrollbar_state);
         }
+    }
+
+    /// Render column headers for table-style tabs
+    fn render_column_header(&self, frame: &mut Frame, area: Rect) {
+        let header_style = self.theme.label_style();
+        let line = match self.active_tab {
+            TAB_PACKAGES => {
+                let id_width = (area.width as usize).saturating_sub(30);
+                Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{:<width$}", "PACKAGE ID", width = id_width),
+                        header_style,
+                    ),
+                    Span::styled(format!("{:<12}", "VERSION"), header_style),
+                    Span::styled("SOURCE", header_style),
+                ])
+            }
+            TAB_FILES => Line::from(vec![
+                Span::raw("  "),
+                Span::styled(format!("{:<40}", "SOURCE"), header_style),
+                Span::styled("DESTINATION", header_style),
+            ]),
+            TAB_COMMANDS => Line::from(vec![
+                Span::raw("  "),
+                Span::styled(format!("{:<14}", "PHASE"), header_style),
+                Span::styled("NAME", header_style),
+            ]),
+            TAB_ASSERTIONS => Line::from(vec![
+                Span::raw("  "),
+                Span::styled("ASSERTION", header_style),
+            ]),
+            _ => Line::raw(""),
+        };
+        frame.render_widget(Paragraph::new(line), area);
     }
 
     /// Render the key hints bar
     fn render_keyhints(&self, frame: &mut Frame, area: Rect) {
         let hints = vec![
             KeyHint {
-                key: "←/→",
+                key: "↑↓",
+                desc: "navigate",
+            },
+            KeyHint {
+                key: "←→",
                 desc: "tabs",
             },
             KeyHint {
-                key: "↑/↓",
-                desc: "scroll",
+                key: "↵",
+                desc: "expand",
             },
             KeyHint {
                 key: "i",
@@ -536,12 +696,12 @@ impl DetailView {
                 desc: "dry-run",
             },
             KeyHint {
-                key: "Esc",
-                desc: "back",
+                key: "e",
+                desc: "edit yaml",
             },
             KeyHint {
-                key: "q",
-                desc: "quit",
+                key: "Esc",
+                desc: "back",
             },
         ];
 

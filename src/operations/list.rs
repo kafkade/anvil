@@ -76,7 +76,8 @@ pub fn execute(args: &ListArgs, cli: &Cli) -> Result<()> {
         match crate::tui::views::browser::run_browser(entries)? {
             crate::tui::views::browser::BrowserOutcome::Select(name)
             | crate::tui::views::browser::BrowserOutcome::Install(name, _)
-            | crate::tui::views::browser::BrowserOutcome::DryRun(name, _) => {
+            | crate::tui::views::browser::BrowserOutcome::DryRun(name, _)
+            | crate::tui::views::browser::BrowserOutcome::Health(name, _) => {
                 println!("{}", name);
             }
             crate::tui::views::browser::BrowserOutcome::Quit => {}
