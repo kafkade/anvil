@@ -172,6 +172,22 @@ fn launch_default_tui() -> Result<()> {
                             dry_run: true,
                         });
                     }
+                    BrowserOutcome::Health(name, path) => {
+                        let health_outcome = operations::health::execute_health_inline(
+                            &mut tui_instance,
+                            &path,
+                            &name,
+                        )?;
+                        match health_outcome {
+                            tui::views::health::HealthOutcome::Back => {
+                                browser.reset();
+                                continue;
+                            }
+                            tui::views::health::HealthOutcome::Quit => {
+                                return Ok(TuiAction::Quit);
+                            }
+                        }
+                    }
                     BrowserOutcome::Select(selected_name) => {
                         let detail = load_workload_detail(&mut manager, &selected_name);
                         let mut detail_view = tui::views::detail::DetailView::new(detail);

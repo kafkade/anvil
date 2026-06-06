@@ -49,6 +49,8 @@ pub enum BrowserOutcome {
     Install(String, String),
     /// User requested dry-run of a workload (name, path)
     DryRun(String, String),
+    /// User requested health check of a workload (name, path)
+    Health(String, String),
 }
 
 /// Browser layout mode for the list + preview panes
@@ -167,6 +169,14 @@ impl WorkloadBrowser {
             KeyCode::Char('d') if key.modifiers == KeyModifiers::NONE && !self.searching => {
                 if let Some((name, path)) = self.focused_name_and_path() {
                     self.outcome = Some(BrowserOutcome::DryRun(name, path));
+                    self.quit = true;
+                }
+            }
+
+            // Health check focused workload
+            KeyCode::Char('h') if key.modifiers == KeyModifiers::NONE && !self.searching => {
+                if let Some((name, path)) = self.focused_name_and_path() {
+                    self.outcome = Some(BrowserOutcome::Health(name, path));
                     self.quit = true;
                 }
             }

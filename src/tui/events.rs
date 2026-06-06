@@ -1,7 +1,7 @@
-//! Install event types for TUI communication
+//! Event types for TUI communication
 //!
-//! These types define the channel-based protocol between the install
-//! logic (sender) and the TUI dashboard (receiver).
+//! These types define the channel-based protocol between the operations
+//! logic (sender) and the TUI dashboards (receiver).
 
 use std::time::Duration;
 
@@ -76,6 +76,50 @@ pub enum InstallEvent {
         summary: String,
         duration: Duration,
     },
+}
+
+/// Phases of the health check process
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum HealthPhase {
+    Packages,
+    Files,
+    Assertions,
+}
+
+impl HealthPhase {
+    /// Human-readable label
+    pub fn label(&self) -> &str {
+        match self {
+            HealthPhase::Packages => "Packages",
+            HealthPhase::Files => "Files",
+            HealthPhase::Assertions => "Assertions",
+        }
+    }
+}
+
+/// Events sent from health check logic to the TUI
+#[derive(Debug, Clone)]
+#[allow(dead_code)]
+pub enum HealthEvent {
+    /// A phase is starting
+    PhaseStart { phase: HealthPhase, total: usize },
+
+    /// An individual item check completed
+    ItemComplete {
+        phase: HealthPhase,
+        name: String,
+        passed: bool,
+        message: Option<String>,
+    },
+
+    /// A phase completed
+    PhaseComplete { phase: HealthPhase },
+
+    /// A log message
+    Log { message: String },
+
+    /// Health check is done
+    Done { duration: Duration },
 }
 
 #[cfg(test)]
