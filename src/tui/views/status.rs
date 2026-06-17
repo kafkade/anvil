@@ -9,13 +9,14 @@ use std::time::Duration;
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph},
+    widgets::{Block, BorderType, Borders, Paragraph},
     Frame,
 };
 
 use crate::tui::theme::Theme;
+use crate::tui::widgets::chrome::render_header;
 use crate::tui::widgets::keyhints::{render_keyhints, KeyHint};
 use crate::tui::Tui;
 
@@ -106,67 +107,104 @@ impl StatusDashboard {
         let area = frame.area();
 
         let chunks = Layout::vertical([
-            Constraint::Length(5), // system info
-            Constraint::Length(3), // source summary
+            Constraint::Length(1), // branded header
+            Constraint::Length(3), // stat blocks
             Constraint::Min(3),    // workload list
             Constraint::Length(1), // key hints
         ])
         .split(area);
 
-        self.render_system_info(frame, chunks[0]);
-        self.render_source_summary(frame, chunks[1]);
+        self.render_branded_header(frame, chunks[0]);
+        self.render_stat_blocks(frame, chunks[1]);
         self.render_workload_list(frame, chunks[2]);
         self.render_keyhints(frame, chunks[3]);
     }
 
-    /// Render the system info block
-    fn render_system_info(&self, frame: &mut Frame, area: Rect) {
-        let block = Block::default()
-            .title(Span::styled(
-                " Anvil \u{2014} Status Dashboard ",
-                self.theme.title_style(),
-            ))
-            .borders(Borders::ALL)
-            .border_style(self.theme.border_style());
-
+    /// Render the branded header bar
+    fn render_branded_header(&self, frame: &mut Frame, area: Rect) {
         let winget_span = if self.info.system_info.winget_available {
-            Span::styled("available", self.theme.success_style())
+            Span::styled("winget ✓", self.theme.success_style())
         } else {
-            Span::styled("not available", self.theme.error_style())
+            Span::styled("winget ✗", self.theme.error_style())
         };
 
-        let lines = vec![
-            Line::from(vec![Span::raw(format!(
-                "  Anvil Version: {}",
-                self.info.system_info.anvil_version
-            ))]),
-            Line::from(vec![Span::raw(format!(
-                "  OS: {}",
-                self.info.system_info.os
-            ))]),
-            Line::from(vec![Span::raw("  Winget: "), winget_span]),
-        ];
-
-        let paragraph = Paragraph::new(lines).block(block);
-        frame.render_widget(paragraph, area);
+        render_header(
+            frame,
+            area,
+            &self.theme,
+            &["Status"],
+            Some(Line::from(vec![
+                Span::styled(
+                    format!("v{}", self.info.system_info.anvil_version),
+                    self.theme.dimmed(),
+                ),
+                Span::styled(" · ", self.theme.faint_style()),
+                Span::styled(&self.info.system_info.os, self.theme.dimmed()),
+                Span::styled(" · ", self.theme.faint_style()),
+                winget_span,
+            ])),
+        );
     }
 
-    /// Render the source summary block
-    fn render_source_summary(&self, frame: &mut Frame, area: Rect) {
-        let block = Block::default()
-            .title(Span::styled(" Sources ", self.theme.title_style()))
+    /// Render stat summary blocks
+    fn render_stat_blocks(&self, frame: &mut Frame, area: Rect) {
+        let stats_cols = Layout::horizontal([
+            Constraint::Ratio(1, 3),
+            Constraint::Ratio(1, 3),
+            Constraint::Ratio(1, 3),
+        ])
+        .split(area);
+
+        // Workloads stat
+        let wl_block = Block::default()
             .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
             .border_style(self.theme.border_style());
+        let wl_inner = wl_block.inner(stats_cols[0]);
+        frame.render_widget(wl_block, stats_cols[0]);
+        let wl_lines = vec![Line::from(vec![
+            Span::styled(" WORKLOADS ", self.theme.label_style()),
+            Span::styled(
+                format!("{}", self.info.source_summary.total_workloads),
+                self.theme.title_style(),
+            ),
+        ])];
+        frame.render_widget(Paragraph::new(wl_lines), wl_inner);
 
-        let summary = format!(
-            "  Local: {}  Remote: {}  Total: {}",
-            self.info.source_summary.local_count,
-            self.info.source_summary.remote_count,
-            self.info.source_summary.total_workloads,
-        );
+        // Sources stat
+        let src_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(self.theme.border_style());
+        let src_inner = src_block.inner(stats_cols[1]);
+        frame.render_widget(src_block, stats_cols[1]);
+        let src_lines = vec![Line::from(vec![
+            Span::styled(" SOURCES ", self.theme.label_style()),
+            Span::styled(
+                format!(
+                    "{} local · {} remote",
+                    self.info.source_summary.local_count, self.info.source_summary.remote_count
+                ),
+                self.theme.normal(),
+            ),
+        ])];
+        frame.render_widget(Paragraph::new(src_lines), src_inner);
 
-        let paragraph = Paragraph::new(Line::raw(summary)).block(block);
-        frame.render_widget(paragraph, area);
+        // Installed stat
+        let inst_block = Block::default()
+            .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
+            .border_style(self.theme.border_style());
+        let inst_inner = inst_block.inner(stats_cols[2]);
+        frame.render_widget(inst_block, stats_cols[2]);
+        let inst_lines = vec![Line::from(vec![
+            Span::styled(" INSTALLED ", self.theme.label_style()),
+            Span::styled(
+                format!("{}", self.info.installed_workloads.len()),
+                self.theme.title_style(),
+            ),
+        ])];
+        frame.render_widget(Paragraph::new(inst_lines), inst_inner);
     }
 
     /// Render the installed workloads list
@@ -176,6 +214,7 @@ impl StatusDashboard {
         let block = Block::default()
             .title(Span::styled(title, self.theme.title_style()))
             .borders(Borders::ALL)
+            .border_type(BorderType::Rounded)
             .border_style(self.theme.border_style());
 
         let inner = block.inner(area);
@@ -199,17 +238,33 @@ impl StatusDashboard {
             .skip(self.scroll_offset)
             .take(visible_height)
             .map(|(i, w)| {
-                let text = format!("  {}  v{}  installed {}", w.name, w.version, w.installed_at);
                 if i == self.selected {
-                    Line::styled(
-                        text,
-                        Style::default()
-                            .bg(self.theme.accent)
-                            .fg(Color::Black)
-                            .add_modifier(Modifier::BOLD),
-                    )
+                    Line::from(vec![
+                        Span::styled("▌", Style::default().fg(self.theme.accent)),
+                        Span::styled(
+                            format!(" {}", w.name),
+                            self.theme.selection().bg(self.theme.bg_inset),
+                        ),
+                        Span::styled(
+                            format!("  v{}", w.version),
+                            Style::default()
+                                .fg(self.theme.muted)
+                                .bg(self.theme.bg_inset),
+                        ),
+                        Span::styled(
+                            format!("  {}", w.installed_at),
+                            Style::default()
+                                .fg(self.theme.faint)
+                                .bg(self.theme.bg_inset),
+                        ),
+                    ])
                 } else {
-                    Line::raw(text)
+                    Line::from(vec![
+                        Span::raw("  "),
+                        Span::styled(&w.name, self.theme.normal()),
+                        Span::styled(format!("  v{}", w.version), self.theme.dimmed()),
+                        Span::styled(format!("  {}", w.installed_at), self.theme.faint_style()),
+                    ])
                 }
             })
             .collect();

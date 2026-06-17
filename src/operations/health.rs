@@ -124,7 +124,7 @@ pub fn execute(args: &HealthArgs, cli: &Cli) -> Result<()> {
         && crate::tui::should_use_tui()
     {
         let report = build_tui_health_report(&workload.name, &checks);
-        crate::tui::views::health::run_health_viewer(report)?;
+        let _outcome = crate::tui::views::health::run_health_viewer(report)?;
         return Ok(());
     }
 
@@ -818,4 +818,332 @@ fn build_tui_health_report(
         sections,
         duration: std::time::Duration::ZERO,
     }
+}
+
+/// Execute health check with live TUI progress view.
+///
+/// Runs the health checks in a background thread, sending events to the TUI
+/// viewer in real-time, then transitions to the results view.
+#[allow(dead_code)]
+pub fn execute_with_tui(workload_path: &str, workload_name: &str) -> Result<()> {
+    use crate::tui::events::{HealthEvent, HealthPhase};
+    use std::sync::mpsc;
+    use std::time::Instant;
+
+    let (event_tx, event_rx) = mpsc::channel::<HealthEvent>();
+    let (report_tx, report_rx) = mpsc::channel::<crate::tui::views::health::HealthReport>();
+
+    let path_owned = workload_path.to_string();
+    let name_owned = workload_name.to_string();
+
+    // Run health checks in a background thread
+    std::thread::spawn(move || {
+        let start = Instant::now();
+        let mut config_manager = ConfigManager::new();
+
+        let workload = match config_manager.load_resolved(&path_owned) {
+            Ok(w) => w,
+            Err(e) => {
+                let _ = event_tx.send(HealthEvent::Log {
+                    message: format!("Error loading workload: {}", e),
+                });
+                let _ = event_tx.send(HealthEvent::Done {
+                    duration: start.elapsed(),
+                });
+                return;
+            }
+        };
+
+        let mut all_checks: Vec<CheckResult> = Vec::new();
+
+        // Package checks
+        let packages = workload
+            .packages
+            .as_ref()
+            .map(|p| p.winget.as_deref().unwrap_or(&[]).len())
+            .unwrap_or(0);
+        if packages > 0 {
+            let _ = event_tx.send(HealthEvent::PhaseStart {
+                phase: HealthPhase::Packages,
+                total: packages,
+            });
+        }
+
+        match check_packages(&workload, 0, true) {
+            Ok((checks, _, _)) => {
+                for check in &checks {
+                    let passed = check.status == CheckStatus::Ok;
+                    let _ = event_tx.send(HealthEvent::ItemComplete {
+                        phase: HealthPhase::Packages,
+                        name: check.name.clone(),
+                        passed,
+                        message: check.message.clone(),
+                    });
+                }
+                all_checks.extend(checks);
+                if packages > 0 {
+                    let _ = event_tx.send(HealthEvent::PhaseComplete {
+                        phase: HealthPhase::Packages,
+                    });
+                }
+            }
+            Err(e) => {
+                let _ = event_tx.send(HealthEvent::Log {
+                    message: format!("Package check error: {}", e),
+                });
+            }
+        }
+
+        // File checks
+        let workload_yaml_path = resolve_workload_path(&path_owned, None).unwrap_or_default();
+        let workload_dir = workload_yaml_path
+            .parent()
+            .unwrap_or(&workload_yaml_path)
+            .to_path_buf();
+        let file_count = workload.files.as_ref().map(|f| f.len()).unwrap_or(0);
+        if file_count > 0 {
+            let _ = event_tx.send(HealthEvent::PhaseStart {
+                phase: HealthPhase::Files,
+                total: file_count,
+            });
+        }
+
+        match check_files(&workload, &workload_dir, 0, false) {
+            Ok(checks) => {
+                for check in &checks {
+                    let passed = check.status == CheckStatus::Ok;
+                    let _ = event_tx.send(HealthEvent::ItemComplete {
+                        phase: HealthPhase::Files,
+                        name: check.name.clone(),
+                        passed,
+                        message: check.message.clone(),
+                    });
+                }
+                all_checks.extend(checks);
+                if file_count > 0 {
+                    let _ = event_tx.send(HealthEvent::PhaseComplete {
+                        phase: HealthPhase::Files,
+                    });
+                }
+            }
+            Err(e) => {
+                let _ = event_tx.send(HealthEvent::Log {
+                    message: format!("File check error: {}", e),
+                });
+            }
+        }
+
+        // Assertion checks
+        let health_config = workload.health.as_ref().cloned().unwrap_or_default();
+        if health_config.assertion_check {
+            if let Some(assertions) = &workload.assertions {
+                let _ = event_tx.send(HealthEvent::PhaseStart {
+                    phase: HealthPhase::Assertions,
+                    total: assertions.len(),
+                });
+
+                let assertion_pairs: Vec<(String, crate::conditions::Condition)> = assertions
+                    .iter()
+                    .map(|a| (a.name.clone(), a.check.clone()))
+                    .collect();
+
+                let assertion_results = crate::assertions::evaluate_assertions(&assertion_pairs);
+                let assertion_checks = crate::assertions::to_check_results(&assertion_results);
+
+                for check in &assertion_checks {
+                    let passed = check.status == CheckStatus::Ok;
+                    let _ = event_tx.send(HealthEvent::ItemComplete {
+                        phase: HealthPhase::Assertions,
+                        name: check.name.clone(),
+                        passed,
+                        message: check.message.clone(),
+                    });
+                }
+                all_checks.extend(assertion_checks);
+
+                let _ = event_tx.send(HealthEvent::PhaseComplete {
+                    phase: HealthPhase::Assertions,
+                });
+            }
+        }
+
+        let duration = start.elapsed();
+        let _ = event_tx.send(HealthEvent::Done { duration });
+
+        // Build and send the final report
+        let mut report = build_tui_health_report(&name_owned, &all_checks);
+        report.duration = duration;
+        let _ = report_tx.send(report);
+    });
+
+    crate::tui::views::health::run_health_with_events(
+        workload_name.to_string(),
+        event_rx,
+        report_rx,
+    )?;
+    Ok(())
+}
+
+/// Execute health check inline within an existing TUI session.
+///
+/// Used when launching health from the browser — stays in the same
+/// alternate screen and returns Back/Quit to the caller.
+pub fn execute_health_inline(
+    tui: &mut crate::tui::Tui,
+    workload_path: &str,
+    workload_name: &str,
+) -> Result<crate::tui::views::health::HealthOutcome> {
+    use crate::tui::events::{HealthEvent, HealthPhase};
+    use std::sync::mpsc;
+    use std::time::Instant;
+
+    let (event_tx, event_rx) = mpsc::channel::<HealthEvent>();
+    let (report_tx, report_rx) = mpsc::channel::<crate::tui::views::health::HealthReport>();
+
+    let path_owned = workload_path.to_string();
+    let name_owned = workload_name.to_string();
+
+    // Run health checks in a background thread (same logic as execute_with_tui)
+    std::thread::spawn(move || {
+        let start = Instant::now();
+        let mut config_manager = ConfigManager::new();
+
+        let workload = match config_manager.load_resolved(&path_owned) {
+            Ok(w) => w,
+            Err(e) => {
+                let _ = event_tx.send(HealthEvent::Log {
+                    message: format!("Error loading workload: {}", e),
+                });
+                let _ = event_tx.send(HealthEvent::Done {
+                    duration: start.elapsed(),
+                });
+                return;
+            }
+        };
+
+        let mut all_checks: Vec<CheckResult> = Vec::new();
+
+        // Package checks
+        let packages = workload
+            .packages
+            .as_ref()
+            .map(|p| p.winget.as_deref().unwrap_or(&[]).len())
+            .unwrap_or(0);
+        if packages > 0 {
+            let _ = event_tx.send(HealthEvent::PhaseStart {
+                phase: HealthPhase::Packages,
+                total: packages,
+            });
+        }
+        match check_packages(&workload, 0, true) {
+            Ok((checks, _, _)) => {
+                for check in &checks {
+                    let passed = check.status == CheckStatus::Ok;
+                    let _ = event_tx.send(HealthEvent::ItemComplete {
+                        phase: HealthPhase::Packages,
+                        name: check.name.clone(),
+                        passed,
+                        message: check.message.clone(),
+                    });
+                }
+                all_checks.extend(checks);
+                if packages > 0 {
+                    let _ = event_tx.send(HealthEvent::PhaseComplete {
+                        phase: HealthPhase::Packages,
+                    });
+                }
+            }
+            Err(e) => {
+                let _ = event_tx.send(HealthEvent::Log {
+                    message: format!("Package check error: {}", e),
+                });
+            }
+        }
+
+        // File checks
+        let workload_yaml_path = resolve_workload_path(&path_owned, None).unwrap_or_default();
+        let workload_dir = workload_yaml_path
+            .parent()
+            .unwrap_or(&workload_yaml_path)
+            .to_path_buf();
+        let file_count = workload.files.as_ref().map(|f| f.len()).unwrap_or(0);
+        if file_count > 0 {
+            let _ = event_tx.send(HealthEvent::PhaseStart {
+                phase: HealthPhase::Files,
+                total: file_count,
+            });
+        }
+        match check_files(&workload, &workload_dir, 0, false) {
+            Ok(checks) => {
+                for check in &checks {
+                    let passed = check.status == CheckStatus::Ok;
+                    let _ = event_tx.send(HealthEvent::ItemComplete {
+                        phase: HealthPhase::Files,
+                        name: check.name.clone(),
+                        passed,
+                        message: check.message.clone(),
+                    });
+                }
+                all_checks.extend(checks);
+                if file_count > 0 {
+                    let _ = event_tx.send(HealthEvent::PhaseComplete {
+                        phase: HealthPhase::Files,
+                    });
+                }
+            }
+            Err(e) => {
+                let _ = event_tx.send(HealthEvent::Log {
+                    message: format!("File check error: {}", e),
+                });
+            }
+        }
+
+        // Assertion checks
+        let health_config = workload.health.as_ref().cloned().unwrap_or_default();
+        if health_config.assertion_check {
+            if let Some(assertions) = &workload.assertions {
+                let _ = event_tx.send(HealthEvent::PhaseStart {
+                    phase: HealthPhase::Assertions,
+                    total: assertions.len(),
+                });
+
+                let assertion_pairs: Vec<(String, crate::conditions::Condition)> = assertions
+                    .iter()
+                    .map(|a| (a.name.clone(), a.check.clone()))
+                    .collect();
+
+                let assertion_results = crate::assertions::evaluate_assertions(&assertion_pairs);
+                let assertion_checks = crate::assertions::to_check_results(&assertion_results);
+
+                for check in &assertion_checks {
+                    let passed = check.status == CheckStatus::Ok;
+                    let _ = event_tx.send(HealthEvent::ItemComplete {
+                        phase: HealthPhase::Assertions,
+                        name: check.name.clone(),
+                        passed,
+                        message: check.message.clone(),
+                    });
+                }
+                all_checks.extend(assertion_checks);
+
+                let _ = event_tx.send(HealthEvent::PhaseComplete {
+                    phase: HealthPhase::Assertions,
+                });
+            }
+        }
+
+        let duration = start.elapsed();
+        let _ = event_tx.send(HealthEvent::Done { duration });
+
+        let mut report = build_tui_health_report(&name_owned, &all_checks);
+        report.duration = duration;
+        let _ = report_tx.send(report);
+    });
+
+    crate::tui::views::health::run_health_inline(
+        tui,
+        workload_name.to_string(),
+        event_rx,
+        report_rx,
+    )
 }

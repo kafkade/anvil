@@ -1,40 +1,37 @@
 //! Interactive workload detail view
 //!
 //! This view renders a full-screen TUI showing workload metadata
-//! with collapsible sections for packages, files, commands, etc.
+//! with tabbed sections for packages, files, commands, etc.
 
-use std::collections::HashSet;
 use std::time::Duration;
 
 use crossterm::event::{Event, KeyCode, KeyEvent, KeyModifiers};
 use ratatui::{
     layout::{Constraint, Layout, Rect},
-    style::{Color, Modifier, Style},
+    style::Style,
     text::{Line, Span},
-    widgets::{Block, Borders, Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState},
+    widgets::{Paragraph, Scrollbar, ScrollbarOrientation, ScrollbarState, Tabs},
     Frame,
 };
 
-use crate::tui::theme::Theme;
+use crate::tui::theme::{SectionKind, Theme};
+use crate::tui::widgets::chrome::render_header;
 use crate::tui::widgets::keyhints::{render_keyhints, KeyHint};
 use crate::tui::Tui;
 
 /// A file entry in the workload
-#[allow(dead_code)]
 pub struct FileEntry {
     pub source: String,
     pub destination: String,
 }
 
 /// A command/script entry in the workload
-#[allow(dead_code)]
 pub struct CommandEntry {
     pub name: String,
     pub phase: String,
 }
 
 /// All metadata for a single workload
-#[allow(dead_code)]
 pub struct WorkloadDetail {
     pub name: String,
     pub version: String,
@@ -44,32 +41,58 @@ pub struct WorkloadDetail {
     pub files: Vec<FileEntry>,
     pub commands: Vec<CommandEntry>,
     pub assertions: Vec<String>,
+    pub fonts: Vec<String>,
+    pub features: Vec<String>,
+    pub environment: Vec<String>,
+    /// Filesystem path to the workload.yaml file
+    pub path: String,
 }
 
-/// Number of collapsible sections
-const SECTION_COUNT: usize = 5;
+/// Number of tabs in the detail view
+const TAB_COUNT: usize = 6;
+
+/// Tab indices
+const TAB_OVERVIEW: usize = 0;
+const TAB_PACKAGES: usize = 1;
+const TAB_FILES: usize = 2;
+const TAB_COMMANDS: usize = 3;
+const TAB_CONFIG: usize = 4;
+const TAB_ASSERTIONS: usize = 5;
+
+/// The result of running the detail view
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum DetailOutcome {
+    /// User went back to browser (Esc / Backspace)
+    Back,
+    /// User quit the app (q / Ctrl+C)
+    Quit,
+    /// User requested install of this workload (name, path)
+    Install(String, String),
+    /// User requested dry-run of this workload (name, path)
+    DryRun(String, String),
+}
 
 /// Interactive detail view state
-#[allow(dead_code)]
 pub struct DetailView {
     detail: WorkloadDetail,
+    active_tab: usize,
     selected: usize,
-    collapsed: HashSet<usize>,
     scroll_offset: usize,
     quit: bool,
+    outcome: Option<DetailOutcome>,
     theme: Theme,
 }
 
-#[allow(dead_code)]
 impl DetailView {
     /// Create a new detail view for the given workload
     pub fn new(detail: WorkloadDetail) -> Self {
         Self {
             detail,
+            active_tab: TAB_OVERVIEW,
             selected: 0,
-            collapsed: HashSet::new(),
             scroll_offset: 0,
             quit: false,
+            outcome: None,
             theme: Theme::dark(),
         }
     }
@@ -78,29 +101,55 @@ impl DetailView {
     pub fn handle_key(&mut self, key: KeyEvent) {
         match key.code {
             KeyCode::Char('q') if key.modifiers == KeyModifiers::NONE => {
+                self.outcome = Some(DetailOutcome::Quit);
                 self.quit = true;
             }
             KeyCode::Char('c') if key.modifiers == KeyModifiers::CONTROL => {
+                self.outcome = Some(DetailOutcome::Quit);
                 self.quit = true;
             }
+            KeyCode::Esc | KeyCode::Backspace => {
+                self.outcome = Some(DetailOutcome::Back);
+                self.quit = true;
+            }
+            // Tab navigation with ←/→
+            KeyCode::Left | KeyCode::Char('h') => {
+                if self.active_tab > 0 {
+                    self.active_tab -= 1;
+                    self.selected = 0;
+                    self.scroll_offset = 0;
+                }
+            }
+            KeyCode::Right | KeyCode::Char('l') => {
+                if self.active_tab < TAB_COUNT - 1 {
+                    self.active_tab += 1;
+                    self.selected = 0;
+                    self.scroll_offset = 0;
+                }
+            }
+            // Content scrolling with ↑/↓
             KeyCode::Up | KeyCode::Char('k') => {
                 self.selected = self.selected.saturating_sub(1);
             }
             KeyCode::Down | KeyCode::Char('j') => {
-                let max = self.total_lines().saturating_sub(1);
+                let max = self.tab_content_lines().saturating_sub(1);
                 if self.selected < max {
                     self.selected += 1;
                 }
             }
-            KeyCode::Enter => {
-                // Determine which section header the cursor is on and toggle it
-                if let Some(section_idx) = self.line_to_section(self.selected) {
-                    if self.collapsed.contains(&section_idx) {
-                        self.collapsed.remove(&section_idx);
-                    } else {
-                        self.collapsed.insert(section_idx);
-                    }
-                }
+            KeyCode::Char('i') if key.modifiers == KeyModifiers::NONE => {
+                self.outcome = Some(DetailOutcome::Install(
+                    self.detail.name.clone(),
+                    self.detail.path.clone(),
+                ));
+                self.quit = true;
+            }
+            KeyCode::Char('d') if key.modifiers == KeyModifiers::NONE => {
+                self.outcome = Some(DetailOutcome::DryRun(
+                    self.detail.name.clone(),
+                    self.detail.path.clone(),
+                ));
+                self.quit = true;
             }
             _ => {}
         }
@@ -111,142 +160,327 @@ impl DetailView {
         self.quit
     }
 
-    /// Total number of navigable lines in the content area
-    pub fn total_lines(&self) -> usize {
-        self.build_lines(None).len()
+    /// Returns the outcome after the view exits
+    pub fn outcome(&self) -> DetailOutcome {
+        self.outcome.clone().unwrap_or(DetailOutcome::Back)
     }
 
-    /// Map a line index to a section index if it's a section header
-    fn line_to_section(&self, line_idx: usize) -> Option<usize> {
-        let mut current = 0;
-        for section in 0..SECTION_COUNT {
-            if current == line_idx {
-                return Some(section);
-            }
-            current += 1; // header line
-            if !self.collapsed.contains(&section) {
-                current += self.section_item_count(section);
-            }
-        }
-        None
+    /// Number of content lines in the current tab
+    pub fn tab_content_lines(&self) -> usize {
+        self.build_tab_lines(None).len()
     }
 
-    /// Number of child items in a section
-    fn section_item_count(&self, section: usize) -> usize {
-        match section {
-            0 => {
-                if self.detail.extends.is_empty() {
-                    1 // "None"
-                } else {
-                    self.detail.extends.len()
-                }
-            }
-            1 => self.detail.packages.len(),
-            2 => self.detail.files.len(),
-            3 => self.detail.commands.len(),
-            4 => self.detail.assertions.len(),
-            _ => 0,
+    /// Tab titles with counts
+    fn tab_titles(&self) -> Vec<String> {
+        vec![
+            "Overview".to_string(),
+            format!("Packages ({})", self.detail.packages.len()),
+            format!("Files ({})", self.detail.files.len()),
+            format!("Commands ({})", self.detail.commands.len()),
+            "Config".to_string(),
+            format!("Assertions ({})", self.detail.assertions.len()),
+        ]
+    }
+
+    /// Build content lines for the active tab
+    fn build_tab_lines(&self, highlight_style: Option<Style>) -> Vec<Line<'_>> {
+        match self.active_tab {
+            TAB_OVERVIEW => self.build_overview_lines(highlight_style),
+            TAB_PACKAGES => self.build_list_lines(&self.detail.packages, highlight_style),
+            TAB_FILES => self.build_files_lines(highlight_style),
+            TAB_COMMANDS => self.build_commands_lines(highlight_style),
+            TAB_CONFIG => self.build_config_lines(highlight_style),
+            TAB_ASSERTIONS => self.build_list_lines(&self.detail.assertions, highlight_style),
+            _ => vec![],
         }
     }
 
-    /// Build the content lines, optionally highlighting the selected line.
-    /// When `highlight_style` is `None`, lines are built without selection styling
-    /// (used for counting). When `Some`, the selected line gets that style.
-    fn build_lines(&self, highlight_style: Option<Style>) -> Vec<Line<'_>> {
-        let mut lines: Vec<Line> = Vec::new();
-        let mut line_idx: usize = 0;
+    fn build_overview_lines(&self, _hl: Option<Style>) -> Vec<Line<'_>> {
+        let mut lines = vec![
+            Line::raw(""),
+            Line::from(vec![
+                Span::styled("  Description: ", self.theme.dimmed()),
+                Span::styled(&self.detail.description, self.theme.body()),
+            ]),
+            Line::raw(""),
+            Line::from(vec![
+                Span::styled("  Version:     ", self.theme.dimmed()),
+                Span::styled(&self.detail.version, self.theme.normal()),
+            ]),
+            Line::raw(""),
+        ];
 
-        for section in 0..SECTION_COUNT {
-            let (label, _count) = self.section_header_info(section);
-            let is_collapsed = self.collapsed.contains(&section);
-            let arrow = if is_collapsed { "▸" } else { "▾" };
-            let header_text = format!("  {} {}", arrow, label);
+        if !self.detail.extends.is_empty() {
+            lines.push(Line::from(vec![
+                Span::raw("  "),
+                Span::styled(
+                    SectionKind::Inheritance.icon(),
+                    Style::default().fg(self.theme.section_color(SectionKind::Inheritance)),
+                ),
+                Span::styled("  Extends: ", self.theme.dimmed()),
+                Span::styled(self.detail.extends.join(", "), self.theme.normal()),
+            ]));
+            lines.push(Line::raw(""));
+        }
 
-            let header_style =
-                if let Some(hl) = highlight_style.filter(|_| line_idx == self.selected) {
-                    hl
-                } else {
-                    self.theme.title_style()
-                };
-            lines.push(Line::from(Span::styled(header_text, header_style)));
-            line_idx += 1;
+        // Content breakdown
+        let sections = [
+            (SectionKind::Packages, self.detail.packages.len()),
+            (SectionKind::Files, self.detail.files.len()),
+            (SectionKind::Commands, self.detail.commands.len()),
+            (SectionKind::Fonts, self.detail.fonts.len()),
+            (SectionKind::Features, self.detail.features.len()),
+            (SectionKind::Environment, self.detail.environment.len()),
+            (SectionKind::Assertions, self.detail.assertions.len()),
+        ];
 
-            if !is_collapsed {
-                let items = self.section_items(section);
-                if items.is_empty() && section != 0 {
-                    // No items — nothing to show
-                } else {
-                    for item_text in &items {
-                        let item_style = if let Some(hl) =
-                            highlight_style.filter(|_| line_idx == self.selected)
-                        {
-                            hl
-                        } else {
-                            self.theme.normal()
-                        };
-                        lines.push(Line::from(Span::styled(
-                            format!("    {}", item_text),
-                            item_style,
-                        )));
-                        line_idx += 1;
-                    }
-                }
+        for (kind, count) in &sections {
+            if *count > 0 {
+                lines.push(Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        kind.icon(),
+                        Style::default().fg(self.theme.section_color(*kind)),
+                    ),
+                    Span::styled(
+                        format!("  {:12} {}", kind.label(), count),
+                        self.theme.normal(),
+                    ),
+                ]));
             }
         }
 
         lines
     }
 
-    /// Section header label and item count
-    fn section_header_info(&self, section: usize) -> (String, usize) {
-        match section {
-            0 => ("Inheritance".to_string(), self.detail.extends.len()),
-            1 => {
-                let n = self.detail.packages.len();
-                (format!("Packages ({})", n), n)
-            }
-            2 => {
-                let n = self.detail.files.len();
-                (format!("Files ({})", n), n)
-            }
-            3 => {
-                let n = self.detail.commands.len();
-                (format!("Commands ({})", n), n)
-            }
-            4 => {
-                let n = self.detail.assertions.len();
-                (format!("Assertions ({})", n), n)
-            }
-            _ => ("Unknown".to_string(), 0),
+    fn build_list_lines<'a>(
+        &'a self,
+        items: &'a [String],
+        highlight_style: Option<Style>,
+    ) -> Vec<Line<'a>> {
+        if items.is_empty() {
+            return vec![Line::styled("  No items", self.theme.dimmed())];
         }
+
+        // For the packages tab, render as table with columns
+        if self.active_tab == TAB_PACKAGES {
+            return self.build_package_table_lines(items, highlight_style);
+        }
+
+        items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
+                } else {
+                    self.theme.normal()
+                };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
+                Line::from(vec![
+                    if is_selected {
+                        Span::styled("▌", Style::default().fg(self.theme.accent))
+                    } else {
+                        Span::raw(" ")
+                    },
+                    Span::styled(format!(" {}", item), style.patch(bg)),
+                ])
+            })
+            .collect()
     }
 
-    /// Item strings for a section
-    fn section_items(&self, section: usize) -> Vec<String> {
-        match section {
-            0 => {
-                if self.detail.extends.is_empty() {
-                    vec!["None".to_string()]
+    /// Build package table rows with PACKAGE ID, VERSION, SOURCE columns
+    fn build_package_table_lines<'a>(
+        &'a self,
+        items: &'a [String],
+        highlight_style: Option<Style>,
+    ) -> Vec<Line<'a>> {
+        items
+            .iter()
+            .enumerate()
+            .map(|(i, item)| {
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let base_style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
                 } else {
-                    self.detail.extends.clone()
-                }
-            }
-            1 => self.detail.packages.clone(),
-            2 => self
-                .detail
-                .files
-                .iter()
-                .map(|f| format!("{} → {}", f.source, f.destination))
-                .collect(),
-            3 => self
-                .detail
-                .commands
-                .iter()
-                .map(|c| format!("[{}] {}", c.phase, c.name))
-                .collect(),
-            4 => self.detail.assertions.clone(),
-            _ => Vec::new(),
+                    self.theme.normal()
+                };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
+
+                // Package ID is the item text, version is "latest", source is "winget"
+                let id_width = 40usize;
+                let id_display = if item.len() > id_width {
+                    format!("{}…", &item[..id_width - 1])
+                } else {
+                    format!("{:<width$}", item, width = id_width)
+                };
+
+                Line::from(vec![
+                    if is_selected {
+                        Span::styled("▌", Style::default().fg(self.theme.accent))
+                    } else {
+                        Span::raw(" ")
+                    },
+                    Span::styled(format!(" {}", id_display), base_style.patch(bg)),
+                    Span::styled(
+                        format!("{:<12}", "latest"),
+                        self.theme.faint_style().patch(bg),
+                    ),
+                    Span::styled("winget", self.theme.faint_style().patch(bg)),
+                ])
+            })
+            .collect()
+    }
+
+    fn build_files_lines(&self, highlight_style: Option<Style>) -> Vec<Line<'_>> {
+        if self.detail.files.is_empty() {
+            return vec![Line::styled("  No files", self.theme.dimmed())];
         }
+        self.detail
+            .files
+            .iter()
+            .enumerate()
+            .map(|(i, f)| {
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
+                } else {
+                    self.theme.normal()
+                };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
+                let src = format!("{:<38}", f.source);
+                Line::from(vec![
+                    if is_selected {
+                        Span::styled("▌", Style::default().fg(self.theme.accent))
+                    } else {
+                        Span::raw(" ")
+                    },
+                    Span::styled(format!(" {}", src), style.patch(bg)),
+                    Span::styled(&f.destination, self.theme.faint_style().patch(bg)),
+                ])
+            })
+            .collect()
+    }
+
+    fn build_commands_lines(&self, highlight_style: Option<Style>) -> Vec<Line<'_>> {
+        if self.detail.commands.is_empty() {
+            return vec![Line::styled("  No commands", self.theme.dimmed())];
+        }
+        self.detail
+            .commands
+            .iter()
+            .enumerate()
+            .map(|(i, c)| {
+                let is_selected = i == self.selected && highlight_style.is_some();
+                let style = if is_selected {
+                    highlight_style.unwrap_or(self.theme.normal())
+                } else {
+                    self.theme.normal()
+                };
+                let bg = if is_selected {
+                    Style::default().bg(self.theme.bg_inset)
+                } else {
+                    Style::default()
+                };
+                let phase = format!("{:<12}", c.phase);
+                Line::from(vec![
+                    if is_selected {
+                        Span::styled("▌", Style::default().fg(self.theme.accent))
+                    } else {
+                        Span::raw(" ")
+                    },
+                    Span::styled(format!(" {}", phase), self.theme.faint_style().patch(bg)),
+                    Span::styled(&c.name, style.patch(bg)),
+                ])
+            })
+            .collect()
+    }
+
+    fn build_config_lines(&self, _hl: Option<Style>) -> Vec<Line<'_>> {
+        let mut lines = Vec::new();
+
+        // Fonts section
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                SectionKind::Fonts.icon(),
+                Style::default().fg(self.theme.section_color(SectionKind::Fonts)),
+            ),
+            Span::styled(
+                format!("  Fonts ({})", self.detail.fonts.len()),
+                self.theme.title_style(),
+            ),
+        ]));
+        for font in &self.detail.fonts {
+            lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(font.as_str(), self.theme.normal()),
+            ]));
+        }
+        if self.detail.fonts.is_empty() {
+            lines.push(Line::styled("    None", self.theme.dimmed()));
+        }
+        lines.push(Line::raw(""));
+
+        // Features section
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                SectionKind::Features.icon(),
+                Style::default().fg(self.theme.section_color(SectionKind::Features)),
+            ),
+            Span::styled(
+                format!("  Features ({})", self.detail.features.len()),
+                self.theme.title_style(),
+            ),
+        ]));
+        for feat in &self.detail.features {
+            lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(feat.as_str(), self.theme.normal()),
+            ]));
+        }
+        if self.detail.features.is_empty() {
+            lines.push(Line::styled("    None", self.theme.dimmed()));
+        }
+        lines.push(Line::raw(""));
+
+        // Environment section
+        lines.push(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(
+                SectionKind::Environment.icon(),
+                Style::default().fg(self.theme.section_color(SectionKind::Environment)),
+            ),
+            Span::styled(
+                format!("  Environment ({})", self.detail.environment.len()),
+                self.theme.title_style(),
+            ),
+        ]));
+        for env in &self.detail.environment {
+            lines.push(Line::from(vec![
+                Span::raw("    "),
+                Span::styled(env.as_str(), self.theme.normal()),
+            ]));
+        }
+        if self.detail.environment.is_empty() {
+            lines.push(Line::styled("    None", self.theme.dimmed()));
+        }
+
+        lines
     }
 
     /// Render the full view
@@ -254,59 +488,125 @@ impl DetailView {
         let area = frame.area();
 
         let chunks = Layout::vertical([
-            Constraint::Length(5), // header
+            Constraint::Length(1), // branded header with breadcrumb + version/source badges
+            Constraint::Length(1), // blank padding
+            Constraint::Length(1), // description
+            Constraint::Length(1), // path
+            Constraint::Length(1), // blank padding
+            Constraint::Length(1), // tabs
+            Constraint::Length(1), // hairline divider
             Constraint::Min(3),    // main content
             Constraint::Length(1), // key hints
         ])
         .split(area);
 
-        self.render_header(frame, chunks[0]);
-        self.render_main(frame, chunks[1]);
-        self.render_keyhints(frame, chunks[2]);
+        self.render_branded_header(frame, chunks[0]);
+        // chunks[1] is blank padding
+        self.render_description(frame, chunks[2]);
+        self.render_path(frame, chunks[3]);
+        // chunks[4] is blank padding
+        self.render_tabs(frame, chunks[5]);
+        self.render_divider(frame, chunks[6]);
+        self.render_main(frame, chunks[7]);
+        self.render_keyhints(frame, chunks[8]);
     }
 
-    /// Render the header block with workload name, version, description
-    fn render_header(&self, frame: &mut Frame, area: Rect) {
-        let title = format!(" Anvil — Workload: {} ", self.detail.name);
-        let block = Block::default()
-            .title(Span::styled(title, self.theme.title_style()))
-            .borders(Borders::ALL)
-            .border_style(self.theme.border_style());
+    /// Render the branded header bar with breadcrumb + right-aligned version/source badges
+    fn render_branded_header(&self, frame: &mut Frame, area: Rect) {
+        let source_label = "LOCAL";
+        let source_color = self.theme.success;
+        let version_text = format!("V{}", self.detail.version);
 
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
-
-        let lines = vec![
-            Line::from(Span::styled(
-                &self.detail.name,
-                Style::default()
-                    .fg(self.theme.fg)
-                    .add_modifier(Modifier::BOLD),
-            )),
-            Line::from(Span::styled(
-                format!("v{}", self.detail.version),
-                self.theme.dimmed(),
-            )),
-            Line::from(Span::styled(&self.detail.description, self.theme.normal())),
-        ];
-
-        let paragraph = Paragraph::new(lines);
-        frame.render_widget(paragraph, inner);
+        render_header(
+            frame,
+            area,
+            &self.theme,
+            &["Workloads", &self.detail.name],
+            Some(Line::from(vec![
+                Span::styled(&version_text, Style::default().fg(self.theme.faint)),
+                Span::raw("  "),
+                Span::styled(source_label, Style::default().fg(source_color)),
+            ])),
+        );
     }
 
-    /// Render the main content area with collapsible sections
+    /// Render the description line
+    fn render_description(&self, frame: &mut Frame, area: Rect) {
+        let para = Paragraph::new(Line::from(vec![
+            Span::raw("  "),
+            Span::styled(&self.detail.description, self.theme.body()),
+        ]));
+        frame.render_widget(para, area);
+    }
+
+    /// Render the path line
+    fn render_path(&self, frame: &mut Frame, area: Rect) {
+        let para = Paragraph::new(Line::from(vec![
+            Span::raw("  "),
+            Span::styled("Path: ", self.theme.faint_style()),
+            Span::styled(&self.detail.path, self.theme.running_style()),
+        ]));
+        frame.render_widget(para, area);
+    }
+
+    /// Render the tabs bar
+    fn render_tabs(&self, frame: &mut Frame, area: Rect) {
+        let titles = self.tab_titles();
+        let tabs = Tabs::new(titles)
+            .select(self.active_tab)
+            .style(self.theme.dimmed())
+            .highlight_style(self.theme.brand_style())
+            .divider(Span::raw("  "))
+            .padding("  ", "");
+        let padded = Rect {
+            x: area.x,
+            y: area.y,
+            width: area.width,
+            height: area.height,
+        };
+        frame.render_widget(tabs, padded);
+    }
+
+    /// Render a hairline divider
+    fn render_divider(&self, frame: &mut Frame, area: Rect) {
+        let divider_text = "─".repeat(area.width as usize);
+        frame.render_widget(
+            Paragraph::new(Line::from(Span::styled(
+                divider_text,
+                Style::default().fg(self.theme.hairline),
+            ))),
+            area,
+        );
+    }
+
+    /// Render the main content area for the active tab
     fn render_main(&self, frame: &mut Frame, area: Rect) {
-        let block = Block::default()
-            .borders(Borders::ALL)
-            .border_style(self.theme.border_style());
+        let highlight = self.theme.selection().bg(self.theme.bg_inset);
 
-        let inner = block.inner(area);
-        frame.render_widget(block, area);
+        // For Packages/Files/Commands/Assertions tabs, show column header + hairline + scrollable list
+        let has_column_header = matches!(
+            self.active_tab,
+            TAB_PACKAGES | TAB_FILES | TAB_COMMANDS | TAB_ASSERTIONS
+        );
 
-        let highlight = Style::default().bg(self.theme.accent).fg(Color::Black);
-        let lines = self.build_lines(Some(highlight));
+        let (header_area, content_area) = if has_column_header {
+            let parts = Layout::vertical([
+                Constraint::Length(1), // column header
+                Constraint::Length(1), // hairline
+                Constraint::Min(1),    // content
+            ])
+            .split(area);
+            self.render_column_header(frame, parts[0]);
+            self.render_divider(frame, parts[1]);
+            (Some(parts[0]), parts[2])
+        } else {
+            (None, area)
+        };
 
-        let visible_height = inner.height as usize;
+        let _ = header_area;
+
+        let lines = self.build_tab_lines(Some(highlight));
+        let visible_height = content_area.height as usize;
         let total = lines.len();
         let max_scroll = total.saturating_sub(visible_height);
 
@@ -327,59 +627,114 @@ impl DetailView {
             .collect();
 
         let paragraph = Paragraph::new(visible_lines);
-        frame.render_widget(paragraph, inner);
+        frame.render_widget(paragraph, content_area);
 
         // Scrollbar
         if max_scroll > 0 {
             let scrollbar = Scrollbar::new(ScrollbarOrientation::VerticalRight);
             let mut scrollbar_state = ScrollbarState::new(max_scroll).position(scroll);
-            frame.render_stateful_widget(scrollbar, area, &mut scrollbar_state);
+            frame.render_stateful_widget(scrollbar, content_area, &mut scrollbar_state);
         }
+    }
+
+    /// Render column headers for table-style tabs
+    fn render_column_header(&self, frame: &mut Frame, area: Rect) {
+        let header_style = self.theme.label_style();
+        let line = match self.active_tab {
+            TAB_PACKAGES => {
+                let id_width = (area.width as usize).saturating_sub(30);
+                Line::from(vec![
+                    Span::raw("  "),
+                    Span::styled(
+                        format!("{:<width$}", "PACKAGE ID", width = id_width),
+                        header_style,
+                    ),
+                    Span::styled(format!("{:<12}", "VERSION"), header_style),
+                    Span::styled("SOURCE", header_style),
+                ])
+            }
+            TAB_FILES => Line::from(vec![
+                Span::raw("  "),
+                Span::styled(format!("{:<40}", "SOURCE"), header_style),
+                Span::styled("DESTINATION", header_style),
+            ]),
+            TAB_COMMANDS => Line::from(vec![
+                Span::raw("  "),
+                Span::styled(format!("{:<14}", "PHASE"), header_style),
+                Span::styled("NAME", header_style),
+            ]),
+            TAB_ASSERTIONS => Line::from(vec![
+                Span::raw("  "),
+                Span::styled("ASSERTION", header_style),
+            ]),
+            _ => Line::raw(""),
+        };
+        frame.render_widget(Paragraph::new(line), area);
     }
 
     /// Render the key hints bar
     fn render_keyhints(&self, frame: &mut Frame, area: Rect) {
         let hints = vec![
             KeyHint {
-                key: "↑/↓",
+                key: "↑↓",
                 desc: "navigate",
             },
             KeyHint {
-                key: "Enter",
-                desc: "toggle",
+                key: "←→",
+                desc: "tabs",
             },
             KeyHint {
-                key: "q",
-                desc: "quit",
+                key: "↵",
+                desc: "expand",
+            },
+            KeyHint {
+                key: "i",
+                desc: "install",
+            },
+            KeyHint {
+                key: "d",
+                desc: "dry-run",
+            },
+            KeyHint {
+                key: "e",
+                desc: "edit yaml",
+            },
+            KeyHint {
+                key: "Esc",
+                desc: "back",
             },
         ];
 
         render_keyhints(frame, area, &hints, &self.theme);
     }
+
+    /// Run the detail view event loop using an existing TUI session.
+    pub fn run(&mut self, tui: &mut Tui) -> anyhow::Result<DetailOutcome> {
+        let tick_rate = Duration::from_millis(100);
+
+        loop {
+            tui.draw(|f| self.render(f))?;
+
+            if let Some(Event::Key(key)) = tui.poll_event(tick_rate)? {
+                self.handle_key(key);
+
+                if self.should_quit() {
+                    break;
+                }
+            }
+        }
+
+        Ok(self.outcome())
+    }
 }
 
 /// Run the interactive detail view event loop
-#[allow(dead_code)]
-pub fn run_detail_view(detail: WorkloadDetail) -> anyhow::Result<()> {
+pub fn run_detail_view(detail: WorkloadDetail) -> anyhow::Result<DetailOutcome> {
     let mut tui = Tui::new()?;
     let mut view = DetailView::new(detail);
-
-    let tick_rate = Duration::from_millis(100);
-
-    loop {
-        tui.draw(|f| view.render(f))?;
-
-        if let Some(Event::Key(key)) = tui.poll_event(tick_rate)? {
-            view.handle_key(key);
-
-            if view.should_quit() {
-                break;
-            }
-        }
-    }
-
+    let outcome = view.run(&mut tui)?;
     tui.restore()?;
-    Ok(())
+    Ok(outcome)
 }
 
 #[cfg(test)]
@@ -402,6 +757,10 @@ mod tests {
                 phase: "post_install".to_string(),
             }],
             assertions: vec!["git is installed".to_string()],
+            fonts: vec!["Cascadia Code NF v2407.24".to_string()],
+            features: vec!["Windows Sudo (registry_toggle)".to_string()],
+            environment: vec!["GIT_EDITOR=code --wait".to_string()],
+            path: "/workloads/test-workload/workload.yaml".to_string(),
         }
     }
 
@@ -409,15 +768,15 @@ mod tests {
     fn test_detail_initial_state() {
         let view = DetailView::new(sample_detail());
         assert_eq!(view.selected, 0);
-        assert!(view.collapsed.is_empty());
+        assert_eq!(view.active_tab, TAB_OVERVIEW);
         assert!(!view.should_quit());
-        assert!(view.total_lines() > 0);
+        assert!(view.tab_content_lines() > 0);
     }
 
     #[test]
     fn test_detail_navigation() {
         let mut view = DetailView::new(sample_detail());
-        let max = view.total_lines().saturating_sub(1);
+        let max = view.tab_content_lines().saturating_sub(1);
 
         // Move down
         view.handle_key(KeyEvent::new(KeyCode::Down, KeyModifiers::NONE));
@@ -447,23 +806,36 @@ mod tests {
     }
 
     #[test]
-    fn test_detail_toggle_section() {
+    fn test_detail_tab_switching() {
         let mut view = DetailView::new(sample_detail());
-        let initial_lines = view.total_lines();
+        assert_eq!(view.active_tab, TAB_OVERVIEW);
 
-        // Selected line 0 is the first section header (Inheritance)
-        assert_eq!(view.selected, 0);
-        assert!(!view.collapsed.contains(&0));
+        // Move right to Packages tab
+        view.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+        assert_eq!(view.active_tab, TAB_PACKAGES);
+        assert_eq!(view.selected, 0); // reset on tab change
 
-        // Toggle collapse
-        view.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert!(view.collapsed.contains(&0));
-        assert!(view.total_lines() < initial_lines);
+        // Move right to Files tab
+        view.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+        assert_eq!(view.active_tab, TAB_FILES);
 
-        // Toggle expand
-        view.handle_key(KeyEvent::new(KeyCode::Enter, KeyModifiers::NONE));
-        assert!(!view.collapsed.contains(&0));
-        assert_eq!(view.total_lines(), initial_lines);
+        // Move left back to Packages
+        view.handle_key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+        assert_eq!(view.active_tab, TAB_PACKAGES);
+
+        // Move left back to Overview
+        view.handle_key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+        assert_eq!(view.active_tab, TAB_OVERVIEW);
+
+        // Can't go below 0
+        view.handle_key(KeyEvent::new(KeyCode::Left, KeyModifiers::NONE));
+        assert_eq!(view.active_tab, TAB_OVERVIEW);
+
+        // Navigate to last tab
+        for _ in 0..TAB_COUNT + 2 {
+            view.handle_key(KeyEvent::new(KeyCode::Right, KeyModifiers::NONE));
+        }
+        assert_eq!(view.active_tab, TAB_COUNT - 1);
     }
 
     #[test]
@@ -474,11 +846,55 @@ mod tests {
         assert!(!view.should_quit());
         view.handle_key(KeyEvent::new(KeyCode::Char('q'), KeyModifiers::NONE));
         assert!(view.should_quit());
+        assert_eq!(view.outcome(), DetailOutcome::Quit);
 
         // Ctrl+C also quits
         let mut view2 = DetailView::new(sample_detail());
         assert!(!view2.should_quit());
         view2.handle_key(KeyEvent::new(KeyCode::Char('c'), KeyModifiers::CONTROL));
         assert!(view2.should_quit());
+        assert_eq!(view2.outcome(), DetailOutcome::Quit);
+
+        // Esc goes back
+        let mut view3 = DetailView::new(sample_detail());
+        assert!(!view3.should_quit());
+        view3.handle_key(KeyEvent::new(KeyCode::Esc, KeyModifiers::NONE));
+        assert!(view3.should_quit());
+        assert_eq!(view3.outcome(), DetailOutcome::Back);
+
+        // Backspace also goes back
+        let mut view4 = DetailView::new(sample_detail());
+        view4.handle_key(KeyEvent::new(KeyCode::Backspace, KeyModifiers::NONE));
+        assert_eq!(view4.outcome(), DetailOutcome::Back);
+    }
+
+    #[test]
+    fn test_detail_install_key() {
+        let mut view = DetailView::new(sample_detail());
+
+        view.handle_key(KeyEvent::new(KeyCode::Char('i'), KeyModifiers::NONE));
+        assert!(view.should_quit());
+        assert_eq!(
+            view.outcome(),
+            DetailOutcome::Install(
+                "test-workload".to_string(),
+                "/workloads/test-workload/workload.yaml".to_string(),
+            )
+        );
+    }
+
+    #[test]
+    fn test_detail_dryrun_key() {
+        let mut view = DetailView::new(sample_detail());
+
+        view.handle_key(KeyEvent::new(KeyCode::Char('d'), KeyModifiers::NONE));
+        assert!(view.should_quit());
+        assert_eq!(
+            view.outcome(),
+            DetailOutcome::DryRun(
+                "test-workload".to_string(),
+                "/workloads/test-workload/workload.yaml".to_string(),
+            )
+        );
     }
 }

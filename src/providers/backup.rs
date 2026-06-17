@@ -532,7 +532,10 @@ pub fn compute_file_hash(path: &Path) -> BackupResult<String> {
     }
 
     let hash = hasher.finalize();
-    Ok(format!("sha256:{:x}", hash))
+    Ok(format!(
+        "sha256:{}",
+        hash.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    ))
 }
 
 /// Format a size in bytes for human display

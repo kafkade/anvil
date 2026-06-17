@@ -1768,7 +1768,11 @@ fn process_template_file(
     use sha2::{Digest, Sha256};
     let mut hasher = Sha256::new();
     hasher.update(rendered.as_bytes());
-    let rendered_hash = format!("sha256:{:x}", hasher.finalize());
+    let hash = hasher.finalize();
+    let rendered_hash = format!(
+        "sha256:{}",
+        hash.iter().map(|b| format!("{b:02x}")).collect::<String>()
+    );
 
     // Check if destination exists and is identical
     if destination.exists() {

@@ -1078,12 +1078,12 @@ mod global_flags {
     }
 
     #[test]
-    fn no_args_shows_help() {
-        // With arg_required_else_help, no args should show help
+    fn no_args_shows_workload_browser() {
+        // With no subcommand in a non-TTY test context, falls back to help
         anvil()
             .assert()
-            .failure()
-            .stderr(predicate::str::contains("Usage").or(predicate::str::contains("Commands")));
+            .success()
+            .stdout(predicate::str::contains("Usage").or(predicate::str::contains("Commands")));
     }
 }
 
