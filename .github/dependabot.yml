@@ -25,3 +25,8 @@ updates:
       - "ci"
       - "dependencies"
     open-pull-requests-limit: 5
+    ignore:
+      # dtolnay/rust-toolchain@<ver> pins the *Rust toolchain* version (e.g. the
+      # MSRV check uses @1.75), not the action release. Dependabot misreads this
+      # as an action tag and proposes nonexistent Rust versions, so ignore it.
+      - dependency-name: "dtolnay/rust-toolchain"
