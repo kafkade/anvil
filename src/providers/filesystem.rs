@@ -833,7 +833,10 @@ impl FilesystemProvider {
         }
 
         let hash = hasher.finalize();
-        Ok(format!("sha256:{:x}", hash))
+        Ok(format!(
+            "sha256:{}",
+            hash.iter().map(|b| format!("{b:02x}")).collect::<String>()
+        ))
     }
 
     /// Compare two files by their content hash
