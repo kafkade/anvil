@@ -50,7 +50,7 @@ ratatui = "0.30"
 crossterm = "0.29"
 
 # File operations
-sha2 = "0.10"
+sha2 = "0.11"
 dirs = "6"
 glob = "0.3"
 walkdir = "2"
