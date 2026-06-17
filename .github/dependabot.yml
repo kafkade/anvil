@@ -12,6 +12,10 @@ updates:
     labels:
       - "dependencies"
     open-pull-requests-limit: 10
+    groups:
+      cargo:
+        patterns:
+          - "*"
 
   # GitHub Actions
   - package-ecosystem: "github-actions"
@@ -30,3 +34,7 @@ updates:
       # MSRV check uses @1.75), not the action release. Dependabot misreads this
       # as an action tag and proposes nonexistent Rust versions, so ignore it.
       - dependency-name: "dtolnay/rust-toolchain"
+    groups:
+      github-actions:
+        patterns:
+          - "*"
